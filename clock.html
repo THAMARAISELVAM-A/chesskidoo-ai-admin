@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Clock</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f4;
+        }
+        .clock {
+            font-size: 2em;
+        }
+    </style>
+</head>
+<body>
+    <div class="clock">
+        <div id="time-IST"></div>
+        <div id="time-UTC"></div>
+        <div id="time-EST"></div>
+        <div id="time-PST"></div>
+        <div id="time-CST"></div>
+    </div>
+    <script>
+        function updateClock() {
+            const options = { timeZone: 'Asia/Kolkata', hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+            document.getElementById('time-IST').innerText = 'IST: ' + new Intl.DateTimeFormat('en-US', options).format(new Date());
+
+            options.timeZone = 'UTC';
+            document.getElementById('time-UTC').innerText = 'UTC: ' + new Intl.DateTimeFormat('en-US', options).format(new Date());
+
+            options.timeZone = 'America/New_York';
+            document.getElementById('time-EST').innerText = 'EST: ' + new Intl.DateTimeFormat('en-US', options).format(new Date());
+
+            options.timeZone = 'America/Los_Angeles';
+            document.getElementById('time-PST').innerText = 'PST: ' + new Intl.DateTimeFormat('en-US', options).format(new Date());
+
+            options.timeZone = 'America/Chicago';
+            document.getElementById('time-CST').innerText = 'CST: ' + new Intl.DateTimeFormat('en-US', options).format(new Date());
+        }
+        
+        setInterval(updateClock, 1000);
+        updateClock();
+    </script>
+</body>
+</html>
