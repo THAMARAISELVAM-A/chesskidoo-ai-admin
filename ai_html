@@ -1,53 +1,16 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chesskidoo AI Admin</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f4f4f4;
-            transition: background-color 0.3s;
-        }
-        h1, h2, h3 {
-            color: #333;
-        }
-        .dark-theme {
-            background-color: #333;
-            color: #f4f4f4;
-        }
-        .theme-toggle {
-            margin: 20px 0;
-        }
-        button {
-            padding: 10px 15px;
-            cursor: pointer;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-        }
-    </style>
-</head>
-<body aria-label="Main Content">
-    <div class="theme-toggle">
-        <button id="toggleTheme">Toggle Light/Dark Theme</button>
-    </div>
-    <h1>Welcome to Chesskidoo AI Admin</h1>
-    <h2>Student List</h2>
-    <ul>
-        <li>Rahul Gupta</li>
-        <li>Priya Sharma</li>
-        <li>Aditi Mehta</li>
-        <li>Virat Singh</li>
-    </ul>
-    <script>
-        const toggleButton = document.getElementById('toggleTheme');
-        toggleButton.onclick = function() {
-            document.body.classList.toggle('dark-theme');
-        };
-    </script>
-</body>
-</html>
+# Knight's Edge Chess Academy Admin Console
+
+## Features:
+- **Light/Dark Theme Toggle**: Easily switch between light and dark modes to suit user preferences.
+- **Student Management**: A comprehensive dashboard to manage student records including enrollment, progress tracking, and communication.
+- **Billing Dashboard**: Keep track of payments, invoicing, and financial reports for students.
+- **AI Assistant Chat**: Integrate an AI assistant to provide real-time assistance for users navigating the console.
+- **Game Analyzer**: Tools that analyze game performances and suggest improvements to students.
+- **Training Plans**: Personalized training modules based on individual student performance and goals.
+- **Indian Student Names**: Include a variety of Indian names for user-friendly interactions.
+- **Indian Rupees Currency (₹)**: All financial transactions will reflect the Indian Rupee currency.
+- **Accessibility Features**: Ensure compatibility with screen readers and provide ARIA labels for improved accessibility.
+- **Responsive Design**: Fully responsive layout to optimize experience across devices.
+
+## Notes:
+- This admin console aims to improve the overall management and learning experience for students enrolled in Knight's Edge Chess Academy.
