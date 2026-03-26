@@ -3,51 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chesskidoo AI Admin Dashboard</title>
+    <title>Chess Academy Admin Console</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <header>
-        <h1>Chesskidoo AI Admin Dashboard</h1>
-        <nav>
-            <ul>
-                <li><a href="#students">Students</a></li>
-                <li><a href="#coaches">Coaches</a></li>
-                <li><a href="#settings">Settings</a></li>
-            </ul>
-        </nav>
+        <h1>Chess Academy Admin Console</h1>
+        <div>
+            <label>
+                <input type="checkbox" id="theme-toggle"> Toggle Light/Dark Theme
+            </label>
+        </div>
     </header>
     <main>
-        <section id="students">
-            <h2>Indian Students</h2>
-            <ul>
-                <li>Rahul Sharma</li>
-                <li>Aisha Khan</li>
-                <li>Vikram Singh</li>
-                <li>Anjali Patel</li>
-                <li>Devi Iyer</li>
-            </ul>
+        <section id="student-management">
+            <h2>Student Management</h2>
+            <div id="students-list">
+                <!-- List of Indian students will be displayed here -->
+            </div>
         </section>
-        <section id="coaches">
-            <h2>Indian Coaches</h2>
-            <ul>
-                <li>Coach Raghav</li>
-                <li>Coach Priya</li>
-                <li>Coach Arjun</li>
-            </ul>
+        <section id="billing-dashboard">
+            <h2>Billing Dashboard</h2>
+            <div id="billing-summary">
+                <!-- Billing summary will be displayed here -->
+            </div>
         </section>
-        <section id="financials">
-            <h2>Financial Overview</h2>
-            <p>Total Revenue: <strong>₹10,000</strong></p>
-            <p>Monthly Subscription Fee: <strong>₹300</strong></p>
+        <section id="ai-assistant">
+            <h2>AI Assistant</h2>
+            <div id="assistant-interface">
+                <!-- AI assistant features will be here -->
+            </div>
         </section>
-        <section id="api-integration">
-            <h2>OpenAI API Integration</h2>
-            <p>The system integrates with OpenAI API for enhanced AI capabilities.</p>
+        <section id="game-analyzer">
+            <h2>Game Analyzer</h2>
+            <div id="analyzing-tools">
+                <!-- Game analysis tools will be here -->
+            </div>
+        </section>
+        <section id="training-plans">
+            <h2>Training Plans</h2>
+            <div id="plans-list">
+                <!-- Training plans will be listed here -->
+            </div>
         </section>
     </main>
     <footer>
-        <p>&copy; 2026 Chesskidoo AI. All rights reserved.</p>
+        <p>All rights reserved © Chess Academy</p>
     </footer>
+    <script src="scripts.js"></script>
 </body>
 </html>
