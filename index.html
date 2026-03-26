@@ -1,55 +1,426 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chess Academy Admin Console</title>
-    <link rel="stylesheet" href="styles.css">
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Chesskidoo — AI Admin Console</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  /* Dark Theme (Default) */
+  --bg: #0e0e10;
+  --bg2: #16161a;
+  --bg3: #1e1e24;
+  --bg4: #26262e;
+  --gold: #c9a84c;
+  --gold2: #e8cc7a;
+  --gold3: #8a6c2a;
+  --ivory: #f0ead6;
+  --ivory2: #c8c0a8;
+  --ivory3: #7a7468;
+  --accent: #4a9eff;
+  --success: #4caf7d;
+  --warning: #e0a020;
+  --danger: #e05555;
+  --border: rgba(201,168,76,0.15);
+  --border2: rgba(201,168,76,0.08);
+  --radius: 10px;
+  --radius-lg: 14px;
+  --font-head: 'Playfair Display', Georgia, serif;
+  --font-body: 'DM Sans', sans-serif;
+  --sidebar-w: 220px;
+  --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Light Theme Overrides */
+[data-theme="light"] {
+  --bg: #f8f9fa;
+  --bg2: #ffffff;
+  --bg3: #f1f3f5;
+  --bg4: #e9ecef;
+  --ivory: #1a1a1a;
+  --ivory2: #495057;
+  --ivory3: #868e96;
+  --border: rgba(138, 108, 42, 0.1);
+  --border2: rgba(0, 0, 0, 0.05);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--ivory); font-family: var(--font-body); min-height: 100vh; display: flex; overflow-x: hidden; transition: background var(--transition), color var(--transition); }
+
+/* Sidebar */
+.sidebar {
+  width: var(--sidebar-w); min-height: 100vh; background: var(--bg2);
+  border-right: 1px solid var(--border); display: flex; flex-direction: column;
+  position: fixed; top: 0; left: 0; z-index: 100; transition: background var(--transition);
+}
+.sidebar-logo {
+  padding: 22px 18px; border-bottom: 1px solid var(--border2);
+  display: flex; align-items: center; gap: 10px;
+}
+.logo-mark {
+  width: 34px; height: 34px; background: var(--gold); border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; font-size: 18px; color: #000;
+}
+.logo-name { font-family: var(--font-head); font-size: 16px; color: var(--gold2); font-weight: 700; }
+
+.nav-item {
+  display: flex; align-items: center; gap: 12px; padding: 12px 18px; margin: 4px 10px;
+  border-radius: var(--radius); cursor: pointer; transition: all var(--transition);
+  font-size: 14px; color: var(--ivory2);
+}
+.nav-item:hover, .nav-item.active { background: var(--bg3); color: var(--gold2); }
+
+/* Theme Toggle Button */
+.theme-toggle {
+  margin: auto 15px 20px; padding: 10px;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  cursor: pointer; background: var(--bg3); color: var(--ivory);
+  font-size: 12px; font-weight: 500; transition: all var(--transition);
+}
+.theme-toggle:hover { border-color: var(--gold); }
+
+/* Main Content */
+.main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
+.topbar {
+  background: var(--bg2); border-bottom: 1px solid var(--border2);
+  padding: 18px 28px; display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 50; transition: background var(--transition);
+}
+.page-title { font-family: var(--font-head); font-size: 22px; color: var(--ivory); }
+
+.content { padding: 28px; }
+
+/* Stats & Cards */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 28px; }
+.stat-card {
+  background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius-lg);
+  padding: 20px; transition: transform 0.2s, background var(--transition);
+}
+.stat-card:hover { transform: translateY(-3px); }
+.stat-label { font-size: 12px; color: var(--ivory3); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px; }
+.stat-value { font-size: 26px; font-weight: 700; color: var(--gold2); }
+
+/* Tables */
+.table-wrap { background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius-lg); overflow: hidden; }
+table { width: 100%; border-collapse: collapse; }
+th { background: var(--bg3); color: var(--ivory3); padding: 14px; text-align: left; font-size: 12px; text-transform: uppercase; }
+td { padding: 14px; border-bottom: 1px solid var(--border2); color: var(--ivory2); font-size: 14px; }
+
+/* Buttons */
+.btn { padding: 10px 20px; border-radius: var(--radius); border: none; cursor: pointer; font-weight: 600; transition: 0.2s; }
+.btn-primary { background: var(--gold); color: #000; }
+.btn-primary:hover { background: var(--gold2); box-shadow: 0 4px 12px rgba(201, 168, 76, 0.3); }
+
+/* Pages */
+.page { display: none; }
+.page.active { display: block; animation: fadeIn 0.4s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Chat UI */
+.chat-wrap { height: 450px; display: flex; flex-direction: column; background: var(--bg3); border-radius: var(--radius); padding: 15px; }
+.chat-messages { flex: 1; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 10px; }
+.msg-bubble { max-width: 80%; padding: 10px 15px; border-radius: 15px; font-size: 14px; line-height: 1.5; }
+.msg.ai .msg-bubble { background: var(--bg2); align-self: flex-start; border: 1px solid var(--border2); }
+.msg.user .msg-bubble { background: var(--gold); color: #000; align-self: flex-end; }
+input[type="text"] { flex: 1; padding: 12px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg2); color: var(--ivory); outline: none; }
+
+.toast { position: fixed; bottom: 30px; right: 30px; background: var(--gold); color: #000; padding: 12px 24px; border-radius: var(--radius); font-weight: 600; display: none; z-index: 1000; }
+</style>
 </head>
-<body>
-    <header>
-        <h1>Chess Academy Admin Console</h1>
-        <div>
-            <label>
-                <input type="checkbox" id="theme-toggle"> Toggle Light/Dark Theme
-            </label>
+<body data-theme="dark">
+
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">♚</div>
+    <div class="logo-name">Chesskidoo</div>
+  </div>
+  
+  <div style="margin-top: 20px;">
+    <div class="nav-item active" onclick="nav('dashboard')">Dashboard</div>
+    <div class="nav-item" onclick="nav('students')">Students</div>
+    <div class="nav-item" onclick="nav('billing')">Billing & Fees</div>
+    <div class="nav-item" onclick="nav('assistant')">AI Coach</div>
+  </div>
+
+  <div class="theme-toggle" onclick="toggleTheme()">
+    <span id="theme-icon">☀️</span>
+    <span id="theme-text">Switch to Light Mode</span>
+  </div>
+</nav>
+
+<div class="main">
+  <div class="topbar">
+    <div class="page-title" id="page-title">Academy Dashboard</div>
+    <button class="btn btn-primary" onclick="openAddStudent()">+ Enroll Student</button>
+  </div>
+
+  <div class="content">
+    <div class="page active" id="page-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Active Students</div>
+          <div class="stat-value" id="stat-total">0</div>
         </div>
-    </header>
-    <main>
-        <section id="student-management">
-            <h2>Student Management</h2>
-            <div id="students-list">
-                <!-- List of Indian students will be displayed here -->
-            </div>
-        </section>
-        <section id="billing-dashboard">
-            <h2>Billing Dashboard</h2>
-            <div id="billing-summary">
-                <!-- Billing summary will be displayed here -->
-            </div>
-        </section>
-        <section id="ai-assistant">
-            <h2>AI Assistant</h2>
-            <div id="assistant-interface">
-                <!-- AI assistant features will be here -->
-            </div>
-        </section>
-        <section id="game-analyzer">
-            <h2>Game Analyzer</h2>
-            <div id="analyzing-tools">
-                <!-- Game analysis tools will be here -->
-            </div>
-        </section>
-        <section id="training-plans">
-            <h2>Training Plans</h2>
-            <div id="plans-list">
-                <!-- Training plans will be listed here -->
-            </div>
-        </section>
-    </main>
-    <footer>
-        <p>All rights reserved © Chess Academy</p>
-    </footer>
-    <script src="scripts.js"></script>
+        <div class="stat-card">
+          <div class="stat-label">Average ELO Rating</div>
+          <div class="stat-value" id="stat-elo">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Monthly Revenue</div>
+          <div class="stat-value" id="stat-rev">₹0</div>
+        </div>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 25px;">
+        <div class="table-wrap" style="padding: 20px;">
+          <h3 style="margin-bottom: 15px; font-family: var(--font-head);">Top Performers</h3>
+          <canvas id="eloChart" height="150"></canvas>
+        </div>
+        <div class="stat-card">
+          <h3 style="margin-bottom: 15px; font-family: var(--font-head); font-size: 16px;">Coach Distribution</h3>
+          <canvas id="coachChart" height="250"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-students">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Student Name</th><th>Level</th><th>Current ELO</th><th>Primary Coach</th><th>Status</th></tr>
+          </thead>
+          <tbody id="students-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="page" id="page-billing">
+       <div class="table-wrap">
+          <table>
+             <thead><tr><th>Invoice ID</th><th>Student</th><th>Fee Amount</th><th>Payment Status</th></tr></thead>
+             <tbody id="billing-tbody"></tbody>
+          </table>
+       </div>
+    </div>
+
+    <div class="page" id="page-assistant">
+      <div class="chat-wrap">
+        <div class="chat-messages" id="chat-messages"></div>
+        <div style="display:flex; gap:10px;">
+          <input type="text" id="chat-input" placeholder="Ask Chesskidoo AI about student progress..." onkeydown="if(event.key==='Enter')sendChat()"/>
+          <button class="btn btn-primary" onclick="sendChat()">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="student-modal" style="display:none" onclick="if(event.target==this)closeModal('student-modal')">
+  <div class="modal-box">
+    <h2 style="margin-bottom: 20px; font-family: var(--font-head); color: var(--gold2);">Enroll New Student</h2>
+    <div class="form-row"><label class="form-label">Full Name</label><input type="text" id="m-name"></div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+        <div class="form-row"><label class="form-label">Starting ELO</label><input type="number" id="m-elo" value="400"></div>
+        <div class="form-row">
+            <label class="form-label">Skill Level</label>
+            <select id="m-level"><option>Beginner</option><option>Intermediate</option><option>Advanced</option></select>
+        </div>
+    </div>
+    <div class="form-row">
+        <label class="form-label">Assign Coach</label>
+        <select id="m-coach">
+            <option>GM Viswanathan</option>
+            <option>Coach Praggnanandhaa</option>
+            <option>Sensei Vidit</option>
+        </select>
+    </div>
+    <div class="form-row"><label class="form-label">Monthly Fee (₹)</label><input type="number" id="m-fee" value="5000"></div>
+    <div style="display:flex; gap:10px; justify-content:flex-end; margin-top: 20px;">
+      <button class="btn btn-ghost" onclick="closeModal('student-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveStudent()">Enroll Now</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let students = [
+  {id:1, name:'Arjun Mehta', level:'Elite', elo:2450, coach:'GM Viswanathan', payment:'Paid', fee:12000},
+  {id:2, name:'Ananya Iyer', level:'Elite', elo:2100, coach:'GM Viswanathan', payment:'Paid', fee:12000},
+  {id:3, name:'Vihaan Sharma', level:'Advanced', elo:1850, coach:'Sensei Vidit', payment:'Overdue', fee:8000},
+  {id:4, name:'Ishaan Gupta', level:'Intermediate', elo:1400, coach:'Coach Praggnanandhaa', payment:'Paid', fee:6000},
+  {id:5, name:'Saanvi Reddy', level:'Beginner', elo:900, coach:'Coach Praggnanandhaa', payment:'Due', fee:5000}
+];
+
+let charts = {};
+
+function toggleTheme() {
+    const body = document.body;
+    const currentTheme = body.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    body.setAttribute('data-theme', newTheme);
+    
+    document.getElementById('theme-icon').innerText = newTheme === 'dark' ? '☀️' : '🌙';
+    document.getElementById('theme-text').innerText = newTheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+    
+    // Refresh charts to match new theme colors
+    initCharts();
+}
+
+function nav(page) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  
+  const navItems = document.querySelectorAll('.nav-item');
+  navItems.forEach(item => {
+      if(item.innerText.toLowerCase().includes(page)) item.classList.add('active');
+  });
+
+  if(page === 'students') renderStudents();
+  if(page === 'billing') renderBilling();
+  document.getElementById('page-title').innerText = page.charAt(0).toUpperCase() + page.slice(1) + " Overview";
+}
+
+function renderStudents() {
+  const tbody = document.getElementById('students-tbody');
+  tbody.innerHTML = students.map(s => `
+    <tr>
+      <td style="font-weight:600; color:var(--ivory);">${s.name}</td>
+      <td><span style="color:var(--gold); font-size:12px; font-weight:bold;">${s.level.toUpperCase()}</span></td>
+      <td style="font-family:'DM Mono'">${s.elo}</td>
+      <td>${s.coach}</td>
+      <td><span style="color:${s.payment==='Paid'?'var(--success)':'var(--danger)'}">${s.payment}</span></td>
+    </tr>`).join('');
+}
+
+function renderBilling() {
+  const tbody = document.getElementById('billing-tbody');
+  tbody.innerHTML = students.map(s => `
+    <tr>
+      <td style="font-family:'DM Mono'; opacity:0.7;">#CKD-${1000+s.id}</td>
+      <td style="color:var(--ivory);">${s.name}</td>
+      <td style="font-weight:bold;">₹${s.fee.toLocaleString('en-IN')}</td>
+      <td><span class="btn" style="background:var(--bg3); font-size:11px; padding:4px 10px;">${s.payment}</span></td>
+    </tr>`).join('');
+}
+
+function updateStats() {
+  document.getElementById('stat-total').innerText = students.length;
+  const avg = Math.round(students.reduce((a,b)=>a+b.elo,0)/students.length);
+  document.getElementById('stat-elo').innerText = avg;
+  const rev = students.filter(s=>s.payment==='Paid').reduce((a,b)=>a+b.fee,0);
+  document.getElementById('stat-rev').innerText = '₹' + rev.toLocaleString('en-IN');
+}
+
+function openAddStudent() { document.getElementById('student-modal').style.display='flex'; }
+function closeModal(id) { document.getElementById(id).style.display='none'; }
+
+function saveStudent() {
+  const name = document.getElementById('m-name').value;
+  if(!name) return;
+  students.push({
+    id: students.length + 1,
+    name: name,
+    elo: parseInt(document.getElementById('m-elo').value),
+    level: document.getElementById('m-level').value,
+    coach: document.getElementById('m-coach').value,
+    fee: parseInt(document.getElementById('m-fee').value),
+    payment: 'Due'
+  });
+  closeModal('student-modal');
+  renderStudents();
+  updateStats();
+  initCharts();
+  showToast("New student successfully enrolled in Chesskidoo!");
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.innerText = msg; t.style.display='block';
+  setTimeout(()=>t.style.display='none', 4000);
+}
+
+function sendChat() {
+  const input = document.getElementById('chat-input');
+  if(!input.value) return;
+  addMsg('user', input.value);
+  const val = input.value.toLowerCase();
+  input.value = '';
+  
+  setTimeout(() => {
+    let response = "I'm analyzing the Chesskidoo training database. ";
+    if(val.includes('arjun')) response += "Arjun Mehta is ready for GM-level puzzles.";
+    else if(val.includes('fee')) response += "Currently, 2 students have pending fees.";
+    else response += "How can I assist with the current Indian batch today?";
+    addMsg('ai', response);
+  }, 800);
+}
+
+function addMsg(role, text) {
+  const container = document.getElementById('chat-messages');
+  const el = document.createElement('div');
+  el.className = `msg ${role}`;
+  el.innerHTML = `<div class="msg-bubble">${text}</div>`;
+  container.appendChild(el);
+  container.scrollTop = container.scrollHeight;
+}
+
+function initCharts() {
+  const isLight = document.body.getAttribute('data-theme') === 'light';
+  const textColor = isLight ? '#495057' : '#c8c0a8';
+
+  if(charts.elo) charts.elo.destroy();
+  if(charts.coach) charts.coach.destroy();
+
+  const eloCtx = document.getElementById('eloChart').getContext('2d');
+  charts.elo = new Chart(eloCtx, {
+    type: 'bar',
+    data: {
+      labels: students.map(s => s.name.split(' ')[0]),
+      datasets: [{ 
+          label: 'ELO Rating', 
+          data: students.map(s => s.elo), 
+          backgroundColor: '#c9a84c',
+          borderRadius: 5
+      }]
+    },
+    options: { 
+        plugins: { legend: { display: false } },
+        scales: { 
+            y: { ticks: { color: textColor }, grid: { display: false } },
+            x: { ticks: { color: textColor }, grid: { display: false } }
+        }
+    }
+  });
+
+  const coachCtx = document.getElementById('coachChart').getContext('2d');
+  const coachData = {};
+  students.forEach(s => coachData[s.coach] = (coachData[s.coach] || 0) + 1);
+
+  charts.coach = new Chart(coachCtx, {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(coachData),
+      datasets: [{ 
+          data: Object.values(coachData), 
+          backgroundColor: ['#c9a84c', '#4a9eff', '#4caf7d'],
+          borderWidth: 0
+      }]
+    },
+    options: { plugins: { legend: { position: 'bottom', labels: { color: textColor } } } }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  updateStats();
+  initCharts();
+  addMsg('ai', "Welcome to Chesskidoo AI Admin. Current Indian batch is active. Ready to review progress?");
+});
+</script>
 </body>
 </html>
