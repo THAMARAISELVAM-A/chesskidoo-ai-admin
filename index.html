@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+  v<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -63,7 +63,8 @@ body { background: var(--bg); color: var(--ivory); font-family: var(--font-body)
 .hero-img { width: 100%; height: 220px; border-radius: var(--radius-lg); object-fit: cover; margin-bottom: 25px; border: 1px solid var(--border); box-shadow: var(--shadow); object-position: center 40%; }
 
 /* Student Profile Avatar */
-.profile-header { display: flex; align-items: center; gap: 20px; margin-bottom: 30px; background: var(--bg2); padding: 25px; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow); }
+.profile-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; background: var(--bg2); padding: 25px; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow); }
+.profile-info { display: flex; align-items: center; gap: 20px; }
 .profile-avatar { width: 90px; height: 90px; border-radius: 50%; border: 3px solid var(--gold); object-fit: cover; box-shadow: 0 5px 15px var(--gold-glow); }
 
 /* Components */
@@ -85,17 +86,22 @@ body[data-theme="dark"] .btn-gold { color: #000; text-shadow: none; }
 .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 5px 15px var(--gold-glow); }
 .btn-outline { background: transparent; border: 1px solid var(--gold); color: var(--gold); }
 
-/* Events Grid */
-.events-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 25px; margin-top: 20px; }
-.event-card { position: relative; overflow: hidden; border: 1px solid var(--border); }
+/* Events & Achievements Grid */
+.events-grid, .achievement-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; margin-top: 20px; }
+.event-card, .achievement-card { position: relative; overflow: hidden; border: 1px solid var(--border); background: var(--bg2); border-radius: var(--radius-lg); transition: 0.3s; box-shadow: var(--shadow); }
+.achievement-card { display: flex; flex-direction: column; }
+.achievement-card:hover { transform: translateY(-5px); border-color: var(--gold); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
 .event-date { position: absolute; top: 15px; right: 15px; background: var(--gold); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 700; }
 body[data-theme="dark"] .event-date { color: #000; }
 .event-tag { color: var(--gold); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; }
+.achievement-img { width: 100%; height: 260px; object-fit: cover; background: var(--bg3); border-bottom: 1px solid var(--border); }
+.achievement-info { padding: 20px 15px; text-align: center; display: flex; flex-direction: column; justify-content: center; flex-grow: 1; }
+.achievement-title { font-family: var(--font-head); font-size: 16px; font-weight: 700; color: var(--gold); margin-bottom: 6px; }
+.achievement-subtitle { font-size: 10px; color: var(--ivory-dim); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
 
-/* Achievement Locks */
+/* Locked UI */
 .locked-content { position: relative; border: 1px dashed var(--danger) !important; background: rgba(255, 77, 79, 0.05) !important; }
-.locked-overlay { position: absolute; inset: 0; backdrop-filter: blur(4px); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border-radius: var(--radius-lg); z-index: 10; color: var(--danger); font-weight: 600; padding: 20px;}
-.achievement-item { padding: 12px 15px; background: var(--bg3); border-radius: 8px; border-left: 3px solid var(--gold); margin-bottom: 10px; display: flex; align-items: center; gap: 10px; font-weight: 500; }
+.locked-overlay { position: absolute; inset: 0; backdrop-filter: blur(4px); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border-radius: var(--radius-lg); z-index: 10; color: var(--ivory); font-weight: 500; padding: 20px; line-height: 1.6;}
 
 /* Modals & Login */
 .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 3000; backdrop-filter: blur(5px); }
@@ -108,14 +114,18 @@ body[data-theme="dark"] .event-date { color: #000; }
 
 #login-overlay { position: fixed; inset: 0; background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.9)), url('https://images.unsplash.com/photo-1529699211952-734e80c4d42b?q=80&w=2071'); background-size: cover; background-position: center; z-index: 4000; display: flex; align-items: center; justify-content: center; }
 .login-box { width: 380px; text-align: center; backdrop-filter: blur(15px); background: var(--bg-trans); border: 1px solid var(--border); padding: 40px; border-radius: var(--radius-lg); box-shadow: var(--shadow); transition: background 0.3s; }
-input, select { width: 100%; padding: 14px; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--ivory); margin-bottom: 15px; outline: none; transition: 0.3s; font-family: var(--font-body); }
-input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-glow); }
+input, select, textarea { width: 100%; padding: 14px; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--ivory); margin-bottom: 15px; outline: none; transition: 0.3s; font-family: var(--font-body); resize: vertical; }
+input:focus, select:focus, textarea:focus { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-glow); }
 
 /* Mode Handling */
 body.admin-mode .parent-only, body.parent-mode .admin-only { display: none !important; }
 .page { display: none; }
 .page.active { display: block; animation: fadeInUp 0.5s ease; }
 @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Admin Delete Button on Wall of Fame */
+.delete-award-btn { position: absolute; top: 10px; right: 10px; background: var(--danger); color: #fff; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 14px; font-weight: bold; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: 0.2s;}
+.delete-award-btn:hover { transform: scale(1.1); background: #ff2a2d; }
 </style>
 </head>
 <body data-theme="dark">
@@ -129,8 +139,8 @@ body.admin-mode .parent-only, body.parent-mode .admin-only { display: none !impo
             <input type="password" id="login-p" placeholder="Password or Phone Number">
             <button type="button" id="toggle-btn" onclick="togglePass()" style="position: absolute; right: 12px; top: 12px; background: none; border: none; cursor: pointer; color: var(--gold); display: flex; align-items: center; justify-content: center; transition: 0.2s;">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                    <path d="M4 14 Q 12 4 20 14" />
-                    <circle cx="12" cy="15" r="3.5" />
+                    <path d="M 5 12 Q 12 3 19 12" />
+                    <circle cx="12" cy="15" r="2.5" />
                 </svg>
             </button>
         </div>
@@ -142,16 +152,17 @@ body.admin-mode .parent-only, body.parent-mode .admin-only { display: none !impo
 <nav class="sidebar">
     <div class="logo"><div class="logo-icon">♚</div><div class="logo-text">CHESSKIDOO</div></div>
     <div class="nav-group">
-        <div class="nav-item admin-only active" id="nav-dash" onclick="setPage('dash')">Dashboard</div>
-        <div class="nav-item admin-only" id="nav-stud" onclick="setPage('stud')">Students</div>
-        <div class="nav-item parent-only" id="nav-child" onclick="setPage('child')">Child Progress</div>
-        <div class="nav-item" id="nav-events" onclick="setPage('events')">Events</div>
-        <div class="nav-item" id="nav-bills" onclick="setPage('bills')">Payments</div>
-        <div class="nav-item admin-only" id="nav-coach" onclick="setPage('coach')">AI Coach</div>
+        <div class="nav-item admin-only active" id="nav-dash" onclick="setPage('dash')"><span style="margin-right:5px">📊</span> Dashboard</div>
+        <div class="nav-item admin-only" id="nav-stud" onclick="setPage('stud')"><span style="margin-right:5px">👥</span> Students</div>
+        <div class="nav-item parent-only" id="nav-child" onclick="setPage('child')"><span style="margin-right:5px">📈</span> Child Progress</div>
+        <div class="nav-item" id="nav-fame" onclick="setPage('fame')"><span style="margin-right:5px">🏆</span> Wall of Fame</div>
+        <div class="nav-item" id="nav-events" onclick="setPage('events')"><span style="margin-right:5px">📅</span> Events</div>
+        <div class="nav-item" id="nav-bills" onclick="setPage('bills')"><span style="margin-right:5px">💳</span> Payments</div>
+        <div class="nav-item admin-only" id="nav-coach" onclick="setPage('coach')"><span style="margin-right:5px">💬</span> AI Coach</div>
     </div>
     <div style="padding: 20px; border-top: 1px solid var(--border);">
-        <div class="nav-item" onclick="toggleTheme()" style="color:var(--gold)">🌓 Switch Theme</div>
-        <div class="nav-item" onclick="location.reload()">🚪 Sign Out</div>
+        <div class="nav-item" onclick="toggleTheme()" style="color:var(--gold)"><span style="margin-right:5px">☀️</span> Switch Theme</div>
+        <div class="nav-item" onclick="logout()"><span style="margin-right:5px">↪️</span> Sign Out</div>
     </div>
 </nav>
 
@@ -176,20 +187,31 @@ body.admin-mode .parent-only, body.parent-mode .admin-only { display: none !impo
             </div>
         </div>
 
+        <div id="page-fame" class="page">
+            <p style="color: var(--ivory-dim); margin-bottom: 20px; font-size: 16px;">Celebrating the proudest moments and victories of Chesskidoo cadets.</p>
+            <div class="achievement-grid" id="wall-of-fame-container"></div>
+        </div>
+
         <div id="page-events" class="page">
             <div class="events-grid" id="events-container"></div>
         </div>
 
         <div id="page-child" class="page parent-only">
             <div class="profile-header">
-                <img id="c-avatar" src="" class="profile-avatar" alt="Student Profile">
-                <div>
-                    <h1 id="c-name" style="font-family: var(--font-head); color: var(--gold); margin-bottom: 5px;">—</h1>
-                    <p style="color: var(--ivory-dim); font-size: 15px;">Level: <span id="c-level" style="color: var(--ivory); font-weight: bold;">—</span> | Coach: <span id="c-coach" style="color: var(--ivory); font-weight: bold;">—</span></p>
+                <div class="profile-info">
+                    <img id="c-avatar" src="" class="profile-avatar" alt="Student Profile">
+                    <div>
+                        <h1 id="c-name" style="font-family: var(--font-head); color: var(--gold); margin-bottom: 5px;">—</h1>
+                        <p style="color: var(--ivory-dim); font-size: 15px;">Level: <span id="c-level" style="color: var(--ivory); font-weight: bold;">—</span> | Coach: <span id="c-coach" style="color: var(--ivory); font-weight: bold;">—</span></p>
+                    </div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button class="btn btn-gold" onclick="openContactModal()">✉️ Message Coach</button>
+                    <button class="btn btn-outline" onclick="document.getElementById('feedback-modal').style.display='flex'">📝 Give Feedback</button>
                 </div>
             </div>
             
-            <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 25px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 25px;">
                 <div class="card" id="coach-review-card">
                     <h3 style="margin-bottom: 15px; color: var(--gold);">Coach Review</h3>
                     <div style="padding: 20px; background: var(--glass); border-radius: 12px; line-height: 1.8; border: 1px solid var(--border);">
@@ -202,9 +224,12 @@ body.admin-mode .parent-only, body.parent-mode .admin-only { display: none !impo
                     </div>
                 </div>
 
-                <div class="card" id="achievements-card">
+                <div class="card" id="personal-progress-card">
                     </div>
             </div>
+
+            <h2 style="font-family: var(--font-head); color: var(--ivory); margin-top: 10px;">My Achievements</h2>
+            <div class="achievement-grid" id="parent-achievements-container"></div>
         </div>
 
         <div id="page-stud" class="page admin-only">
@@ -246,6 +271,38 @@ body.admin-mode .parent-only, body.parent-mode .admin-only { display: none !impo
     <div class="modal-content" id="modal-form-content"></div>
 </div>
 
+<div class="modal" id="award-modal">
+    <div class="modal-content">
+        <h2 style="margin-bottom: 10px; font-family:var(--font-head); color: var(--gold);">Grant Achievement</h2>
+        <p id="award-student-name" style="color: var(--ivory-dim); margin-bottom: 20px;">Student Name</p>
+        <input type="hidden" id="award-student-id">
+        <input type="text" id="award-text" placeholder="Title (e.g., 2nd Place Winner)">
+        <input type="url" id="award-img" placeholder="Image URL (e.g., https://link-to-your-image.jpg)">
+        <button class="btn btn-gold" style="width: 100%; margin-top: 10px;" onclick="saveAward()">Publish to Wall of Fame</button>
+        <button class="btn btn-outline" style="width: 100%; margin-top: 10px;" onclick="closeModals()">Cancel</button>
+    </div>
+</div>
+
+<div class="modal" id="contact-modal">
+    <div class="modal-content">
+        <h2 style="margin-bottom: 10px; font-family:var(--font-head); color: var(--gold);">Message Coach</h2>
+        <p style="color: var(--ivory-dim); margin-bottom: 20px;">Sending message to: <strong id="contact-coach-name" style="color:var(--ivory)">Coach</strong></p>
+        <textarea id="contact-msg" placeholder="Type your message or questions here..." style="min-height: 120px;"></textarea>
+        <button class="btn btn-gold" style="width: 100%; margin-top: 10px;" onclick="sendContactMsg()">Send Message</button>
+        <button class="btn btn-outline" style="width: 100%; margin-top: 10px;" onclick="closeModals()">Cancel</button>
+    </div>
+</div>
+
+<div class="modal" id="feedback-modal">
+    <div class="modal-content">
+        <h2 style="margin-bottom: 10px; font-family:var(--font-head); color: var(--gold);">Academy Feedback</h2>
+        <p style="color: var(--ivory-dim); margin-bottom: 20px;">Help us improve Chesskidoo.</p>
+        <textarea id="feedback-msg" placeholder="How was your experience this month?" style="min-height: 120px;"></textarea>
+        <button class="btn btn-gold" style="width: 100%; margin-top: 10px;" onclick="submitFeedback()">Submit Feedback</button>
+        <button class="btn btn-outline" style="width: 100%; margin-top: 10px;" onclick="closeModals()">Cancel</button>
+    </div>
+</div>
+
 <div class="modal" id="pay-modal">
     <div class="modal-content">
         <div style="font-size: 40px; margin-bottom: 10px;">🛡️</div>
@@ -267,16 +324,39 @@ body.admin-mode .parent-only, body.parent-mode .admin-only { display: none !impo
                 <b style="color: var(--ivory);">Paytm / BHIM</b>
             </div>
         </div>
-        
-        <button class="btn btn-outline" style="width:100%" onclick="document.getElementById('pay-modal').style.display='none'">Cancel</button>
+        <button class="btn btn-outline" style="width:100%" onclick="closeModals()">Cancel</button>
     </div>
 </div>
 
 <script>
-// INITIAL DATA (Updated with Avatars and Achievements)
+// INITIAL DATA
 let students = [
-    {id:101, name:'Arjun Mehta', phone:'9876543210', elo:2450, level:'Elite', coach:'GM Viswanathan', fee:12000, status:'Paid', avatar: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?q=80&w=150&auto=format&fit=crop', achievements: ['🏆 Won State Juniors 2025', '🏅 Tactics Grandmaster', '🔥 100 Day Puzzle Streak']},
-    {id:102, name:'Saanvi Iyer', phone:'9876543211', elo:1200, level:'Beginner', coach:'Coach Prag', fee:6000, status:'Due', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=150&auto=format&fit=crop', achievements: ['🏆 First Tournament Win', '🎯 Mate in 2 Specialist']}
+    {
+        id:101, name:'Riyas', phone:'9876543210', elo:2450, level:'Elite', coach:'GM Viswanathan', fee:12000, status:'Paid', 
+        avatar: 'https://ui-avatars.com/api/?name=Riyas&background=d4af37&color=000&bold=true', 
+        achievements: [
+            { title: 'Velammal Nexus Top 30', img: 'https://images.unsplash.com/photo-1560174038-da43ac74f01b?auto=format&fit=crop&w=400&q=80' }
+        ]
+    },
+    {
+        id:102, name:'Varun', phone:'9876543211', elo:2100, level:'Advanced', coach:'GM Viswanathan', fee:10000, status:'Paid', 
+        avatar: 'https://ui-avatars.com/api/?name=Varun&background=d4af37&color=000&bold=true', 
+        achievements: [
+            { title: 'Velammal Nexus Top 30', img: 'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&w=400&q=80' }
+        ]
+    },
+    {
+        id:103, name:'Krishna', phone:'9876543212', elo:1850, level:'Intermediate', coach:'Transition Coach Rohith', fee:8000, status:'Paid', 
+        avatar: 'https://ui-avatars.com/api/?name=Krishna&background=d4af37&color=000&bold=true', 
+        achievements: [] 
+    },
+    {
+        id:104, name:'Saanvi Iyer', phone:'9876543213', elo:1200, level:'Beginner', coach:'Coach Prag', fee:6000, status:'Due', 
+        avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=150&auto=format&fit=crop', 
+        achievements: [
+            { title: 'Joined Chesskidoo', img: 'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?q=80&w=400' }
+        ]
+    }
 ];
 
 let events = [
@@ -288,22 +368,16 @@ let role = null;
 let currentStudent = null; 
 let charts = {};
 
-// LOGIN & TOGGLE PASS
 function togglePass() {
     const p = document.getElementById('login-p');
     const btn = document.getElementById('toggle-btn');
-    
-    const eyeOpen = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M4 14 Q 12 4 20 14" /><circle cx="12" cy="15" r="3.5" /></svg>`;
-    const eyeClosed = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M4 14 Q 12 4 20 14" /><circle cx="12" cy="15" r="3.5" /><line x1="3" y1="3" x2="21" y2="21" /></svg>`;
+    const eyeOpen = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M 5 12 Q 12 3 19 12" /><circle cx="12" cy="15" r="2.5" /></svg>`;
+    const eyeClosed = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M 5 12 Q 12 3 19 12" /><circle cx="12" cy="15" r="2.5" /><line x1="3" y1="3" x2="21" y2="21" /></svg>`;
 
     if (p.type === 'password') {
-        p.type = 'text';
-        btn.innerHTML = eyeClosed;
-        btn.style.color = 'var(--ivory-dim)';
+        p.type = 'text'; btn.innerHTML = eyeClosed; btn.style.color = 'var(--ivory-dim)';
     } else {
-        p.type = 'password';
-        btn.innerHTML = eyeOpen;
-        btn.style.color = 'var(--gold)';
+        p.type = 'password'; btn.innerHTML = eyeOpen; btn.style.color = 'var(--gold)';
     }
 }
 
@@ -312,19 +386,12 @@ function handleLogin() {
     const p = document.getElementById('login-p').value.trim();
     
     if(u === 'admin' && p === 'admin123') {
-        role = 'admin'; 
-        document.body.classList.add('admin-mode'); 
-        finishLogin();
+        role = 'admin'; document.body.classList.add('admin-mode'); finishLogin();
     } else {
         const found = students.find(s => s.name.toLowerCase() === u.toLowerCase() && s.phone === p);
         if(found) {
-            role = 'parent'; 
-            currentStudent = found; 
-            document.body.classList.add('parent-mode');
-            finishLogin();
-        } else { 
-            document.getElementById('err').style.display = 'block'; 
-        }
+            role = 'parent'; currentStudent = found; document.body.classList.add('parent-mode'); finishLogin();
+        } else { document.getElementById('err').style.display = 'block'; }
     }
 }
 
@@ -334,14 +401,22 @@ function finishLogin() {
     refresh();
 }
 
-// NAVIGATION
+function logout() {
+    role = null;
+    currentStudent = null;
+    document.body.classList.remove('admin-mode', 'parent-mode');
+    document.getElementById('login-u').value = '';
+    document.getElementById('login-p').value = '';
+    document.getElementById('login-overlay').style.display = 'flex';
+}
+
 function setPage(p) {
     document.querySelectorAll('.page').forEach(pg => pg.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(ni => ni.classList.remove('active'));
     document.getElementById('page-' + p).classList.add('active');
     document.getElementById('nav-' + p).classList.add('active');
     
-    const titles = {dash:'Academy Overview', stud:'Student Registry', child:'Student Progress', bills:'Financials', coach:'AI Coach', events:'Upcoming Events'};
+    const titles = {dash:'Academy Overview', stud:'Student Registry', child:'Student Progress', fame:'Academy Wall of Fame', bills:'Financials', coach:'AI Coach', events:'Upcoming Events'};
     document.getElementById('p-title').innerText = titles[p];
 
     const btnBox = document.getElementById('top-btn-container');
@@ -353,9 +428,54 @@ function setPage(p) {
 
     if(p === 'dash') initCharts();
     if(p === 'events') renderEvents();
+    if(p === 'fame') renderWallOfFame();
 }
 
-// --- MODULE 1: EVENTS LOGIC ---
+function closeModals() {
+    document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+}
+
+// --- WALL OF FAME LOGIC ---
+function renderWallOfFame() {
+    let allAchievements = [];
+    students.forEach(s => {
+        if(s.achievements) {
+            s.achievements.forEach((a, index) => {
+                allAchievements.push({ studentId: s.id, studentName: s.name, title: a.title, img: a.img, originalIndex: index });
+            });
+        }
+    });
+
+    const container = document.getElementById('wall-of-fame-container');
+    if (allAchievements.length === 0) {
+        container.innerHTML = `<p style="color:var(--ivory-dim);">No achievements have been published yet.</p>`;
+        return;
+    }
+
+    container.innerHTML = allAchievements.map(a => `
+        <div class="achievement-card">
+            ${role === 'admin' ? `<button class="delete-award-btn" onclick="deleteAchievement(${a.studentId}, ${a.originalIndex})" title="Remove Achievement">✕</button>` : ''}
+            ${a.img ? `<img src="${a.img}" class="achievement-img" alt="${a.title}">` : `<div class="achievement-img" style="display:flex;align-items:center;justify-content:center;font-size:50px;">🏆</div>`}
+            <div class="achievement-info">
+                <div class="achievement-title">${a.title}</div>
+                <div class="achievement-subtitle">AWARDED TO: ${a.studentName}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function deleteAchievement(studentId, achIndex) {
+    if(confirm("Remove this achievement from the Wall of Fame?")) {
+        const s = students.find(x => x.id === studentId);
+        if(s && s.achievements) {
+            s.achievements.splice(achIndex, 1);
+            renderWallOfFame();
+            refresh();
+        }
+    }
+}
+
+// --- EVENTS LOGIC ---
 function renderEvents() {
     const container = document.getElementById('events-container');
     container.innerHTML = events.map(e => `
@@ -384,7 +504,7 @@ function openEventModal() {
         <input type="text" id="ev-loc" placeholder="Location">
         <select id="ev-type"><option>Tournament</option><option>Rapid</option><option>Workshop</option></select>
         <button class="btn btn-gold" style="width: 100%; margin-top: 10px;" onclick="saveEvent()">Publish Event</button>
-        <button class="btn btn-outline" style="width: 100%; margin-top: 10px;" onclick="document.getElementById('main-modal').style.display='none'">Cancel</button>
+        <button class="btn btn-outline" style="width: 100%; margin-top: 10px;" onclick="closeModals()">Cancel</button>
     `;
     document.getElementById('modal-form-content').innerHTML = html;
     document.getElementById('main-modal').style.display = 'flex';
@@ -396,15 +516,11 @@ function saveEvent() {
         prize: document.getElementById('ev-prize').value, loc: document.getElementById('ev-loc').value,
         type: document.getElementById('ev-type').value, regs: 0
     });
-    document.getElementById('main-modal').style.display = 'none';
-    renderEvents();
+    closeModals(); renderEvents();
 }
+function deleteEvent(id) { if(confirm('Delete this event?')) { events = events.filter(e => e.id !== id); renderEvents(); } }
 
-function deleteEvent(id) {
-    if(confirm('Delete this event?')) { events = events.filter(e => e.id !== id); renderEvents(); }
-}
-
-// --- MODULE 2: PAYMENT GATEWAY LOGIC ---
+// --- PAYMENT GATEWAY LOGIC ---
 function markPaidAdmin(id) {
     const student = students.find(s => s.id === id);
     if(student) student.status = 'Paid';
@@ -421,9 +537,7 @@ function simPay(provider) {
     alert(`Connecting to ${provider}...`);
     setTimeout(() => {
         alert("Payment Successful! Downloading your receipt...");
-        
         let paidId = null;
-        
         if(role === 'parent') {
             currentStudent.status = 'Paid';
             const target = students.find(s => s.id === currentStudent.id);
@@ -437,10 +551,7 @@ function simPay(provider) {
                  paidId = parseInt(invoiceBeingPaid);
              }
         }
-        
-        document.getElementById('pay-modal').style.display = 'none';
-        refresh();
-        
+        closeModals(); refresh();
         if(paidId) { downloadReceipt(paidId); }
     }, 1200);
 }
@@ -448,30 +559,50 @@ function simPay(provider) {
 function downloadReceipt(id) {
     const s = students.find(x => x.id === id);
     if(!s) return;
-    
     const receipt = `========================================\nCHESSKIDOO ACADEMY RECEIPT\n========================================\nInvoice No: CK-${s.id}\nDate: ${new Date().toLocaleDateString()}\nStudent Name: ${s.name}\nCoach: ${s.coach}\nTuition Fee: ₹${s.fee}\nStatus: PAID IN FULL\n========================================`;
     const blob = new Blob([receipt], {type: 'text/plain'});
     const link = document.createElement('a');
-    
     link.href = window.URL.createObjectURL(blob); 
     link.download = `Receipt_${s.name.replace(/\s+/g, '_')}_CK${s.id}.txt`; 
-    
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
 
-// --- MODULE 3: STUDENT DATA, UI & RENDERING ---
-function refresh() {
-    
-    // 1. Render Admin Student Table (With Avatars)
-    const sb = document.getElementById('stud-body');
-    if(sb) sb.innerHTML = students.map(s => `<tr><td class="avatar-cell"><img src="${s.avatar}" class="avatar-sm">${s.name}</td><td><span style="color:var(--gold); font-size:11px; font-weight:bold;">${s.level.toUpperCase()}</span></td><td><span style="font-family:'DM Mono';">${s.elo}</span></td><td>${s.coach}</td><td style="color:${s.status==='Paid'?'var(--success)':'var(--danger)'}; font-weight:600;">${s.status}</td><td><button class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="deleteStud(${s.id})">Remove</button></td></tr>`).join('');
+// --- PARENT CONTACT FORMS ---
+function openContactModal() {
+    document.getElementById('contact-coach-name').innerText = currentStudent.coach;
+    document.getElementById('contact-msg').value = '';
+    document.getElementById('contact-modal').style.display = 'flex';
+}
+function sendContactMsg() {
+    if(!document.getElementById('contact-msg').value.trim()) return alert("Message cannot be empty.");
+    alert(`Message securely sent to ${currentStudent.coach}. They will respond shortly.`);
+    closeModals();
+}
+function submitFeedback() {
+    if(!document.getElementById('feedback-msg').value.trim()) return alert("Feedback cannot be empty.");
+    alert("Thank you! Your feedback helps Chesskidoo improve.");
+    closeModals();
+}
 
-    // 2. Render Billing Table
+// --- STUDENT DATA, UI & RENDERING ---
+function refresh() {
+    const sb = document.getElementById('stud-body');
+    if(sb) sb.innerHTML = students.map(s => `
+        <tr>
+            <td class="avatar-cell"><img src="${s.avatar}" class="avatar-sm">${s.name}</td>
+            <td><span style="color:var(--gold); font-size:11px; font-weight:bold;">${s.level.toUpperCase()}</span></td>
+            <td><span style="font-family:'DM Mono';">${s.elo}</span></td>
+            <td>${s.coach}</td>
+            <td style="color:${s.status==='Paid'?'var(--success)':'var(--danger)'}; font-weight:600;">${s.status}</td>
+            <td>
+                <button class="btn btn-outline" style="padding:4px 8px; font-size:11px; border-color:var(--accent); color:var(--accent); margin-right:5px;" onclick="openAwardModal(${s.id})">+ Award</button>
+                <button class="btn btn-outline" style="padding:4px 8px; font-size:11px; border-color:var(--danger); color:var(--danger);" onclick="deleteStud(${s.id})">Remove</button>
+            </td>
+        </tr>
+    `).join('');
+
     const bb = document.getElementById('bill-body');
     const bData = role === 'admin' ? students : [currentStudent];
-    
     if(bb) {
         bb.innerHTML = bData.map(s => {
             let actionHtml = '';
@@ -484,7 +615,6 @@ function refresh() {
         }).join('');
     }
 
-    // 3. Update Parent Portal View
     if(role === 'parent' && currentStudent) {
         document.getElementById('c-name').innerText = currentStudent.name;
         document.getElementById('c-elo').innerText = currentStudent.elo;
@@ -492,37 +622,66 @@ function refresh() {
         document.getElementById('c-level').innerText = currentStudent.level;
         document.getElementById('c-avatar').src = currentStudent.avatar;
         
-        // Locked vs Unlocked Logic
-        const achCard = document.getElementById('achievements-card');
-        if (currentStudent.status === 'Paid') {
-            achCard.className = 'card';
-            let achHtml = `<h3 style="margin-bottom: 15px; color: var(--gold);">Trophy Room</h3>`;
-            if (currentStudent.achievements.length > 0) {
-                achHtml += currentStudent.achievements.map(a => `<div class="achievement-item">${a}</div>`).join('');
-            } else {
-                achHtml += `<p style="color:var(--ivory-dim);">No achievements yet. Keep practicing!</p>`;
-            }
-            achCard.innerHTML = achHtml;
-        } else {
-            achCard.className = 'card locked-content';
-            achCard.innerHTML = `
-                <h3 style="margin-bottom: 15px; color: var(--gold); opacity: 0.3;">Trophy Room</h3>
-                <div class="achievement-item" style="opacity: 0.3;">🏆 Secret Achievement</div>
-                <div class="achievement-item" style="opacity: 0.3;">🏅 Hidden Trophy</div>
-                <div class="locked-overlay">
-                    <span style="font-size: 32px; margin-bottom: 10px;">🔒</span>
-                    Clear pending tuition fee to view Coach Materials and Achievements.
+        const progCard = document.getElementById('personal-progress-card');
+        progCard.className = 'card';
+        progCard.innerHTML = `
+            <h3 style="margin-bottom: 15px; color: var(--gold);">Personal Roadmap</h3>
+            <ul style="list-style-position: inside; color: var(--ivory); line-height: 2;">
+                <li>Complete 50 Puzzle Rushes this week.</li>
+                <li>Analyze 3 Grandmaster games (Sicilian Defense).</li>
+                <li>Review endgame mechanics with coach during next session.</li>
+            </ul>
+        `;
+
+        // Render Personal Achievements in Parent Portal matching the Wall of Fame style
+        const parentAchContainer = document.getElementById('parent-achievements-container');
+        if (currentStudent.achievements && currentStudent.achievements.length > 0) {
+            parentAchContainer.innerHTML = currentStudent.achievements.map(a => `
+                <div class="achievement-card">
+                    ${a.img ? `<img src="${a.img}" class="achievement-img" alt="${a.title}">` : `<div class="achievement-img" style="display:flex;align-items:center;justify-content:center;font-size:50px;">🏆</div>`}
+                    <div class="achievement-info">
+                        <div class="achievement-title">${a.title}</div>
+                        <div class="achievement-subtitle">AWARDED TO: ${currentStudent.name}</div>
+                    </div>
                 </div>
-            `;
+            `).join('');
+        } else {
+            parentAchContainer.innerHTML = `<p style="color:var(--ivory-dim);">No achievements yet. Keep practicing!</p>`;
         }
     }
 
-    // 4. Update Admin Stats
     if(role === 'admin') {
         document.getElementById('s-total').innerText = students.length;
         document.getElementById('s-elo').innerText = Math.round(students.reduce((a,b)=>a+b.elo,0)/students.length) || 0;
         document.getElementById('s-rev').innerText = '₹' + students.filter(s=>s.status==='Paid').reduce((a,b)=>a+b.fee,0).toLocaleString();
     }
+}
+
+// --- ADMIN AWARDS LOGIC ---
+function openAwardModal(id) {
+    const s = students.find(x => x.id === id);
+    if(s) {
+        document.getElementById('award-student-id').value = id;
+        document.getElementById('award-student-name').innerText = `Awarding: ${s.name}`;
+        document.getElementById('award-text').value = '';
+        document.getElementById('award-img').value = '';
+        document.getElementById('award-modal').style.display = 'flex';
+    }
+}
+
+function saveAward() {
+    const id = parseInt(document.getElementById('award-student-id').value);
+    const text = document.getElementById('award-text').value.trim();
+    const imgUrl = document.getElementById('award-img').value.trim();
+    if(!text) return;
+
+    const s = students.find(x => x.id === id);
+    if(s) {
+        if(!s.achievements) s.achievements = [];
+        s.achievements.unshift({ title: text, img: imgUrl || null }); 
+    }
+    
+    closeModals(); refresh(); if(role==='admin' && document.getElementById('page-fame').classList.contains('active')) renderWallOfFame();
 }
 
 function openEnrollModal() {
@@ -535,12 +694,12 @@ function openEnrollModal() {
             <input type="number" id="m-elo" placeholder="Initial ELO" value="400">
             <select id="m-level"><option>Beginner</option><option>Intermediate</option><option>Elite</option></select>
         </div>
-        <div style="display:flex; gap:10px;">
+        <div style="display:flex; gap:10px; margin-bottom: 15px;">
             <select id="m-coach"><option>GM Viswanathan</option><option>Coach Prag</option><option>Sensei Vidit</option></select>
-            <input type="number" id="m-fee" placeholder="Monthly Fee (₹)" value="5000">
+            <input type="number" id="m-fee" placeholder="Monthly Fee (₹)" value="5000" style="margin-bottom:0;">
         </div>
         <button class="btn btn-gold" style="width: 100%; margin-top: 10px;" onclick="saveStudent()">Commit Changes</button>
-        <button class="btn btn-outline" style="width: 100%; margin-top:10px;" onclick="document.getElementById('main-modal').style.display='none'">Cancel</button>
+        <button class="btn btn-outline" style="width: 100%; margin-top:10px;" onclick="closeModals()">Cancel</button>
     `;
     document.getElementById('modal-form-content').innerHTML = html;
     document.getElementById('main-modal').style.display = 'flex';
@@ -552,32 +711,21 @@ function saveStudent() {
     let avatarUrl = document.getElementById('m-avatar').value;
     
     if(!name || !phone) return alert("Name and Phone are required.");
-    
-    // Generate professional initials avatar if left blank
-    if(!avatarUrl) {
-        avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=d4af37&color=000&bold=true`;
-    }
+    if(!avatarUrl) avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=d4af37&color=000&bold=true`;
 
     students.push({
-        id: Date.now(), 
-        name: name, 
-        phone: phone, 
-        avatar: avatarUrl,
-        elo: parseInt(document.getElementById('m-elo').value), 
-        level: document.getElementById('m-level').value, 
-        fee: parseInt(document.getElementById('m-fee').value), 
-        status: 'Due', 
-        coach: document.getElementById('m-coach').value,
-        achievements: ['🎉 Enrolled in Academy'] // Starter achievement
+        id: Date.now(), name: name, phone: phone, avatar: avatarUrl,
+        elo: parseInt(document.getElementById('m-elo').value), level: document.getElementById('m-level').value, 
+        fee: parseInt(document.getElementById('m-fee').value), status: 'Due', coach: document.getElementById('m-coach').value,
+        achievements: [{ title: 'Enrolled in Academy', img: 'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?q=80&w=400' }] 
     });
     
-    document.getElementById('main-modal').style.display='none'; 
-    refresh();
+    closeModals(); refresh();
 }
 
 function deleteStud(id) { if(confirm('Purge record?')) { students = students.filter(s => s.id !== id); refresh(); } }
 
-// --- MODULE 4: AI COACH CHAT LOGIC ---
+// --- AI COACH CHAT LOGIC ---
 function askAI() {
     const input = document.getElementById('ai-input');
     const box = document.getElementById('chat-box');
@@ -589,8 +737,7 @@ function askAI() {
     uMsg.innerText = query;
     box.appendChild(uMsg);
     
-    input.value = ""; 
-    box.scrollTop = box.scrollHeight;
+    input.value = ""; box.scrollTop = box.scrollHeight;
 
     setTimeout(() => {
         const aiMsg = document.createElement('div');
@@ -606,31 +753,22 @@ function askAI() {
             aiMsg.innerText = `I am analyzing that request. Tactical patterns suggest focusing on student retention this month.`;
         }
         
-        box.appendChild(aiMsg); 
-        box.scrollTop = box.scrollHeight;
+        box.appendChild(aiMsg); box.scrollTop = box.scrollHeight;
     }, 600);
 }
 
 // CHARTS & THEME
 function initCharts() {
     if(!document.getElementById('chartElo')) return;
-    
     const isLight = document.body.getAttribute('data-theme') === 'light';
     const chartTextColor = isLight ? '#8d99ae' : '#999995';
 
-    if(charts.elo) charts.elo.destroy(); 
-    if(charts.coach) charts.coach.destroy();
+    if(charts.elo) charts.elo.destroy(); if(charts.coach) charts.coach.destroy();
     
     charts.elo = new Chart(document.getElementById('chartElo'), { 
         type: 'bar', 
         data: { labels: students.map(s=>s.name.split(' ')[0]), datasets: [{ label: 'ELO', data: students.map(s=>s.elo), backgroundColor: '#d4af37', borderRadius: 4 }] }, 
-        options: { 
-            plugins: { legend: { display: false } },
-            scales: { 
-                y: { grid: { color: isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)' }, ticks: { color: chartTextColor } }, 
-                x: { grid: { display: false }, ticks: { color: chartTextColor } } 
-            }
-        } 
+        options: { plugins: { legend: { display: false } }, scales: { y: { grid: { color: isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)' }, ticks: { color: chartTextColor } }, x: { grid: { display: false }, ticks: { color: chartTextColor } } } } 
     });
     
     const coaches = {}; students.forEach(s => coaches[s.coach] = (coaches[s.coach] || 0) + 1);
