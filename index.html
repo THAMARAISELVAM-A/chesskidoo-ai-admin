@@ -1,787 +1,1302 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Chesskidoo — Premium AI Admin</title>
+<title>Chesskidoo — Premium Chess Academy (Frontend Simulation)</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
 <style>
 :root {
-  --bg: #0b0b0e; 
-  --bg2: #14141a; 
-  --bg3: #1c1c24; 
-  --bg-trans: rgba(20, 20, 26, 0.85);
-  --gold: #d4af37; 
-  --gold-glow: rgba(212, 175, 55, 0.3);
-  --ivory: #e5e5e0; 
-  --ivory-dim: #999995;
-  --accent: #5a9fff; 
-  --success: #52c41a; 
-  --danger: #ff4d4f;
-  --glass: rgba(255, 255, 255, 0.03);
-  --border: rgba(212, 175, 55, 0.12);
-  --radius-lg: 16px; 
-  --radius-sm: 8px;
-  --font-head: 'Playfair Display', serif;
-  --font-body: 'DM Sans', sans-serif;
-  --shadow: 0 20px 40px rgba(0,0,0,0.4);
+  --bg: #0b0b0e; --bg2: #14141a; --bg3: #1c1c24; --bg-trans: rgba(20,20,26,0.92);
+  --gold: #dca33e; --gold2: #f0c05a; --gold-glow: rgba(220,163,62,0.25);
+  --ivory: #e5e5e0; --ivory-dim: #888884;
+  --accent: #5a9fff; --success: #52c41a; --danger: #ff4d4f;
+  --glass: rgba(255,255,255,0.03); --border: rgba(220,163,62,0.14);
+  --radius-lg: 16px; --radius-sm: 8px;
+  --font-head: 'Playfair Display', serif; --font-body: 'DM Sans', sans-serif;
+  --shadow: 0 20px 40px rgba(0,0,0,0.45);
 }
-
 [data-theme="light"] {
-  --bg: #f4f6f9; 
-  --bg2: #ffffff; 
-  --bg3: #e9ecef; 
-  --bg-trans: rgba(255, 255, 255, 0.9); 
-  --gold: #c49a2a; 
-  --gold-glow: rgba(196, 154, 42, 0.15); 
-  --ivory: #2b2d42; 
-  --ivory-dim: #8d99ae; 
-  --glass: rgba(0, 0, 0, 0.03);
-  --border: rgba(43, 45, 66, 0.08); 
-  --shadow: 0 15px 35px rgba(0,0,0,0.06); 
+  --bg:#f0f2f5; --bg2:#ffffff; --bg3:#e8eaed; --bg-trans:rgba(255,255,255,0.94);
+  --gold:#b8910f; --gold-glow:rgba(184,145,15,0.15);
+  --ivory:#1a1a2e; --ivory-dim:#6b6b80;
+  --glass:rgba(0,0,0,0.025); --border:rgba(0,0,0,0.09);
+  --shadow:0 10px 30px rgba(0,0,0,0.07);
 }
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ivory);font-family:var(--font-body);min-height:100vh;display:flex;transition:background .3s,color .3s;overflow-x:hidden}
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: var(--bg); color: var(--ivory); font-family: var(--font-body); min-height: 100vh; display: flex; transition: background 0.3s, color 0.3s; overflow-x: hidden; }
+/* ── SIDEBAR ── */
+.sidebar{width:240px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:100;transition:transform .3s ease;}
+.sidebar.collapsed { transform: translateX(-100%); }
+.logo{padding:28px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border)}
+.logo-icon{font-size:26px;color:var(--gold)}
+.logo-text{font-family:var(--font-head);font-size:19px;font-weight:700;letter-spacing:1px;color:var(--gold)}
+.nav-group{padding:12px;flex-grow:1;overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:11px;padding:13px 16px;margin:3px 0;border-radius:var(--radius-sm);cursor:pointer;color:var(--ivory-dim);font-size:14px;font-weight:500;transition:.2s;user-select:none; border-left: 3px solid transparent;}
+.nav-item:hover {background:var(--glass); color:var(--gold)}
+.nav-item.active {
+    background: linear-gradient(90deg, rgba(220,163,62,0.15) 0%, transparent 100%);
+    border-left: 3px solid var(--gold);
+    color: var(--gold);
+}
+.nav-item .ico{font-size:16px;min-width:20px;text-align:center}
 
-/* Sidebar */
-.sidebar { width: 240px; background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 100; transition: 0.3s; }
-.logo { padding: 30px 20px; display: flex; align-items: center; gap: 12px; }
-.logo-icon { font-size: 24px; color: var(--gold); }
-.logo-text { font-family: var(--font-head); font-size: 20px; font-weight: 700; letter-spacing: 1px; color: var(--gold); }
+/* ── MAIN ── */
+.main{margin-left:240px;flex:1;display:flex;flex-direction:column;min-height:100vh;transition:margin-left .3s ease;}
+.main.expanded { margin-left: 0; }
 
-.nav-group { padding: 10px; flex-grow: 1; }
-.nav-item { display: flex; align-items: center; gap: 12px; padding: 14px 18px; margin: 4px 0; border-radius: var(--radius-sm); cursor: pointer; color: var(--ivory-dim); font-size: 14px; font-weight: 500; transition: 0.2s; }
-.nav-item:hover, .nav-item.active { background: var(--glass); color: var(--gold); box-shadow: inset 0 0 10px var(--gold-glow); }
+.top-bar{padding:22px 36px;display:flex;justify-content:space-between;align-items:center;background:var(--bg-trans);backdrop-filter:blur(12px);position:sticky;top:0;z-index:90;border-bottom:1px solid var(--border)}
+.page-title{font-family:var(--font-head);font-size:26px;font-weight:700;display:flex;align-items:center;gap:16px;}
+.top-nav-right{display:flex;align-items:center;gap:20px;}
+.content{padding:28px 36px 48px}
 
-/* Layout & Images */
-.main { margin-left: 240px; flex: 1; display: flex; flex-direction: column; }
-.top-bar { padding: 25px 40px; display: flex; justify-content: space-between; align-items: center; background: var(--bg-trans); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 90; transition: background 0.3s; border-bottom: 1px solid var(--border); }
-.page-title { font-family: var(--font-head); font-size: 28px; }
-.content { padding: 0 40px 40px 40px; }
-.hero-img { width: 100%; height: 220px; border-radius: var(--radius-lg); object-fit: cover; margin-bottom: 25px; border: 1px solid var(--border); box-shadow: var(--shadow); object-position: center 40%; }
+/* ── MODERN MENU TOGGLE (HAMBURGER) ── */
+.menu-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--ivory-dim);
+  cursor: pointer;
+  padding: 6px;
+  margin-right: 4px;
+  border-radius: 6px;
+  transition: 0.2s ease;
+}
+.menu-toggle:hover { 
+  background: var(--glass); 
+  color: var(--ivory);
+}
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 95;
+  backdrop-filter: blur(3px);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.sidebar-overlay.active { display: block; opacity: 1; }
 
-/* Student Profile Avatar */
-.profile-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; background: var(--bg2); padding: 25px; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow); }
-.profile-info { display: flex; align-items: center; gap: 20px; }
-.profile-avatar { width: 90px; height: 90px; border-radius: 50%; border: 3px solid var(--gold); object-fit: cover; box-shadow: 0 5px 15px var(--gold-glow); }
+/* ── TOP PROFILE ── */
+.top-profile{display:flex;align-items:center;gap:12px;cursor:pointer;padding:6px 12px;border-radius:var(--radius-sm);transition:.2s;}
+.top-profile:hover{background:var(--glass);}
+.top-profile-av{width:36px;height:36px;border-radius:50%;border:2px solid var(--gold);object-fit:cover;}
+.top-profile-info{display:flex;flex-direction:column;}
+.top-profile-hello{font-size:11px;color:var(--ivory-dim);line-height:1.2;}
+.top-profile-name{font-size:14px;color:var(--ivory);font-weight:600;}
 
-/* Components */
-.card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 25px; transition: 0.3s; box-shadow: var(--shadow); }
-.card:hover { border-color: var(--gold); }
-.stat-label { font-size: 11px; text-transform: uppercase; color: var(--ivory-dim); letter-spacing: 1.5px; margin-bottom: 10px; font-weight: 700; }
-.stat-value { font-size: 32px; font-weight: 700; color: var(--gold); font-family: 'DM Mono', monospace; }
+/* ── HERO & CARDS ── */
+.hero-img{width:100%;height:210px;border-radius:var(--radius-lg);object-fit:cover;margin-bottom:28px;border:1px solid var(--border);object-position:center 35%;box-shadow:var(--shadow)}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;transition:.25s;box-shadow:var(--shadow)}
+.card:hover{border-color:rgba(212,175,55,0.35)}
+.stat-label{font-size:10px;text-transform:uppercase;color:var(--ivory-dim);letter-spacing:1.5px;margin-bottom:8px;font-weight:700}
+.stat-value{font-size:30px;font-weight:700;color:var(--gold);font-family:'DM Mono',monospace}
 
-.table-container { background: var(--bg2); border-radius: var(--radius-lg); border: 1px solid var(--border); overflow: hidden; margin-top: 25px; box-shadow: var(--shadow); }
-table { width: 100%; border-collapse: collapse; }
-th { text-align: left; padding: 18px; font-size: 12px; color: var(--ivory-dim); border-bottom: 1px solid var(--border); background: var(--glass); font-weight: 700; }
-td { padding: 18px; border-bottom: 1px solid var(--border); font-size: 14px; }
-.avatar-cell { display: flex; align-items: center; gap: 12px; font-weight: 700; }
-.avatar-sm { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); }
+/* ── TABLE ── */
+.table-wrap{background:var(--bg2);border-radius:var(--radius-lg);border:1px solid var(--border);overflow:hidden;box-shadow:var(--shadow);overflow-x:auto;}
+table{width:100%;border-collapse:collapse;min-width:600px;}
+th{text-align:left;padding:16px 18px;font-size:11px;color:var(--ivory-dim);border-bottom:1px solid var(--border);background:var(--glass);font-weight:700;letter-spacing:.5px;text-transform:uppercase}
+td{padding:15px 18px;border-bottom:1px solid var(--border);font-size:14px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--glass)}
+.av-cell{display:flex;align-items:center;gap:11px;font-weight:600}
+.av-sm{width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid var(--border);flex-shrink:0}
 
-.btn { padding: 10px 20px; border-radius: var(--radius-sm); border: none; font-weight: 600; cursor: pointer; font-family: var(--font-body); transition: 0.3s; display: inline-flex; align-items: center; justify-content: center; gap: 8px;}
-.btn-gold { background: var(--gold); color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
-body[data-theme="dark"] .btn-gold { color: #000; text-shadow: none; } 
-.btn-gold:hover { transform: translateY(-2px); box-shadow: 0 5px 15px var(--gold-glow); }
-.btn-outline { background: transparent; border: 1px solid var(--gold); color: var(--gold); }
+/* ── TEXT FORMATTING ── */
+.text-gold { color: var(--gold); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+.text-success { color: var(--success); font-weight: 700; }
+.text-danger { color: var(--danger); font-weight: 700; }
 
-/* Events & Achievements Grid */
-.events-grid, .achievement-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; margin-top: 20px; }
-.event-card, .achievement-card { position: relative; overflow: hidden; border: 1px solid var(--border); background: var(--bg2); border-radius: var(--radius-lg); transition: 0.3s; box-shadow: var(--shadow); }
-.achievement-card { display: flex; flex-direction: column; }
-.achievement-card:hover { transform: translateY(-5px); border-color: var(--gold); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
-.event-date { position: absolute; top: 15px; right: 15px; background: var(--gold); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 700; }
-body[data-theme="dark"] .event-date { color: #000; }
-.event-tag { color: var(--gold); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; }
-.achievement-img { width: 100%; height: 260px; object-fit: cover; background: var(--bg3); border-bottom: 1px solid var(--border); }
-.achievement-info { padding: 20px 15px; text-align: center; display: flex; flex-direction: column; justify-content: center; flex-grow: 1; }
-.achievement-title { font-family: var(--font-head); font-size: 16px; font-weight: 700; color: var(--gold); margin-bottom: 6px; }
-.achievement-subtitle { font-size: 10px; color: var(--ivory-dim); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+/* ── BTNS ── */
+.btn{padding:9px 18px;border-radius:var(--radius-sm);border:none;font-weight:600;cursor:pointer;font-family:var(--font-body);font-size:13px;transition:.25s;display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.btn-gold{background:var(--gold);color:#111}
+.btn-gold:hover{background:var(--gold2);transform:translateY(-1px);box-shadow:0 6px 18px var(--gold-glow)}
+.btn-outline{background:transparent;border:1px solid var(--gold);color:var(--gold)}
+.btn-outline:hover{background:var(--gold-glow)}
 
-/* Locked UI */
-.locked-content { position: relative; border: 1px dashed var(--danger) !important; background: rgba(255, 77, 79, 0.05) !important; }
-.locked-overlay { position: absolute; inset: 0; backdrop-filter: blur(4px); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border-radius: var(--radius-lg); z-index: 10; color: var(--ivory); font-weight: 500; padding: 20px; line-height: 1.6;}
+.btn-sm{padding:5px 12px;font-size:11px}
+.btn-outline-blue { background:transparent; border:1px solid var(--accent); color:var(--accent); }
+.btn-outline-blue:hover { background:rgba(90,159,255,0.1); }
+.btn-outline-grey { background:transparent; border:1px solid #555; color:var(--ivory); }
+.btn-outline-grey:hover { background:var(--glass); }
+.btn-danger{background:transparent;border:1px solid var(--danger);color:var(--danger)}
+.btn-danger:hover{background:rgba(255,77,79,.1)}
 
-/* Modals & Login */
-.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 3000; backdrop-filter: blur(5px); }
-.modal-content { background: var(--bg2); width: 480px; padding: 40px; border-radius: var(--radius-lg); border: 1px solid var(--gold); position: relative; text-align: center; box-shadow: var(--shadow); }
+/* ── BADGES ── */
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.3px}
+.badge-paid{background:rgba(82,196,26,.15);color:var(--success)}
+.badge-due{background:rgba(255,77,79,.15);color:var(--danger)}
+.badge-level{background:var(--gold-glow);color:var(--gold);text-transform:uppercase}
 
-.upi-list { display: flex; flex-direction: column; gap: 12px; margin: 25px 0; }
-.upi-item { display: flex; align-items: center; gap: 15px; padding: 15px; background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; cursor: pointer; transition: 0.2s; }
-.upi-item:hover { border-color: var(--gold); transform: scale(1.02); }
-.upi-logo { width: 30px; height: 30px; border-radius: 6px; }
+/* ── MODALS ── */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;z-index:3000;backdrop-filter:blur(5px)}
+.modal-box{background:var(--bg2);width:480px;max-width:94vw;padding:36px;border-radius:var(--radius-lg);border:1px solid var(--border);position:relative;box-shadow:var(--shadow)}
+.modal-title{font-family:var(--font-head);font-size:22px;color:var(--gold);margin-bottom:6px}
+.modal-sub{color:var(--ivory-dim);font-size:14px;margin-bottom:22px}
 
-#login-overlay { position: fixed; inset: 0; background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.9)), url('https://images.unsplash.com/photo-1529699211952-734e80c4d42b?q=80&w=2071'); background-size: cover; background-position: center; z-index: 4000; display: flex; align-items: center; justify-content: center; }
-.login-box { width: 380px; text-align: center; backdrop-filter: blur(15px); background: var(--bg-trans); border: 1px solid var(--border); padding: 40px; border-radius: var(--radius-lg); box-shadow: var(--shadow); transition: background 0.3s; }
-input, select, textarea { width: 100%; padding: 14px; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--ivory); margin-bottom: 15px; outline: none; transition: 0.3s; font-family: var(--font-body); resize: vertical; }
-input:focus, select:focus, textarea:focus { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-glow); }
+input,select,textarea{width:100%;padding:13px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--ivory);margin-bottom:13px;outline:none;transition:.25s;font-family:var(--font-body);font-size:14px;resize:vertical}
+input:focus,select:focus,textarea:focus{border-color:var(--gold);background:var(--bg2);}
+select option{background:var(--bg3)}
 
-/* Mode Handling */
-body.admin-mode .parent-only, body.parent-mode .admin-only { display: none !important; }
-.page { display: none; }
-.page.active { display: block; animation: fadeInUp 0.5s ease; }
-@keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+/* Profile History List Items */
+.history-item { margin-bottom: 8px; border-bottom: 1px solid var(--glass); padding-bottom: 8px; font-size: 13px;}
+.history-item span { color: var(--ivory-dim); font-size: 11px; display: block; margin-top: 2px;}
 
-/* Admin Delete Button on Wall of Fame */
-.delete-award-btn { position: absolute; top: 10px; right: 10px; background: var(--danger); color: #fff; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 14px; font-weight: bold; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: 0.2s;}
-.delete-award-btn:hover { transform: scale(1.1); background: #ff2a2d; }
+/* ── ACHIEVEMENT GRID ── */
+.ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:22px;margin-top:18px}
+.ach-card{position:relative;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;transition:.3s;box-shadow:var(--shadow);cursor:default}
+.ach-card:hover{transform:translateY(-4px);border-color:var(--gold);box-shadow:0 12px 35px rgba(0,0,0,.35)}
+.ach-img{width:100%;height:240px;object-fit:cover}
+.ach-img-placeholder{width:100%;height:240px;display:flex;align-items:center;justify-content:center;font-size:60px;background:var(--bg3)}
+.ach-info{padding:18px;text-align:center}
+.ach-title{font-family:var(--font-head);font-size:15px;color:var(--gold);margin-bottom:5px;font-weight:700}
+.ach-sub{font-size:10px;color:var(--ivory-dim);text-transform:uppercase;letter-spacing:1px;font-weight:600}
+.del-btn{position:absolute;top:10px;right:10px;background:var(--danger);color:#fff;border:none;border-radius:50%;width:26px;height:26px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.4);transition:.2s;z-index:5}
+.del-btn:hover{transform:scale(1.15);background:#e03033}
+
+/* ── EVENTS ── */
+.ev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:22px}
+.ev-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:22px;position:relative;transition:.25s;box-shadow:var(--shadow)}
+.ev-card:hover{border-color:var(--gold)}
+.ev-date{position:absolute;top:14px;right:14px;background:var(--gold);color:#000;padding:3px 9px;border-radius:4px;font-size:11px;font-weight:700}
+.ev-type{color:var(--gold);font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:8px}
+.ev-title{font-family:var(--font-head);font-size:17px;color:var(--ivory);margin-bottom:10px}
+.ev-meta{font-size:12px;color:var(--ivory-dim);line-height:1.8;margin-bottom:16px}
+
+/* ── CHAT ── */
+.chat-box{flex:1;overflow-y:auto;padding:4px 0 16px;display:flex;flex-direction:column;gap:10px}
+.msg-ai{max-width:82%;padding:12px 16px;border-radius:12px 12px 12px 3px;font-size:14px;line-height:1.6;background:var(--bg3);color:var(--ivory);border-left:3px solid var(--gold);border-top:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border);align-self:flex-start; white-space: pre-wrap;}
+.msg-user{max-width:82%;padding:12px 16px;border-radius:12px 12px 3px 12px;font-size:14px;line-height:1.6;background:var(--gold);color:#000;font-weight:500;align-self:flex-end}
+.msg-thinking{opacity:.6;font-style:italic}
+
+/* ════════════════ LOGIN SCREEN ════════════════ */
+#login-screen {
+  position: fixed;
+  inset: 0;
+  background: 
+    linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.65)), 
+    url('https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&w=2000&q=80') center/cover;
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#login-screen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(8px);
+}
+.login-box {
+  width: 440px;
+  max-width: 90vw;
+  background: #17171c;
+  padding: 48px 40px;
+  border-radius: 16px;
+  box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+.login-crown {
+  width: 46px;
+  height: 46px;
+  margin: 0 auto 16px;
+  fill: var(--gold);
+}
+.login-title {
+  font-family: var(--font-head);
+  font-size: 28px;
+  color: var(--gold);
+  margin-bottom: 36px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.login-box input {
+  background: #1f1f26;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 16px 18px;
+  font-size: 14px;
+  color: #e5e5e0; 
+  margin-bottom: 16px;
+  transition: 0.3s;
+}
+.login-box input::placeholder { color: #6b6b80; font-weight: 400; }
+.login-box input:focus { border-color: var(--gold); background: #25252e; box-shadow: none; }
+.pass-wrap { position: relative; margin-bottom: 24px; }
+.pass-wrap input { margin-bottom: 0; padding-right: 48px; }
+.eye-btn {
+  position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; display: flex; padding: 4px;
+}
+.login-box .btn-gold { width: 100%; padding: 16px; font-size: 15px; border-radius: 8px;}
+
+/* ── UPI & MISC ── */
+.upi-list{display:flex;flex-direction:column;gap:11px;margin:22px 0}
+.upi-item{display:flex;align-items:center;gap:14px;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:.2s}
+.upi-item:hover{border-color:var(--gold);transform:scale(1.01)}
+.upi-logo{width:28px;height:28px;border-radius:5px;object-fit:contain}
+.upload-zone{display:block;width:100%;box-sizing:border-box;border:1px dashed var(--ivory-dim);border-radius:var(--radius-sm);padding:20px;text-align:center;cursor:pointer;transition:.2s;margin-bottom:13px;font-size:13px;color:var(--ivory-dim);background:var(--bg3)}
+.upload-zone:hover{border-color:var(--gold);color:var(--gold)}
+.upload-zone input{display:none}
+.upload-preview{width:100%;height:120px;object-fit:cover;border-radius:var(--radius-sm);margin-bottom:13px;display:none}
+
+body.admin-mode .parent-only,body.parent-mode .admin-only{display:none!important}
+.page{display:none}
+.page.active{display:block;animation:fadeUp .4s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+#toast-container{position:fixed;bottom:28px;right:28px;z-index:5000;display:flex;flex-direction:column;gap:10px}
+.toast{padding:13px 20px;border-radius:10px;font-size:14px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,.35);animation:slideIn .3s ease;display:flex;align-items:center;gap:10px}
+.toast-success{background:#1a3a1a;border:1px solid var(--success);color:var(--success)}
+.toast-error{background:#3a1a1a;border:1px solid var(--danger);color:var(--danger)}
+.toast-info{background:var(--bg3);border:1px solid var(--border);color:var(--ivory)}
+@keyframes slideIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  .sidebar { transform: translateX(-100%); width: 260px; box-shadow: var(--shadow); }
+  .sidebar.open { transform: translateX(0); }
+  .main { margin-left: 0; }
+  .top-bar { padding: 16px 20px; }
+  .content { padding: 20px; }
+  #page-dash > div:nth-child(2), #page-dash > div:nth-child(3), #page-child > div:nth-child(3) { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body data-theme="dark">
 
-<div id="login-overlay">
-    <div class="login-box">
-        <div class="logo-icon" style="font-size: 50px; margin-bottom: 10px;">♚</div>
-        <h1 class="logo-text" style="font-size: 28px; margin-bottom: 30px; color: var(--gold);">Chesskidoo Login</h1>
-        <input type="text" id="login-u" placeholder="Admin or Student Name">
-        <div style="position: relative; width: 100%;">
-            <input type="password" id="login-p" placeholder="Password or Phone Number">
-            <button type="button" id="toggle-btn" onclick="togglePass()" style="position: absolute; right: 12px; top: 12px; background: none; border: none; cursor: pointer; color: var(--gold); display: flex; align-items: center; justify-content: center; transition: 0.2s;">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                    <path d="M 5 12 Q 12 3 19 12" />
-                    <circle cx="12" cy="15" r="2.5" />
-                </svg>
-            </button>
-        </div>
-        <button class="btn btn-gold" style="width: 100%; margin-top: 10px;" onclick="handleLogin()">Sign In</button>
-        <p id="err" style="color:var(--danger); margin-top: 15px; display: none; font-size: 13px; font-weight: 500;">Credentials do not match our records.</p>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<div id="login-screen">
+  <div class="login-box">
+    <svg class="login-crown" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+      <path d="M458 139.7a32 32 0 10-53 30.6l-50.6 84.4L275.6 96.3a32 32 0 10-39.2 0L157.6 254.7l-50.6-84.4a32 32 0 10-53-30.6L102 384h308zM64 432h384v48H64z"/>
+    </svg>
+    <h1 class="login-title">Chesskidoo Login</h1>
+    
+    <input type="text" id="li-user" placeholder="Admin or Student Name" autocomplete="off">
+    <div class="pass-wrap">
+      <input type="password" id="li-pass" placeholder="Password or Phone Number" onkeydown="if(event.key==='Enter')doLogin()">
+      <button class="eye-btn" type="button" onclick="toggleEye()" id="eye-btn">
+        <svg id="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
     </div>
+    <button type="button" class="btn btn-gold" id="login-btn" onclick="doLogin()">Sign In</button>
+    
+    <div id="login-err" style="color:var(--danger);font-size:13px;margin-top:16px;display:none;font-weight:500"></div>
+  </div>
 </div>
 
-<nav class="sidebar">
-    <div class="logo"><div class="logo-icon">♚</div><div class="logo-text">CHESSKIDOO</div></div>
-    <div class="nav-group">
-        <div class="nav-item admin-only active" id="nav-dash" onclick="setPage('dash')"><span style="margin-right:5px">📊</span> Dashboard</div>
-        <div class="nav-item admin-only" id="nav-stud" onclick="setPage('stud')"><span style="margin-right:5px">👥</span> Students</div>
-        <div class="nav-item parent-only" id="nav-child" onclick="setPage('child')"><span style="margin-right:5px">📈</span> Child Progress</div>
-        <div class="nav-item" id="nav-fame" onclick="setPage('fame')"><span style="margin-right:5px">🏆</span> Wall of Fame</div>
-        <div class="nav-item" id="nav-events" onclick="setPage('events')"><span style="margin-right:5px">📅</span> Events</div>
-        <div class="nav-item" id="nav-bills" onclick="setPage('bills')"><span style="margin-right:5px">💳</span> Payments</div>
-        <div class="nav-item admin-only" id="nav-coach" onclick="setPage('coach')"><span style="margin-right:5px">💬</span> AI Coach</div>
-    </div>
-    <div style="padding: 20px; border-top: 1px solid var(--border);">
-        <div class="nav-item" onclick="toggleTheme()" style="color:var(--gold)"><span style="margin-right:5px">☀️</span> Switch Theme</div>
-        <div class="nav-item" onclick="logout()"><span style="margin-right:5px">↪️</span> Sign Out</div>
-    </div>
+<nav class="sidebar" id="sidebar">
+  <div class="logo"><span class="logo-icon">♚</span><span class="logo-text">CHESSKIDOO</span></div>
+  <div class="nav-group">
+    <div class="nav-item admin-only" id="nav-dash" onclick="setPage('dash')"><span class="ico">📊</span> Dashboard</div>
+    <div class="nav-item admin-only" id="nav-stud" onclick="setPage('stud')"><span class="ico">👥</span> Students</div>
+    <div class="nav-item parent-only" id="nav-child" onclick="setPage('child')"><span class="ico">📈</span> My Child</div>
+    <div class="nav-item" id="nav-fame" onclick="setPage('fame')"><span class="ico">🏆</span> Wall of Fame</div>
+    <div class="nav-item" id="nav-events" onclick="setPage('events')"><span class="ico">📅</span> Events</div>
+    <div class="nav-item" id="nav-bills" onclick="setPage('bills')"><span class="ico">💳</span> Payments</div>
+    <div class="nav-item admin-only" id="nav-coach" onclick="setPage('coach')"><span class="ico">💬</span> AI Assistant</div>
+  </div>
+  <div style="padding:16px;border-top:1px solid var(--border)">
+    <div class="nav-item" onclick="toggleTheme()"><span class="ico">🌗</span> Switch Theme</div>
+  </div>
 </nav>
 
 <div class="main">
-    <div class="top-bar">
-        <div class="page-title" id="p-title" style="font-weight: 700;">Overview</div>
-        <div id="top-btn-container"></div>
+  <div class="top-bar">
+    <div class="page-title">
+      <button type="button" class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle Menu" title="Toggle Sidebar">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="6" x2="20" y2="6"></line>
+          <line x1="4" y1="12" x2="20" y2="12"></line>
+          <line x1="4" y1="18" x2="20" y2="18"></line>
+        </svg>
+      </button>
+      <span id="p-title">Overview</span>
     </div>
-
-    <div class="content">
-        <div id="page-dash" class="page active admin-only">
-            <img src="https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&w=2000&q=80" class="hero-img" alt="Chess Academy Overview">
-            
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px; margin-bottom: 40px;">
-                <div class="card"><div class="stat-label">Total Cadets</div><div class="stat-value" id="s-total">0</div></div>
-                <div class="card"><div class="stat-label">Avg Academy ELO</div><div class="stat-value" id="s-elo">0</div></div>
-                <div class="card"><div class="stat-label">Monthly Revenue</div><div class="stat-value" id="s-rev">₹0</div></div>
+    <div class="top-nav-right">
+        <div id="top-btn-area" style="display:flex;gap:10px;align-items:center"></div>
+        
+        <div class="top-profile" id="top-profile" onclick="openProfile()" style="display:none;" title="Account Profile">
+            <img id="top-profile-av" class="top-profile-av" src="">
+            <div class="top-profile-info">
+                <span class="top-profile-hello">Hello,</span>
+                <span class="top-profile-name" id="top-profile-name">Sign in</span>
             </div>
-            <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 25px;">
-                <div class="card"><h3 style="margin-bottom: 20px; color: var(--gold);">ELO Distribution</h3><canvas id="chartElo" height="150"></canvas></div>
-                <div class="card"><h3 style="margin-bottom: 20px; color: var(--gold);">Coach Load</h3><canvas id="chartCoach" height="250"></canvas></div>
-            </div>
-        </div>
-
-        <div id="page-fame" class="page">
-            <p style="color: var(--ivory-dim); margin-bottom: 20px; font-size: 16px;">Celebrating the proudest moments and victories of Chesskidoo cadets.</p>
-            <div class="achievement-grid" id="wall-of-fame-container"></div>
-        </div>
-
-        <div id="page-events" class="page">
-            <div class="events-grid" id="events-container"></div>
-        </div>
-
-        <div id="page-child" class="page parent-only">
-            <div class="profile-header">
-                <div class="profile-info">
-                    <img id="c-avatar" src="" class="profile-avatar" alt="Student Profile">
-                    <div>
-                        <h1 id="c-name" style="font-family: var(--font-head); color: var(--gold); margin-bottom: 5px;">—</h1>
-                        <p style="color: var(--ivory-dim); font-size: 15px;">Level: <span id="c-level" style="color: var(--ivory); font-weight: bold;">—</span> | Coach: <span id="c-coach" style="color: var(--ivory); font-weight: bold;">—</span></p>
-                    </div>
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 10px;">
-                    <button class="btn btn-gold" onclick="openContactModal()">✉️ Message Coach</button>
-                    <button class="btn btn-outline" onclick="document.getElementById('feedback-modal').style.display='flex'">📝 Give Feedback</button>
-                </div>
-            </div>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 25px;">
-                <div class="card" id="coach-review-card">
-                    <h3 style="margin-bottom: 15px; color: var(--gold);">Coach Review</h3>
-                    <div style="padding: 20px; background: var(--glass); border-radius: 12px; line-height: 1.8; border: 1px solid var(--border);">
-                        <span style="color:var(--success); font-weight:700;">★ LATEST UPDATE:</span><br>
-                        "Student is showing great tactical progress. Focus on endgame patterns is recommended."
-                    </div>
-                    <div style="margin-top: 20px;">
-                        <div class="stat-label">Current Rating</div>
-                        <div class="stat-value" id="c-elo" style="font-size: 40px;">—</div>
-                    </div>
-                </div>
-
-                <div class="card" id="personal-progress-card">
-                    </div>
-            </div>
-
-            <h2 style="font-family: var(--font-head); color: var(--ivory); margin-top: 10px;">My Achievements</h2>
-            <div class="achievement-grid" id="parent-achievements-container"></div>
-        </div>
-
-        <div id="page-stud" class="page admin-only">
-            <div class="table-container">
-                <table>
-                    <thead><tr><th>Student</th><th>Level</th><th>ELO</th><th>Coach</th><th>Status</th><th>Actions</th></tr></thead>
-                    <tbody id="stud-body"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <div id="page-bills" class="page">
-            <div class="table-container">
-                <table>
-                    <thead><tr><th>Invoice</th><th>Student</th><th>Fee</th><th>Status</th><th>Control</th></tr></thead>
-                    <tbody id="bill-body"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <div id="page-coach" class="page admin-only">
-            <div class="card" style="height: 500px; display: flex; flex-direction: column;">
-                <h3 style="margin-bottom: 15px; color: var(--gold);">Intelligence Hub</h3>
-                <div id="chat-box" style="flex: 1; overflow-y: auto; padding-bottom: 20px; display: flex; flex-direction: column;">
-                    <div style="max-width: 80%; padding: 12px; border-radius: 8px; font-size: 14px; margin-bottom: 10px; line-height: 1.5; background: var(--bg3); color: var(--gold); border: 1px solid var(--border); align-self: flex-start;">
-                        System active. I can analyze revenue, coach load, and student stats. Ask me anything.
-                    </div>
-                </div>
-                <div style="display: flex; gap: 10px; margin-top: 10px;">
-                    <input type="text" id="ai-input" placeholder="Type a question... (e.g. 'revenue' or 'coach load')" style="margin: 0; flex: 1;" onkeypress="if(event.key==='Enter')askAI()">
-                    <button class="btn btn-gold" onclick="askAI()">Send</button>
-                </div>
-            </div>
+            <span style="color:var(--gold); font-size:10px; margin-left:4px;">▼</span>
         </div>
     </div>
+  </div>
+
+  <div class="content">
+
+    <div id="page-dash" class="page admin-only">
+      <img src="https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&w=2000&q=80" class="hero-img" alt="Chess Academy">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-bottom:32px">
+        <div class="card"><div class="stat-label">Total Cadets</div><div class="stat-value" id="s-total">—</div></div>
+        <div class="card"><div class="stat-label">Avg Academy ELO</div><div class="stat-value" id="s-elo">—</div></div>
+        <div class="card"><div class="stat-label">Collected This Month</div><div class="stat-value" id="s-rev">—</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:22px">
+        <div class="card"><h3 style="margin-bottom:18px;color:var(--gold)">ELO Distribution</h3><canvas id="chartElo" height="160"></canvas></div>
+        <div class="card"><h3 style="margin-bottom:18px;color:var(--gold)">Coach Load</h3><canvas id="chartCoach" height="260"></canvas></div>
+      </div>
+    </div>
+
+    <div id="page-stud" class="page admin-only">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Student</th><th>Level</th><th>ELO</th><th>Coach</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="stud-body"><tr><td colspan="6"><div class="loading-state"><span class="spinner"></span> Loading students…</div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="page-child" class="page parent-only">
+      <div id="child-loading" class="loading-state"><span class="spinner"></span> Loading profile…</div>
+      <div id="child-content" style="display:none">
+        <div class="profile-hdr">
+          <div class="profile-info">
+            <div id="p-av-wrap"></div>
+            <div>
+              <h1 id="c-name" style="font-family:var(--font-head);color:var(--gold);margin-bottom:5px">—</h1>
+              <p style="color:var(--ivory-dim);font-size:14px">Level: <span id="c-level" style="color:var(--ivory);font-weight:600">—</span> &nbsp;|&nbsp; Coach: <span id="c-coach" style="color:var(--ivory);font-weight:600">—</span></p>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:9px">
+            <button type="button" class="btn btn-gold" onclick="openContactModal()">✉️ Message Coach</button>
+            <button type="button" class="btn btn-outline" onclick="openModal('fb-modal')">📝 Give Feedback</button>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-bottom:26px">
+          <div class="card">
+            <h3 style="margin-bottom:14px;color:var(--gold)">Coach Review</h3>
+            <div style="padding:16px;background:var(--glass);border:1px solid var(--border);border-radius:10px;line-height:1.8;margin-bottom:16px;font-size:14px">
+              <span style="color:var(--success);font-weight:700">★ LATEST:</span><br>
+              <span id="c-notes">Student is showing great tactical progress. Focus on endgame patterns is recommended.</span>
+            </div>
+            <div class="stat-label">Current ELO Rating</div>
+            <div class="stat-value" id="c-elo" style="font-size:38px">—</div>
+          </div>
+          <div class="card">
+            <h3 style="margin-bottom:16px;color:var(--gold)">Skill Breakdown</h3>
+            <div id="skill-bars"></div>
+          </div>
+        </div>
+
+        <h2 style="font-family:var(--font-head);margin-bottom:4px">My Achievements</h2>
+        <div class="ach-grid" id="parent-ach"></div>
+      </div>
+    </div>
+
+    <div id="page-fame" class="page">
+      <p style="color:var(--ivory-dim);margin-bottom:20px;font-size:15px">Celebrating the proudest victories of Chesskidoo cadets.</p>
+      <div id="fame-loading" class="loading-state"><span class="spinner"></span> Loading achievements…</div>
+      <div class="ach-grid" id="fame-grid" style="display:none"></div>
+    </div>
+
+    <div id="page-events" class="page">
+      <div id="ev-loading" class="loading-state"><span class="spinner"></span> Loading events…</div>
+      <div class="ev-grid" id="ev-grid" style="display:none"></div>
+    </div>
+
+    <div id="page-bills" class="page">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Invoice</th><th>Student</th><th>Fee</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody id="bill-body"><tr><td colspan="5"><div class="loading-state"><span class="spinner"></span> Loading payments…</div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="page-coach" class="page admin-only">
+      <div class="card" style="height:520px;display:flex;flex-direction:column">
+        <h3 style="margin-bottom:14px;color:var(--gold)">🧠 Intelligence Hub (AI Assistant)</h3>
+        <div class="chat-box" id="chat-box">
+          <div class="msg-ai">System active. I am your AI Assistant. Ask me about revenue, unpaid fees, top students, average ELO, or upcoming events!</div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+          <input type="text" id="ai-input" placeholder="Try: 'Who is the top student?' or 'What is our total revenue?'" style="margin:0;flex:1" onkeydown="if(event.key==='Enter')sendAI()">
+          <button type="button" class="btn btn-gold" id="ai-send-btn" onclick="sendAI()">Send</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
 </div>
 
-<div class="modal" id="main-modal">
-    <div class="modal-content" id="modal-form-content"></div>
+<div id="toast-container"></div>
+
+<div class="modal" id="profile-modal">
+  <div class="modal-box">
+    <div class="modal-title">Account Activity</div>
+    <div class="modal-sub">View recent sessions and system access</div>
+    
+    <div id="prof-admin-view" style="display:none;">
+        <h4 style="color:var(--gold); margin-bottom:8px; font-size: 13px;">Currently Online</h4>
+        <div id="active-users-list" style="background:var(--bg3); padding:12px; border-radius:8px; border:1px solid var(--glass); margin-bottom:18px; font-size:13px; color:var(--ivory);"></div>
+        
+        <h4 style="color:var(--gold); margin-bottom:8px; font-size: 13px;">Your Login History</h4>
+        <div id="admin-history-list" style="background:var(--bg3); padding:12px; border-radius:8px; border:1px solid var(--glass); margin-bottom:16px; max-height:140px; overflow-y:auto;"></div>
+    </div>
+    
+    <div id="prof-parent-view" style="display:none;">
+        <h4 style="color:var(--gold); margin-bottom:8px; font-size: 13px;">Your Login History</h4>
+        <div id="parent-history-list" style="background:var(--bg3); padding:12px; border-radius:8px; border:1px solid var(--glass); margin-bottom:16px; max-height:160px; overflow-y:auto;"></div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:22px; border-top: 1px solid var(--border); padding-top: 18px;">
+      <button type="button" class="btn btn-outline-grey" style="flex:1" onclick="closeModals()">Close</button>
+      <button type="button" class="btn btn-danger" style="flex:1" onclick="doLogout()">Sign Out securely</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="enroll-modal">
+  <div class="modal-box">
+    <div class="modal-title">Enroll New Cadet</div>
+    <div class="modal-sub">Student info & parent credentials</div>
+    <input type="text" id="m-name" placeholder="Full Name">
+    <input type="text" id="m-phone" placeholder="Parent Phone (used as login password)" maxlength="10">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <input type="number" id="m-elo" placeholder="Initial ELO" value="400" style="margin-bottom:0">
+      <select id="m-level" style="margin-bottom:0"><option>Beginner</option><option>Intermediate</option><option>Advanced</option><option>Elite</option></select>
+    </div>
+    <div style="height:13px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <select id="m-coach"></select>
+      <input type="number" id="m-fee" placeholder="Monthly Fee ₹" value="5000" style="margin-bottom:0">
+    </div>
+    <div style="height:13px"></div>
+    <label class="upload-zone" for="m-avatar-file">📷 Upload Photo (optional) <br><small>JPG, PNG, WEBP — max 5MB</small>
+      <input type="file" id="m-avatar-file" accept="image/*" onchange="previewFile(this,'m-avatar-preview')">
+    </label>
+    <img id="m-avatar-preview" class="upload-preview">
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button type="button" class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
+      <button type="button" class="btn btn-gold" style="flex:1" id="enroll-btn" onclick="saveStudent()">Enroll Cadet</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="edit-modal">
+  <div class="modal-box">
+    <div class="modal-title">Edit Cadet</div>
+    <div class="modal-sub">Update student details</div>
+    <input type="hidden" id="e-id">
+    <input type="text" id="e-name" placeholder="Full Name">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <input type="number" id="e-elo" placeholder="ELO" style="margin-bottom:0">
+      <select id="e-level" style="margin-bottom:0"><option>BEGINNER</option><option>INTERMEDIATE</option><option>ADVANCED</option><option>ELITE</option></select>
+    </div>
+    <div style="height:13px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <select id="e-coach" style="margin-bottom:0"></select>
+      <input type="number" id="e-fee" placeholder="Monthly Fee ₹" style="margin-bottom:0">
+    </div>
+    <div style="height:13px"></div>
+    <select id="e-status">
+        <option value="Paid">Paid</option>
+        <option value="Due">Due</option>
+    </select>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button type="button" class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
+      <button type="button" class="btn btn-gold" style="flex:1" onclick="updateStudent()">Save Changes</button>
+    </div>
+  </div>
 </div>
 
 <div class="modal" id="award-modal">
-    <div class="modal-content">
-        <h2 style="margin-bottom: 10px; font-family:var(--font-head); color: var(--gold);">Grant Achievement</h2>
-        <p id="award-student-name" style="color: var(--ivory-dim); margin-bottom: 20px;">Student Name</p>
-        <input type="hidden" id="award-student-id">
-        <input type="text" id="award-text" placeholder="Title (e.g., 2nd Place Winner)">
-        <input type="url" id="award-img" placeholder="Image URL (e.g., https://link-to-your-image.jpg)">
-        <button class="btn btn-gold" style="width: 100%; margin-top: 10px;" onclick="saveAward()">Publish to Wall of Fame</button>
-        <button class="btn btn-outline" style="width: 100%; margin-top: 10px;" onclick="closeModals()">Cancel</button>
+  <div class="modal-box">
+    <div class="modal-title">Grant Achievement</div>
+    <div class="modal-sub" id="award-sub">Awarding: —</div>
+    <input type="hidden" id="award-sid">
+    <input type="text" id="award-title" placeholder="Title (e.g. District Champion 2026)">
+    <label class="upload-zone" for="award-img-file">🖼️ Upload Achievement Photo
+      <input type="file" id="award-img-file" accept="image/*" onchange="previewFile(this,'award-img-preview')">
+    </label>
+    <img id="award-img-preview" class="upload-preview">
+    <input type="url" id="award-img-url" placeholder="— OR paste image URL —" style="margin-top:0">
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button type="button" class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
+      <button type="button" class="btn btn-gold" style="flex:1" id="award-btn" onclick="saveAward()">Publish to Wall of Fame</button>
     </div>
+  </div>
+</div>
+
+<div class="modal" id="ev-modal">
+  <div class="modal-box">
+    <div class="modal-title">Create Event</div>
+    <div class="modal-sub">Publish a new tournament or workshop</div>
+    <input type="text" id="ev-title" placeholder="Event Name">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <input type="text" id="ev-date" placeholder="Date (e.g. Oct 20)" style="margin-bottom:0">
+      <select id="ev-type" style="margin-bottom:0"><option>Tournament</option><option>Rapid</option><option>Blitz</option><option>Workshop</option></select>
+    </div>
+    <div style="height:13px"></div>
+    <input type="text" id="ev-prize" placeholder="Prize Pool (e.g. ₹50,000)">
+    <input type="text" id="ev-loc" placeholder="Location">
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button type="button" class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
+      <button type="button" class="btn btn-gold" style="flex:1" id="ev-btn" onclick="saveEvent()">Publish Event</button>
+    </div>
+  </div>
 </div>
 
 <div class="modal" id="contact-modal">
-    <div class="modal-content">
-        <h2 style="margin-bottom: 10px; font-family:var(--font-head); color: var(--gold);">Message Coach</h2>
-        <p style="color: var(--ivory-dim); margin-bottom: 20px;">Sending message to: <strong id="contact-coach-name" style="color:var(--ivory)">Coach</strong></p>
-        <textarea id="contact-msg" placeholder="Type your message or questions here..." style="min-height: 120px;"></textarea>
-        <button class="btn btn-gold" style="width: 100%; margin-top: 10px;" onclick="sendContactMsg()">Send Message</button>
-        <button class="btn btn-outline" style="width: 100%; margin-top: 10px;" onclick="closeModals()">Cancel</button>
+  <div class="modal-box">
+    <div class="modal-title">Message Coach</div>
+    <div class="modal-sub">Sending to: <strong id="contact-coach" style="color:var(--ivory)">—</strong></div>
+    <textarea id="contact-msg" rows="5" placeholder="Type your message…"></textarea>
+    <div style="display:flex;gap:10px">
+      <button type="button" class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
+      <button type="button" class="btn btn-gold" style="flex:1" onclick="sendMsg()">Send Message</button>
     </div>
+  </div>
 </div>
 
-<div class="modal" id="feedback-modal">
-    <div class="modal-content">
-        <h2 style="margin-bottom: 10px; font-family:var(--font-head); color: var(--gold);">Academy Feedback</h2>
-        <p style="color: var(--ivory-dim); margin-bottom: 20px;">Help us improve Chesskidoo.</p>
-        <textarea id="feedback-msg" placeholder="How was your experience this month?" style="min-height: 120px;"></textarea>
-        <button class="btn btn-gold" style="width: 100%; margin-top: 10px;" onclick="submitFeedback()">Submit Feedback</button>
-        <button class="btn btn-outline" style="width: 100%; margin-top: 10px;" onclick="closeModals()">Cancel</button>
+<div class="modal" id="fb-modal">
+  <div class="modal-box">
+    <div class="modal-title">Academy Feedback</div>
+    <div class="modal-sub">Help us improve Chesskidoo.</div>
+    <textarea id="fb-msg" rows="5" placeholder="How was your experience this month?"></textarea>
+    <div style="display:flex;gap:10px">
+      <button type="button" class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
+      <button type="button" class="btn btn-gold" style="flex:1" onclick="sendFeedback()">Submit</button>
     </div>
+  </div>
 </div>
 
 <div class="modal" id="pay-modal">
-    <div class="modal-content">
-        <div style="font-size: 40px; margin-bottom: 10px;">🛡️</div>
-        <h2 style="font-family: var(--font-head); color: var(--ivory);">Secure Checkout</h2>
-        <p style="color:var(--ivory-dim); margin-bottom: 5px;">Paying for Academy Tuition</p>
-        <h1 id="pay-amt" style="color:var(--gold); margin-bottom: 20px;">₹0</h1>
-        
-        <div class="upi-list">
-            <div class="upi-item" onclick="simPay('Google Pay')">
-                <img src="https://cdn-icons-png.flaticon.com/512/300/300221.png" class="upi-logo" alt="GPay">
-                <b style="color: var(--ivory);">Google Pay</b>
-            </div>
-            <div class="upi-item" onclick="simPay('PhonePe')">
-                <img src="https://cdn-icons-png.flaticon.com/512/5968/5968310.png" class="upi-logo" alt="PhonePe">
-                <b style="color: var(--ivory);">PhonePe</b>
-            </div>
-            <div class="upi-item" onclick="simPay('Paytm')">
-                <img src="https://cdn-icons-png.flaticon.com/512/825/825508.png" class="upi-logo" alt="Paytm">
-                <b style="color: var(--ivory);">Paytm / BHIM</b>
-            </div>
-        </div>
-        <button class="btn btn-outline" style="width:100%" onclick="closeModals()">Cancel</button>
+  <div class="modal-box" style="text-align:center">
+    <div style="font-size:42px;margin-bottom:10px">🛡️</div>
+    <div class="modal-title">Secure Checkout</div>
+    <p style="color:var(--ivory-dim);font-size:14px;margin-bottom:6px">Academy Tuition</p>
+    <div id="pay-amt" style="font-size:36px;font-weight:700;color:var(--gold);font-family:'DM Mono';margin-bottom:6px">₹0</div>
+    <p style="color:var(--ivory-dim);font-size:12px;margin-bottom:4px">Student: <span id="pay-name" style="color:var(--ivory)">—</span></p>
+    <div class="upi-list">
+      <div class="upi-item" onclick="simPay('Google Pay')"><img src="https://cdn-icons-png.flaticon.com/512/300/300221.png" class="upi-logo"><b>Google Pay</b></div>
+      <div class="upi-item" onclick="simPay('PhonePe')"><img src="https://cdn-icons-png.flaticon.com/512/5968/5968310.png" class="upi-logo"><b>PhonePe</b></div>
+      <div class="upi-item" onclick="simPay('Paytm')"><img src="https://cdn-icons-png.flaticon.com/512/825/825508.png" class="upi-logo"><b>Paytm / BHIM</b></div>
     </div>
+    <button type="button" class="btn btn-outline" style="width:100%" onclick="closeModals()">Cancel</button>
+  </div>
 </div>
 
 <script>
-// INITIAL DATA
-let students = [
-    {
-        id:101, name:'Riyas', phone:'9876543210', elo:2450, level:'Elite', coach:'GM Viswanathan', fee:12000, status:'Paid', 
-        avatar: 'https://ui-avatars.com/api/?name=Riyas&background=d4af37&color=000&bold=true', 
-        achievements: [
-            { title: 'Velammal Nexus Top 30', img: 'https://images.unsplash.com/photo-1560174038-da43ac74f01b?auto=format&fit=crop&w=400&q=80' }
-        ]
-    },
-    {
-        id:102, name:'Varun', phone:'9876543211', elo:2100, level:'Advanced', coach:'GM Viswanathan', fee:10000, status:'Paid', 
-        avatar: 'https://ui-avatars.com/api/?name=Varun&background=d4af37&color=000&bold=true', 
-        achievements: [
-            { title: 'Velammal Nexus Top 30', img: 'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&w=400&q=80' }
-        ]
-    },
-    {
-        id:103, name:'Krishna', phone:'9876543212', elo:1850, level:'Intermediate', coach:'Transition Coach Rohith', fee:8000, status:'Paid', 
-        avatar: 'https://ui-avatars.com/api/?name=Krishna&background=d4af37&color=000&bold=true', 
-        achievements: [] 
-    },
-    {
-        id:104, name:'Saanvi Iyer', phone:'9876543213', elo:1200, level:'Beginner', coach:'Coach Prag', fee:6000, status:'Due', 
-        avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=150&auto=format&fit=crop', 
-        achievements: [
-            { title: 'Joined Chesskidoo', img: 'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?q=80&w=400' }
-        ]
-    }
+// ── MOCK DATABASE STATE ───────────────────────────────────────────────────────
+let allCoaches = [
+  { id: 'c1', full_name: 'GM Viswanathan' },
+  { id: 'c2', full_name: 'Transition Coach Rohith' },
+  { id: 'c3', full_name: 'Coach Prag' }
 ];
 
-let events = [
-    {id:1, title:'Junior Masters 2026', date:'Oct 15', type:'Tournament', prize:'₹50,000', loc:'Mumbai Academy', regs: 12},
-    {id:2, title:'Blitz King Championship', date:'Nov 02', type:'Rapid', prize:'₹25,000', loc:'Online - Lichess', regs: 45}
+let allStudents = [
+  { id: 's1', full_name: 'Riyas', level: 'ELITE', current_rating: 2450, coaches: allCoaches[0], payment_status: 'Paid', monthly_fee: 6500, tactics_score: 95, endgame_score: 90, openings_score: 98, positional_score: 92, coach_notes: 'Exceptional board vision. Ready for next norm.' },
+  { id: 's2', full_name: 'Varun', level: 'ADVANCED', current_rating: 2100, coaches: allCoaches[0], payment_status: 'Paid', monthly_fee: 5000, tactics_score: 85, endgame_score: 80, openings_score: 88, positional_score: 85, coach_notes: 'Solid positional understanding. Needs work on time management.' },
+  { id: 's3', full_name: 'Krishna', level: 'INTERMEDIATE', current_rating: 1850, coaches: allCoaches[1], payment_status: 'Paid', monthly_fee: 4000, tactics_score: 70, endgame_score: 65, openings_score: 75, positional_score: 70, coach_notes: 'Improving steadily. Keep practicing endgame fundamentals.' },
+  { id: 's4', full_name: 'Saanvi Iyer', level: 'BEGINNER', current_rating: 1200, coaches: allCoaches[2], payment_status: 'Due', monthly_fee: 3000, tactics_score: 50, endgame_score: 45, openings_score: 55, positional_score: 50, coach_notes: 'Focusing on opening principles and basic tactics.' }
 ];
 
-let role = null; 
-let currentStudent = null; 
+let achievementsData = [];
+
+let eventsData = [
+  { id: 'e1', title: 'Summer Blitz Tournament', date: 'Aug 15', type: 'Blitz', prize: '₹10,000', location: 'Main Academy Hall', registrations_count: 12 }
+];
+
+const mockCredentials = {
+  'riyas': '9876543210',
+  'varun': '9876543211',
+  'krishna': '9876543212',
+  'saanvi iyer': '9876543213'
+};
+
+// History Logging System
+let loginHistory = {
+  admin: [
+    { time: new Date(Date.now() - 86400000).toLocaleString(), device: 'Desktop - Chrome' }
+  ],
+  parents: {}
+};
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let role = null;
+let currentStudent = null;
 let charts = {};
+let payTarget = null; 
 
-function togglePass() {
-    const p = document.getElementById('login-p');
-    const btn = document.getElementById('toggle-btn');
-    const eyeOpen = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M 5 12 Q 12 3 19 12" /><circle cx="12" cy="15" r="2.5" /></svg>`;
-    const eyeClosed = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M 5 12 Q 12 3 19 12" /><circle cx="12" cy="15" r="2.5" /><line x1="3" y1="3" x2="21" y2="21" /></svg>`;
+// ── UTILS ────────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
 
-    if (p.type === 'password') {
-        p.type = 'text'; btn.innerHTML = eyeClosed; btn.style.color = 'var(--ivory-dim)';
-    } else {
-        p.type = 'password'; btn.innerHTML = eyeOpen; btn.style.color = 'var(--gold)';
-    }
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.innerHTML = `<span>${type==='success'?'✓':type==='error'?'✕':'ℹ'}</span> ${msg}`;
+  $('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3800);
 }
 
-function handleLogin() {
-    const u = document.getElementById('login-u').value.trim();
-    const p = document.getElementById('login-p').value.trim();
+function openModal(id)  { $(id).style.display = 'flex'; }
+function closeModals()  { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
+document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if(e.target === m) closeModals(); }));
+
+function previewFile(inp, previewId) {
+  const file = inp.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => { const img = $(previewId); img.src = e.target.result; img.style.display = 'block'; };
+  reader.readAsDataURL(file);
+}
+
+async function uploadFile(file) {
+  return URL.createObjectURL(file);
+}
+
+function makeAvSrc(s) {
+  if (s.custom_avatar) return s.custom_avatar;
+  if (s.full_name.toLowerCase() === 'saanvi iyer') return `https://ui-avatars.com/api/?name=${encodeURIComponent(s.full_name)}&background=1d4ed8&color=ffffff&bold=true&size=80`;
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(s.full_name)}&background=dca33e&color=000000&bold=true&size=80`;
+}
+
+// ── MOBILE & DESKTOP SIDEBAR TOGGLE ──────────────────────────────────────────
+function toggleSidebar() {
+  const sidebar = $('sidebar');
+  const overlay = $('sidebar-overlay');
+  const main = document.querySelector('.main');
+  
+  if (window.innerWidth <= 768) {
+    sidebar.classList.toggle('open');
+    if (sidebar.classList.contains('open')) overlay.classList.add('active');
+    else overlay.classList.remove('active');
+  } else {
+    sidebar.classList.toggle('collapsed');
+    main.classList.toggle('expanded');
+  }
+}
+
+// ── LOGIN & PROFILE ACTIVITY ──────────────────────────────────────────────────
+function toggleEye() {
+  const p = $('li-pass');
+  const icon = $('eye-icon');
+  if (p.type === 'password') {
+    p.type = 'text';
+    icon.innerHTML = `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>`;
+  } else {
+    p.type = 'password';
+    icon.innerHTML = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
+  }
+}
+
+function doLogin() {
+  const rawUser = $('li-user').value.trim();
+  const pass = $('li-pass').value.trim();
+  const errEl = $('login-err');
+  
+  errEl.style.display = 'none';
+
+  if (!rawUser || !pass) {
+    errEl.textContent = "Please enter both username and password.";
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const lowerUser = rawUser.toLowerCase();
+  const now = new Date().toLocaleString();
+
+  if (lowerUser === 'admin' && pass === 'admin123') {
+    role = 'admin';
+    document.body.classList.add('admin-mode');
     
-    if(u === 'admin' && p === 'admin123') {
-        role = 'admin'; document.body.classList.add('admin-mode'); finishLogin();
-    } else {
-        const found = students.find(s => s.name.toLowerCase() === u.toLowerCase() && s.phone === p);
-        if(found) {
-            role = 'parent'; currentStudent = found; document.body.classList.add('parent-mode'); finishLogin();
-        } else { document.getElementById('err').style.display = 'block'; }
-    }
+    $('top-profile').style.display = 'flex';
+    $('top-profile-name').textContent = 'Admin';
+    $('top-profile-av').src = `https://ui-avatars.com/api/?name=Admin&background=dca33e&color=000000&bold=true&size=80`;
+    
+    loginHistory.admin.unshift({ time: now, device: 'Current Session (Web)' });
+
+    finishLogin('dash'); 
+    return;
+  }
+
+  if (mockCredentials[lowerUser] && mockCredentials[lowerUser] === pass) {
+    role = 'parent';
+    document.body.classList.add('parent-mode');
+    currentStudent = allStudents.find(s => s.full_name.toLowerCase() === lowerUser);
+    
+    $('top-profile').style.display = 'flex';
+    $('top-profile-name').textContent = currentStudent.full_name.split(' ')[0];
+    $('top-profile-av').src = makeAvSrc(currentStudent);
+
+    if (!loginHistory.parents[lowerUser]) loginHistory.parents[lowerUser] = [];
+    loginHistory.parents[lowerUser].unshift({ time: now, device: 'Current Session (Web)' });
+
+    finishLogin('child');
+    return;
+  }
+
+  errEl.textContent = "Invalid username or password.";
+  errEl.style.display = 'block';
 }
 
-function finishLogin() {
-    document.getElementById('login-overlay').style.display = 'none';
-    setPage(role === 'admin' ? 'dash' : 'child');
-    refresh();
+function finishLogin(page) {
+  $('login-screen').style.display = 'none';
+  setPage(page);
 }
 
-function logout() {
-    role = null;
-    currentStudent = null;
-    document.body.classList.remove('admin-mode', 'parent-mode');
-    document.getElementById('login-u').value = '';
-    document.getElementById('login-p').value = '';
-    document.getElementById('login-overlay').style.display = 'flex';
+function doLogout() {
+  closeModals(); 
+  role = null; currentStudent = null;
+  document.body.classList.remove('admin-mode', 'parent-mode');
+  $('login-screen').style.display = 'flex';
+  $('top-profile').style.display = 'none'; 
+  $('li-user').value = ''; $('li-pass').value = '';
 }
+
+function openProfile() {
+  if (role === 'admin') {
+    $('prof-admin-view').style.display = 'block';
+    $('prof-parent-view').style.display = 'none';
+
+    $('active-users-list').innerHTML = `
+        <div style="margin-bottom:6px"><span style="color:var(--success)">●</span> You (Admin)</div>
+        <div><span style="color:var(--success)">●</span> Parent of Varun (Mobile App)</div>
+    `;
+
+    $('admin-history-list').innerHTML = loginHistory.admin.map(h => 
+      `<div class="history-item">${h.time} <span>📱 ${h.device}</span></div>`
+    ).join('');
+
+  } else {
+    $('prof-admin-view').style.display = 'none';
+    $('prof-parent-view').style.display = 'block';
+
+    const pName = currentStudent.full_name.toLowerCase();
+    const hist = loginHistory.parents[pName] || [];
+    
+    $('parent-history-list').innerHTML = hist.map(h => 
+      `<div class="history-item">${h.time} <span>📱 ${h.device}</span></div>`
+    ).join('');
+  }
+  openModal('profile-modal');
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────────────────────
+const PAGE_TITLES = { dash:'Academy Overview', stud:'Student Registry', child:'My Child\'s Progress', fame:'Wall of Fame', events:'Upcoming Events', bills:'Financials & Payments', coach:'AI Intelligence Hub' };
 
 function setPage(p) {
-    document.querySelectorAll('.page').forEach(pg => pg.classList.remove('active'));
-    document.querySelectorAll('.nav-item').forEach(ni => ni.classList.remove('active'));
-    document.getElementById('page-' + p).classList.add('active');
-    document.getElementById('nav-' + p).classList.add('active');
-    
-    const titles = {dash:'Academy Overview', stud:'Student Registry', child:'Student Progress', fame:'Academy Wall of Fame', bills:'Financials', coach:'AI Coach', events:'Upcoming Events'};
-    document.getElementById('p-title').innerText = titles[p];
+  document.querySelectorAll('.page').forEach(pg => pg.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(ni => ni.classList.remove('active'));
+  $('page-' + p)?.classList.add('active');
+  $('nav-' + p)?.classList.add('active');
+  $('p-title').textContent = PAGE_TITLES[p] || '';
 
-    const btnBox = document.getElementById('top-btn-container');
-    btnBox.innerHTML = '';
-    if(role === 'admin') {
-        if(p === 'dash' || p === 'stud') btnBox.innerHTML = `<button class="btn btn-gold" onclick="openEnrollModal()">+ New Enrollment</button>`;
-        if(p === 'events') btnBox.innerHTML = `<button class="btn btn-gold" onclick="openEventModal()">+ Create Event</button>`;
-    }
+  const btnArea = $('top-btn-area');
+  btnArea.innerHTML = '';
+  if (role === 'admin') {
+    if (p === 'dash' || p === 'stud') btnArea.innerHTML = `<button type="button" class="btn btn-gold" onclick="openEnroll()">+ New Enrollment</button>`;
+    if (p === 'events') btnArea.innerHTML = `<button type="button" class="btn btn-gold" onclick="openModal('ev-modal')">+ Create Event</button>`;
+  }
 
-    if(p === 'dash') initCharts();
-    if(p === 'events') renderEvents();
-    if(p === 'fame') renderWallOfFame();
+  if (window.innerWidth <= 768) {
+    $('sidebar').classList.remove('open');
+    $('sidebar-overlay').classList.remove('active');
+  }
+
+  setTimeout(() => {
+    if (p === 'dash') renderDash();
+    if (p === 'stud') renderStudents();
+    if (p === 'fame') renderFame();
+    if (p === 'events') renderEvents();
+    if (p === 'bills') renderBills();
+    if (p === 'child') renderChild();
+  }, 100);
 }
 
-function closeModals() {
-    document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+// ── DASHBOARD (MOCKED) ────────────────────────────────────────────────────────
+function renderDash() {
+  const paid = allStudents.filter(s => s.payment_status === 'Paid');
+  const avgElo = allStudents.length ? Math.round(allStudents.reduce((a,s) => a + (s.current_rating||0), 0) / allStudents.length) : 0;
+  const rev = paid.reduce((a, s) => a + (s.monthly_fee||0), 0);
+
+  $('s-total').textContent = allStudents.length;
+  $('s-elo').textContent   = avgElo;
+  $('s-rev').textContent   = '₹' + rev.toLocaleString();
+
+  buildCharts(allStudents);
 }
 
-// --- WALL OF FAME LOGIC ---
-function renderWallOfFame() {
-    let allAchievements = [];
-    students.forEach(s => {
-        if(s.achievements) {
-            s.achievements.forEach((a, index) => {
-                allAchievements.push({ studentId: s.id, studentName: s.name, title: a.title, img: a.img, originalIndex: index });
-            });
-        }
-    });
+function buildCharts(studs) {
+  const isLight = document.body.getAttribute('data-theme') === 'light';
+  const tick    = isLight ? '#6b6b80' : '#888884';
+  const grid    = isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)';
 
-    const container = document.getElementById('wall-of-fame-container');
-    if (allAchievements.length === 0) {
-        container.innerHTML = `<p style="color:var(--ivory-dim);">No achievements have been published yet.</p>`;
-        return;
-    }
+  if (charts.elo) { charts.elo.destroy(); charts.elo = null; }
+  if (charts.coach) { charts.coach.destroy(); charts.coach = null; }
 
-    container.innerHTML = allAchievements.map(a => `
-        <div class="achievement-card">
-            ${role === 'admin' ? `<button class="delete-award-btn" onclick="deleteAchievement(${a.studentId}, ${a.originalIndex})" title="Remove Achievement">✕</button>` : ''}
-            ${a.img ? `<img src="${a.img}" class="achievement-img" alt="${a.title}">` : `<div class="achievement-img" style="display:flex;align-items:center;justify-content:center;font-size:50px;">🏆</div>`}
-            <div class="achievement-info">
-                <div class="achievement-title">${a.title}</div>
-                <div class="achievement-subtitle">AWARDED TO: ${a.studentName}</div>
-            </div>
+  const eloCtx = $('chartElo');
+  const coachCtx = $('chartCoach');
+  if (!eloCtx || !coachCtx) return;
+
+  charts.elo = new Chart(eloCtx, {
+    type: 'bar',
+    data: { labels: studs.map(s => s.full_name.split(' ')[0]), datasets: [{ label: 'ELO', data: studs.map(s => s.current_rating), backgroundColor: '#dca33e', borderRadius: 5 }] },
+    options: { plugins: { legend: { display: false } }, scales: { y: { grid: { color: grid }, ticks: { color: tick } }, x: { grid: { display: false }, ticks: { color: tick } } } }
+  });
+
+  const coachMap = {};
+  studs.forEach(s => { const cn = s.coaches?.full_name || 'Unassigned'; coachMap[cn] = (coachMap[cn]||0) + 1; });
+  charts.coach = new Chart(coachCtx, {
+    type: 'doughnut',
+    data: { labels: Object.keys(coachMap), datasets: [{ data: Object.values(coachMap), backgroundColor: ['#dca33e','#5a9fff','#52c41a','#ff4d4f'], borderWidth: isLight ? 2 : 0, borderColor: isLight ? '#fff' : 'transparent' }] },
+    options: { plugins: { legend: { labels: { color: tick } } } }
+  });
+}
+
+// ── STUDENTS (MOCKED) ─────────────────────────────────────────────────────────
+function renderStudents() {
+  const tbody = $('stud-body');
+  if (!allStudents.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">♟</div><p>No students enrolled yet.</p></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = allStudents.map(s => `
+    <tr>
+      <td><div class="av-cell"><img src="${makeAvSrc(s)}" class="av-sm" alt="${s.full_name}">${s.full_name}</div></td>
+      <td><span class="text-gold">${s.level || 'Beginner'}</span></td>
+      <td><span style="font-family:'DM Mono'">${s.current_rating || 800}</span></td>
+      <td style="color:var(--ivory-dim);font-size:13px">${s.coaches?.full_name || '—'}</td>
+      <td><span class="${s.payment_status==='Paid'?'text-success':'text-danger'}">${s.payment_status||'Due'}</span></td>
+      <td>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button type="button" class="btn btn-outline-grey btn-sm" onclick="openEdit('${s.id}')">Edit</button>
+          <button type="button" class="btn btn-outline-blue btn-sm" onclick="openAward('${s.id}','${s.full_name.replace(/'/g,"\\'")}')">+ Award</button>
+          <button type="button" class="btn btn-danger btn-sm" onclick="deleteStudent('${s.id}','${s.full_name.replace(/'/g,"\\'")}')">Remove</button>
         </div>
-    `).join('');
+      </td>
+    </tr>
+  `).join('');
 }
 
-function deleteAchievement(studentId, achIndex) {
-    if(confirm("Remove this achievement from the Wall of Fame?")) {
-        const s = students.find(x => x.id === studentId);
-        if(s && s.achievements) {
-            s.achievements.splice(achIndex, 1);
-            renderWallOfFame();
-            refresh();
-        }
-    }
+// ── EDIT STUDENT (MOCKED) ─────────────────────────────────────────────────────
+function openEdit(id) {
+  const s = allStudents.find(x => x.id === id);
+  if (!s) return;
+  
+  $('e-id').value = s.id;
+  $('e-name').value = s.full_name;
+  $('e-elo').value = s.current_rating;
+  $('e-level').value = s.level || 'BEGINNER';
+  
+  $('e-coach').innerHTML = allCoaches.map(c => `<option value="${c.id}" ${s.coaches && c.id === s.coaches.id ? 'selected' : ''}>${c.full_name}</option>`).join('');
+  
+  $('e-fee').value = s.monthly_fee;
+  $('e-status').value = s.payment_status || 'Due';
+  
+  openModal('edit-modal');
 }
 
-// --- EVENTS LOGIC ---
+function updateStudent() {
+  const id = $('e-id').value;
+  const s = allStudents.find(x => x.id === id);
+  if (!s) return;
+
+  const newName = $('e-name').value.trim();
+  if (!newName) { toast('Name cannot be empty', 'error'); return; }
+
+  if (s.full_name.toLowerCase() !== newName.toLowerCase()) {
+    const phone = mockCredentials[s.full_name.toLowerCase()];
+    delete mockCredentials[s.full_name.toLowerCase()];
+    if (phone) mockCredentials[newName.toLowerCase()] = phone;
+  }
+
+  s.full_name = newName;
+  s.current_rating = parseInt($('e-elo').value) || 400;
+  s.level = $('e-level').value;
+  s.coaches = allCoaches.find(c => c.id === $('e-coach').value);
+  s.monthly_fee = parseInt($('e-fee').value) || 0;
+  s.payment_status = $('e-status').value;
+
+  toast(`${s.full_name} updated successfully!`, 'success');
+  closeModals();
+  renderStudents();
+  renderDash(); 
+}
+
+// ── WALL OF FAME (MOCKED) ─────────────────────────────────────────────────────
+function renderFame() {
+  $('fame-loading').style.display = 'none'; $('fame-grid').style.display = 'grid';
+  if (!achievementsData.length) {
+    $('fame-grid').innerHTML = `<div class="empty-state" style="grid-column:1/-1; padding: 100px 0;"><div class="empty-icon" style="font-size: 60px; margin-bottom: 20px;">🏆</div><p style="font-size:16px;">No achievements yet.</p></div>`;
+    return;
+  }
+  $('fame-grid').innerHTML = achievementsData.map(a => `
+    <div class="ach-card">
+      ${role==='admin' ? `<button type="button" class="del-btn" onclick="deleteAchievement('${a.id}')" title="Remove">✕</button>` : ''}
+      ${a.img_url ? `<img src="${a.img_url}" class="ach-img" alt="${a.title}">` : `<div class="ach-img-placeholder">🏆</div>`}
+      <div class="ach-info">
+        <div class="ach-title">${a.title}</div>
+        <div class="ach-sub">Awarded to: ${a.students?.full_name || '—'}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── EVENTS (MOCKED) ───────────────────────────────────────────────────────────
 function renderEvents() {
-    const container = document.getElementById('events-container');
-    container.innerHTML = events.map(e => `
-        <div class="card event-card">
-            <span class="event-date">${e.date}</span>
-            <span class="event-tag">${e.type}</span>
-            <h3 style="margin: 10px 0; font-family:var(--font-head); color:var(--gold);">${e.title}</h3>
-            <p style="font-size:13px; color:var(--ivory-dim); margin-bottom:15px; font-weight: 500;">
-                📍 ${e.loc}<br>🏆 Prize: ${e.prize}
-                ${role === 'admin' ? `<br><br><span style="color:var(--success); font-weight:bold;">👥 Registers: ${e.regs}</span>` : ''}
-            </p>
-            <div style="display:flex; gap:10px;">
-                <button class="btn btn-gold" style="flex:1; padding:8px;" onclick="alert('Registration Confirmed!')">Register</button>
-                <button class="btn btn-outline admin-only" style="padding:8px; border-color:var(--danger); color:var(--danger);" onclick="deleteEvent(${e.id})">Delete</button>
-            </div>
-        </div>
-    `).join('');
+  $('ev-loading').style.display = 'none'; $('ev-grid').style.display = 'grid';
+  if (!eventsData.length) {
+    $('ev-grid').innerHTML = `<div class="empty-state"><div class="empty-icon">📅</div><p>No events scheduled. Create one!</p></div>`;
+    return;
+  }
+  $('ev-grid').innerHTML = eventsData.map(e => `
+    <div class="ev-card">
+      <div class="ev-date">${e.date || '—'}</div>
+      <div class="ev-type">${e.type}</div>
+      <div class="ev-title">${e.title}</div>
+      <div class="ev-meta">📍 ${e.location || '—'}<br>🏆 Prize: ${e.prize || '—'}${role==='admin' ? `<br><span style="color:var(--success);font-weight:600">👥 ${e.registrations_count||0} Registered</span>` : ''}</div>
+      <div style="display:flex;gap:8px">
+        <button type="button" class="btn btn-gold btn-sm" style="flex:1" onclick="registerEvent('${e.id}')">Register</button>
+        ${role==='admin' ? `<button type="button" class="btn btn-danger btn-sm" onclick="deleteEvent('${e.id}')">Delete</button>` : ''}
+      </div>
+    </div>
+  `).join('');
 }
 
-function openEventModal() {
-    const html = `
-        <h2 style="margin-bottom: 25px; font-family:var(--font-head); color: var(--gold);">Create New Event</h2>
-        <input type="text" id="ev-title" placeholder="Event Name">
-        <input type="text" id="ev-date" placeholder="Date (e.g. Oct 20)">
-        <input type="text" id="ev-prize" placeholder="Prize (e.g. ₹50,000)">
-        <input type="text" id="ev-loc" placeholder="Location">
-        <select id="ev-type"><option>Tournament</option><option>Rapid</option><option>Workshop</option></select>
-        <button class="btn btn-gold" style="width: 100%; margin-top: 10px;" onclick="saveEvent()">Publish Event</button>
-        <button class="btn btn-outline" style="width: 100%; margin-top: 10px;" onclick="closeModals()">Cancel</button>
-    `;
-    document.getElementById('modal-form-content').innerHTML = html;
-    document.getElementById('main-modal').style.display = 'flex';
+// ── PAYMENTS (MOCKED) ─────────────────────────────────────────────────────────
+function renderBills() {
+  const tbody = $('bill-body');
+  let studs = role === 'admin' ? allStudents : (currentStudent ? [currentStudent] : []);
+
+  if (!studs.length) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">💳</div><p>No payment records.</p></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = studs.map((s, i) => {
+    let action = '';
+    if (role === 'admin') {
+      action = s.payment_status === 'Due' ? `<button type="button" class="btn btn-gold btn-sm" onclick="markPaid('${s.id}')">Mark Paid</button>` : `<button type="button" class="btn btn-outline btn-sm" onclick="downloadReceipt('${s.id}','${s.full_name.replace(/'/g,"\\'")}',${s.monthly_fee})">Receipt 📄</button>`;
+    } else {
+      action = s.payment_status === 'Due' ? `<button type="button" class="btn btn-gold btn-sm" onclick="openPay('${s.id}','${s.full_name}',${s.monthly_fee||0})">Pay Now</button>` : `<button type="button" class="btn btn-outline btn-sm" onclick="downloadReceipt('${s.id}','${s.full_name}',${s.monthly_fee})">Receipt 📄</button>`;
+    }
+    return `<tr>
+      <td style="font-family:'DM Mono';color:var(--ivory-dim)">#CK-${String(i+1).padStart(4,'0')}</td>
+      <td style="font-weight:600">${s.full_name}</td>
+      <td style="font-family:'DM Mono'">₹${(s.monthly_fee||0).toLocaleString()}</td>
+      <td><span class="${s.payment_status==='Paid'?'text-success':'text-danger'}">${s.payment_status||'Due'}</span></td>
+      <td>${action}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── CHILD VIEW (MOCKED) ───────────────────────────────────────────────────────
+function renderChild() {
+  if (!currentStudent) return;
+  const s = currentStudent;
+  
+  $('c-name').textContent = s.full_name;
+  $('c-elo').textContent = s.current_rating || 800;
+  $('c-level').textContent = s.level || 'Beginner';
+  $('c-coach').textContent = s.coaches?.full_name || '—';
+  $('c-notes').textContent = s.coach_notes || 'Great progress! Keep focusing on tactical patterns.';
+  $('contact-coach').textContent = s.coaches?.full_name || '—';
+
+  const avWrap = $('p-av-wrap'); avWrap.innerHTML = '';
+  const img = document.createElement('img');
+  img.src = makeAvSrc(s); img.className = 'profile-av';
+  avWrap.appendChild(img);
+
+  const skills = [
+    { label: 'Tactics', val: s.tactics_score || 50 },
+    { label: 'Endgame', val: s.endgame_score || 50 },
+    { label: 'Openings', val: s.openings_score || 50 },
+    { label: 'Positional', val: s.positional_score || 50 },
+  ];
+  $('skill-bars').innerHTML = skills.map(sk => `
+    <div class="skill-bar-wrap">
+      <div class="skill-bar-label"><span>${sk.label}</span><span>${sk.val}/100</span></div>
+      <div class="skill-bar-track"><div class="skill-bar-fill" style="width:${sk.val}%"></div></div>
+    </div>
+  `).join('');
+
+  const myAchs = achievementsData.filter(a => a.students.full_name === s.full_name);
+  const pc = $('parent-ach');
+  if (!myAchs.length) {
+    pc.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🎖</div><p>No achievements yet — keep practising!</p></div>`;
+  } else {
+    pc.innerHTML = myAchs.map(a => `
+      <div class="ach-card">
+        ${a.img_url ? `<img src="${a.img_url}" class="ach-img" alt="${a.title}">` : `<div class="ach-img-placeholder">🏆</div>`}
+        <div class="ach-info"><div class="ach-title">${a.title}</div><div class="ach-sub">Awarded to: ${s.full_name}</div></div>
+      </div>
+    `).join('');
+  }
+  
+  $('child-loading').style.display = 'none'; $('child-content').style.display = 'block';
+}
+
+// ── CRUD OPERATIONS (MOCKED) ──────────────────────────────────────────────────
+function openEnroll() {
+  const sel = $('m-coach'); sel.innerHTML = allCoaches.map(c => `<option value="${c.id}">${c.full_name}</option>`).join('');
+  $('m-avatar-preview').style.display = 'none';
+  openModal('enroll-modal');
+}
+
+async function saveStudent() {
+  const name = $('m-name').value.trim();
+  const phone = $('m-phone').value.trim();
+  
+  if (!name) { toast('Please enter a Full Name', 'error'); return; }
+  if (!phone) { toast('Parent Phone is required for login', 'error'); return; }
+  
+  let imgUrl = null;
+  const file = $('m-avatar-file').files[0];
+  if (file) {
+    imgUrl = await uploadFile(file);
+  }
+  
+  let newStudent = {
+    id: 's' + Date.now(),
+    full_name: name,
+    current_rating: parseInt($('m-elo').value) || 400,
+    level: $('m-level').value,
+    coaches: allCoaches.find(c => c.id === $('m-coach').value),
+    monthly_fee: parseInt($('m-fee').value) || 5000,
+    payment_status: 'Due',
+    tactics_score: 50, endgame_score: 50, openings_score: 50, positional_score: 50,
+    custom_avatar: imgUrl
+  };
+  
+  allStudents.unshift(newStudent); 
+  mockCredentials[name.toLowerCase()] = phone;
+  
+  $('m-name').value = '';
+  $('m-phone').value = '';
+  $('m-elo').value = '400';
+  $('m-fee').value = '5000';
+  $('m-avatar-file').value = '';
+  $('m-avatar-preview').style.display = 'none';
+
+  toast(`${name} enrolled successfully!`, 'success');
+  closeModals(); renderStudents(); renderDash();
+}
+
+function deleteStudent(id, name) {
+  if (!confirm(`Remove ${name}?`)) return;
+  allStudents = allStudents.filter(s => s.id !== id);
+  toast(`${name} removed.`, 'info');
+  renderStudents(); renderDash();
+}
+
+function openAward(studentId, studentName) {
+  $('award-sid').value = studentId;
+  $('award-sub').textContent = 'Awarding: ' + studentName;
+  $('award-title').value = ''; $('award-img-url').value = '';
+  $('award-img-preview').style.display = 'none';
+  openModal('award-modal');
+}
+
+async function saveAward() {
+  const title = $('award-title').value.trim();
+  const studentId = $('award-sid').value;
+  if (!title) { toast('Title required', 'error'); return; }
+  
+  let student = allStudents.find(s => s.id === studentId);
+  let imgUrl = $('award-img-url').value.trim() || null;
+  const file = $('award-img-file').files[0];
+  if (file) { imgUrl = await uploadFile(file); }
+  
+  achievementsData.unshift({ id: 'a'+Date.now(), title, students: { full_name: student.full_name }, img_url: imgUrl });
+  
+  $('award-title').value = '';
+  $('award-img-file').value = '';
+  $('award-img-url').value = '';
+  $('award-img-preview').style.display = 'none';
+
+  toast('Achievement published!', 'success');
+  closeModals(); renderFame();
+}
+
+function deleteAchievement(id) {
+  if (!confirm('Remove achievement?')) return;
+  achievementsData = achievementsData.filter(a => a.id !== id);
+  toast('Removed.', 'info'); renderFame();
 }
 
 function saveEvent() {
-    events.push({
-        id: Date.now(), title: document.getElementById('ev-title').value, date: document.getElementById('ev-date').value,
-        prize: document.getElementById('ev-prize').value, loc: document.getElementById('ev-loc').value,
-        type: document.getElementById('ev-type').value, regs: 0
-    });
-    closeModals(); renderEvents();
-}
-function deleteEvent(id) { if(confirm('Delete this event?')) { events = events.filter(e => e.id !== id); renderEvents(); } }
+  const title = $('ev-title').value.trim();
+  if (!title) { toast('Please enter an Event Name', 'error'); return; }
+  
+  eventsData.unshift({
+    id: 'e'+Date.now(), title, date: $('ev-date').value, type: $('ev-type').value,
+    prize: $('ev-prize').value, location: $('ev-loc').value, registrations_count: 0
+  });
 
-// --- PAYMENT GATEWAY LOGIC ---
-function markPaidAdmin(id) {
-    const student = students.find(s => s.id === id);
-    if(student) student.status = 'Paid';
-    refresh();
+  $('ev-title').value = '';
+  $('ev-date').value = '';
+  $('ev-prize').value = '';
+  $('ev-loc').value = '';
+
+  toast('Event published!', 'success'); closeModals(); renderEvents();
 }
 
-function openPayment(amt, id) {
-    document.getElementById('pay-amt').innerText = '₹' + amt.toLocaleString();
-    document.getElementById('pay-amt').setAttribute('data-id', id);
-    document.getElementById('pay-modal').style.display = 'flex';
+function deleteEvent(id) {
+  if (!confirm('Delete event?')) return;
+  eventsData = eventsData.filter(e => e.id !== id);
+  toast('Deleted.', 'info'); renderEvents();
+}
+
+function registerEvent(eventId) {
+  let ev = eventsData.find(e => e.id === eventId);
+  if(ev) ev.registrations_count++;
+  toast('Registered! Good luck! 🏆', 'success');
+  if(role === 'admin') renderEvents();
+}
+
+// ── PAYMENTS & MESSAGES (MOCKED) ──────────────────────────────────────────────
+function markPaid(id) {
+  let s = allStudents.find(st => st.id === id);
+  if(s) s.payment_status = 'Paid';
+  toast('Marked as paid ✓', 'success'); 
+  renderBills(); renderDash(); 
+}
+
+function openPay(id, name, fee) {
+  payTarget = { id, name, fee };
+  $('pay-amt').textContent = '₹' + fee.toLocaleString();
+  $('pay-name').textContent = name;
+  openModal('pay-modal');
 }
 
 function simPay(provider) {
-    alert(`Connecting to ${provider}...`);
-    setTimeout(() => {
-        alert("Payment Successful! Downloading your receipt...");
-        let paidId = null;
-        if(role === 'parent') {
-            currentStudent.status = 'Paid';
-            const target = students.find(s => s.id === currentStudent.id);
-            if(target) target.status = 'Paid';
-            paidId = currentStudent.id;
-        } else {
-             const invoiceBeingPaid = document.getElementById('pay-amt').getAttribute('data-id');
-             if(invoiceBeingPaid) {
-                 const target = students.find(s => s.id == invoiceBeingPaid);
-                 if(target) target.status = 'Paid';
-                 paidId = parseInt(invoiceBeingPaid);
-             }
-        }
-        closeModals(); refresh();
-        if(paidId) { downloadReceipt(paidId); }
-    }, 1200);
-}
-
-function downloadReceipt(id) {
-    const s = students.find(x => x.id === id);
-    if(!s) return;
-    const receipt = `========================================\nCHESSKIDOO ACADEMY RECEIPT\n========================================\nInvoice No: CK-${s.id}\nDate: ${new Date().toLocaleDateString()}\nStudent Name: ${s.name}\nCoach: ${s.coach}\nTuition Fee: ₹${s.fee}\nStatus: PAID IN FULL\n========================================`;
-    const blob = new Blob([receipt], {type: 'text/plain'});
-    const link = document.createElement('a');
-    link.href = window.URL.createObjectURL(blob); 
-    link.download = `Receipt_${s.name.replace(/\s+/g, '_')}_CK${s.id}.txt`; 
-    document.body.appendChild(link); link.click(); document.body.removeChild(link);
-}
-
-// --- PARENT CONTACT FORMS ---
-function openContactModal() {
-    document.getElementById('contact-coach-name').innerText = currentStudent.coach;
-    document.getElementById('contact-msg').value = '';
-    document.getElementById('contact-modal').style.display = 'flex';
-}
-function sendContactMsg() {
-    if(!document.getElementById('contact-msg').value.trim()) return alert("Message cannot be empty.");
-    alert(`Message securely sent to ${currentStudent.coach}. They will respond shortly.`);
-    closeModals();
-}
-function submitFeedback() {
-    if(!document.getElementById('feedback-msg').value.trim()) return alert("Feedback cannot be empty.");
-    alert("Thank you! Your feedback helps Chesskidoo improve.");
-    closeModals();
-}
-
-// --- STUDENT DATA, UI & RENDERING ---
-function refresh() {
-    const sb = document.getElementById('stud-body');
-    if(sb) sb.innerHTML = students.map(s => `
-        <tr>
-            <td class="avatar-cell"><img src="${s.avatar}" class="avatar-sm">${s.name}</td>
-            <td><span style="color:var(--gold); font-size:11px; font-weight:bold;">${s.level.toUpperCase()}</span></td>
-            <td><span style="font-family:'DM Mono';">${s.elo}</span></td>
-            <td>${s.coach}</td>
-            <td style="color:${s.status==='Paid'?'var(--success)':'var(--danger)'}; font-weight:600;">${s.status}</td>
-            <td>
-                <button class="btn btn-outline" style="padding:4px 8px; font-size:11px; border-color:var(--accent); color:var(--accent); margin-right:5px;" onclick="openAwardModal(${s.id})">+ Award</button>
-                <button class="btn btn-outline" style="padding:4px 8px; font-size:11px; border-color:var(--danger); color:var(--danger);" onclick="deleteStud(${s.id})">Remove</button>
-            </td>
-        </tr>
-    `).join('');
-
-    const bb = document.getElementById('bill-body');
-    const bData = role === 'admin' ? students : [currentStudent];
-    if(bb) {
-        bb.innerHTML = bData.map(s => {
-            let actionHtml = '';
-            if (role === 'admin') {
-                actionHtml = s.status === 'Due' ? `<button class="btn btn-gold" style="padding:6px 15px; font-size:12px;" onclick="markPaidAdmin(${s.id})">Mark Paid</button>` : `<button class="btn btn-outline" style="padding:6px 15px; font-size:12px;" onclick="downloadReceipt(${s.id})">Receipt 📄</button>`;
-            } else {
-                actionHtml = s.status === 'Due' ? `<button class="btn btn-gold" style="padding:6px 15px; font-size:12px;" onclick="openPayment(${s.fee}, ${s.id})">Pay Now</button>` : `<button class="btn btn-outline" style="padding:6px 15px; font-size:12px;" onclick="downloadReceipt(${s.id})">Receipt 📄</button>`;
-            }
-            return `<tr><td style="font-family:'DM Mono'; color:var(--ivory-dim);">#CK-${s.id}</td><td style="font-weight: 500;">${s.name}</td><td style="font-family:'DM Mono';">₹${s.fee.toLocaleString()}</td><td style="color:${s.status==='Paid'?'var(--success)':'var(--danger)'}; font-weight:700;">${s.status}</td><td>${actionHtml}</td></tr>`;
-        }).join('');
+  toast(`Connecting to ${provider}…`, 'info');
+  setTimeout(() => {
+    if (payTarget) {
+      let s = allStudents.find(st => st.id === payTarget.id);
+      if(s) s.payment_status = 'Paid';
+      toast('Payment successful! 🎉', 'success');
+      downloadReceipt(payTarget.id, payTarget.name, payTarget.fee);
+      closeModals(); renderBills(); renderDash(); 
     }
-
-    if(role === 'parent' && currentStudent) {
-        document.getElementById('c-name').innerText = currentStudent.name;
-        document.getElementById('c-elo').innerText = currentStudent.elo;
-        document.getElementById('c-coach').innerText = currentStudent.coach;
-        document.getElementById('c-level').innerText = currentStudent.level;
-        document.getElementById('c-avatar').src = currentStudent.avatar;
-        
-        const progCard = document.getElementById('personal-progress-card');
-        progCard.className = 'card';
-        progCard.innerHTML = `
-            <h3 style="margin-bottom: 15px; color: var(--gold);">Personal Roadmap</h3>
-            <ul style="list-style-position: inside; color: var(--ivory); line-height: 2;">
-                <li>Complete 50 Puzzle Rushes this week.</li>
-                <li>Analyze 3 Grandmaster games (Sicilian Defense).</li>
-                <li>Review endgame mechanics with coach during next session.</li>
-            </ul>
-        `;
-
-        // Render Personal Achievements in Parent Portal matching the Wall of Fame style
-        const parentAchContainer = document.getElementById('parent-achievements-container');
-        if (currentStudent.achievements && currentStudent.achievements.length > 0) {
-            parentAchContainer.innerHTML = currentStudent.achievements.map(a => `
-                <div class="achievement-card">
-                    ${a.img ? `<img src="${a.img}" class="achievement-img" alt="${a.title}">` : `<div class="achievement-img" style="display:flex;align-items:center;justify-content:center;font-size:50px;">🏆</div>`}
-                    <div class="achievement-info">
-                        <div class="achievement-title">${a.title}</div>
-                        <div class="achievement-subtitle">AWARDED TO: ${currentStudent.name}</div>
-                    </div>
-                </div>
-            `).join('');
-        } else {
-            parentAchContainer.innerHTML = `<p style="color:var(--ivory-dim);">No achievements yet. Keep practicing!</p>`;
-        }
-    }
-
-    if(role === 'admin') {
-        document.getElementById('s-total').innerText = students.length;
-        document.getElementById('s-elo').innerText = Math.round(students.reduce((a,b)=>a+b.elo,0)/students.length) || 0;
-        document.getElementById('s-rev').innerText = '₹' + students.filter(s=>s.status==='Paid').reduce((a,b)=>a+b.fee,0).toLocaleString();
-    }
+  }, 1300);
 }
 
-// --- ADMIN AWARDS LOGIC ---
-function openAwardModal(id) {
-    const s = students.find(x => x.id === id);
-    if(s) {
-        document.getElementById('award-student-id').value = id;
-        document.getElementById('award-student-name').innerText = `Awarding: ${s.name}`;
-        document.getElementById('award-text').value = '';
-        document.getElementById('award-img').value = '';
-        document.getElementById('award-modal').style.display = 'flex';
-    }
+function downloadReceipt(id, name, fee) {
+  const text = `========================================\nCHESSKIDOO ACADEMY RECEIPT\n========================================\nDate: ${new Date().toLocaleDateString()}\nStudent: ${name}\nAmount: ₹${Number(fee).toLocaleString()}\nStatus: PAID IN FULL\n========================================`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+  a.download = `Receipt_${name.replace(/\s+/g,'_')}.txt`;
+  a.click();
 }
 
-function saveAward() {
-    const id = parseInt(document.getElementById('award-student-id').value);
-    const text = document.getElementById('award-text').value.trim();
-    const imgUrl = document.getElementById('award-img').value.trim();
-    if(!text) return;
+function openContactModal() { openModal('contact-modal'); }
 
-    const s = students.find(x => x.id === id);
-    if(s) {
-        if(!s.achievements) s.achievements = [];
-        s.achievements.unshift({ title: text, img: imgUrl || null }); 
-    }
-    
-    closeModals(); refresh(); if(role==='admin' && document.getElementById('page-fame').classList.contains('active')) renderWallOfFame();
+function sendMsg() { 
+  if(!$('contact-msg').value.trim()) { toast('Message cannot be empty', 'error'); return; }
+  $('contact-msg').value = '';
+  toast(`Message sent to coach! ✓`, 'success'); 
+  closeModals(); 
 }
 
-function openEnrollModal() {
-    const html = `
-        <h2 style="margin-bottom: 25px; font-family:var(--font-head); color: var(--gold);">Enroll New Cadet</h2>
-        <input type="text" id="m-name" placeholder="Full Name">
-        <input type="text" id="m-phone" placeholder="Parent Contact (Used as Password)">
-        <input type="url" id="m-avatar" placeholder="Photo URL (Optional)">
-        <div style="display:flex; gap:10px;">
-            <input type="number" id="m-elo" placeholder="Initial ELO" value="400">
-            <select id="m-level"><option>Beginner</option><option>Intermediate</option><option>Elite</option></select>
-        </div>
-        <div style="display:flex; gap:10px; margin-bottom: 15px;">
-            <select id="m-coach"><option>GM Viswanathan</option><option>Coach Prag</option><option>Sensei Vidit</option></select>
-            <input type="number" id="m-fee" placeholder="Monthly Fee (₹)" value="5000" style="margin-bottom:0;">
-        </div>
-        <button class="btn btn-gold" style="width: 100%; margin-top: 10px;" onclick="saveStudent()">Commit Changes</button>
-        <button class="btn btn-outline" style="width: 100%; margin-top:10px;" onclick="closeModals()">Cancel</button>
-    `;
-    document.getElementById('modal-form-content').innerHTML = html;
-    document.getElementById('main-modal').style.display = 'flex';
+function sendFeedback() { 
+  if(!$('fb-msg').value.trim()) { toast('Feedback cannot be empty', 'error'); return; }
+  $('fb-msg').value = '';
+  toast('Thank you for your feedback! 🙏', 'success'); 
+  closeModals(); 
 }
 
-function saveStudent() {
-    const name = document.getElementById('m-name').value;
-    const phone = document.getElementById('m-phone').value;
-    let avatarUrl = document.getElementById('m-avatar').value;
-    
-    if(!name || !phone) return alert("Name and Phone are required.");
-    if(!avatarUrl) avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=d4af37&color=000&bold=true`;
+// ── AI ASSISTANT ENGINE (MOCKED KEYWORD MATCHING) ─────────────────────────────
+function generateAIResponse(query) {
+  const q = query.toLowerCase();
+  
+  if (q.includes('hello') || q === 'hi' || q.includes('hi ') || q.includes('hey')) {
+    return "Hello! I am your Chesskidoo AI Assistant. Ask me about revenue, unpaid fees, top students, average ELO, or upcoming events.";
+  }
+  if (q.includes('help') || q.includes('what can you do')) {
+    return "I can instantly analyze our database! Try asking:\n- 'What is our total revenue?'\n- 'Who has unpaid fees?'\n- 'Who is the top student?'\n- 'What is the average rating?'\n- 'Show me upcoming events.'";
+  }
 
-    students.push({
-        id: Date.now(), name: name, phone: phone, avatar: avatarUrl,
-        elo: parseInt(document.getElementById('m-elo').value), level: document.getElementById('m-level').value, 
-        fee: parseInt(document.getElementById('m-fee').value), status: 'Due', coach: document.getElementById('m-coach').value,
-        achievements: [{ title: 'Enrolled in Academy', img: 'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?q=80&w=400' }] 
-    });
-    
-    closeModals(); refresh();
+  // Revenue
+  if (q.includes('revenue') || q.includes('money') || q.includes('income') || q.includes('collected')) {
+    const paid = allStudents.filter(s => s.payment_status === 'Paid').reduce((sum, s) => sum + s.monthly_fee, 0);
+    return `So far this month, we have successfully collected ₹${paid.toLocaleString()} in paid tuition fees.`;
+  }
+  if (q.includes('due') || q.includes('unpaid') || q.includes('pending') || q.includes('owe')) {
+    const dueStudents = allStudents.filter(s => s.payment_status === 'Due');
+    const totalDue = dueStudents.reduce((sum, s) => sum + s.monthly_fee, 0);
+    if (dueStudents.length === 0) return "Great news! All student accounts are fully paid up for this month.";
+    const names = dueStudents.map(s => s.full_name).join(', ');
+    return `We currently have ₹${totalDue.toLocaleString()} in outstanding fees. \n\nStudents with pending payments: ${names}.`;
+  }
+
+  // Performance
+  if (q.includes('top') || q.includes('best') || q.includes('highest')) {
+    if (allStudents.length === 0) return "There are no students currently enrolled in the academy.";
+    const top = [...allStudents].sort((a,b) => b.current_rating - a.current_rating)[0];
+    return `Our highest-rated cadet is ${top.full_name} with an ELO of ${top.current_rating}. They are currently training in the ${top.level} tier.`;
+  }
+  if (q.includes('average') || q.includes('elo') || q.includes('rating') || q.includes('score')) {
+    if (allStudents.length === 0) return "There are no students enrolled to calculate an average.";
+    const avg = Math.round(allStudents.reduce((sum, s) => sum + s.current_rating, 0) / allStudents.length);
+    return `The current average ELO across our ${allStudents.length} active cadets is ${avg}.`;
+  }
+
+  // General
+  if (q.includes('student') || q.includes('cadet') || q.includes('enroll') || q.includes('how many')) {
+    return `We currently have ${allStudents.length} active cadets enrolled in the Chesskidoo academy.`;
+  }
+  if (q.includes('coach') || q.includes('trainer')) {
+    const list = allCoaches.map(c => c.full_name).join(', ');
+    return `We have ${allCoaches.length} expert coaches on staff: ${list}.`;
+  }
+
+  // Events & Fame
+  if (q.includes('event') || q.includes('tournament') || q.includes('workshop')) {
+    if (eventsData.length === 0) return "There are no upcoming events currently scheduled in the calendar.";
+    const next = eventsData[0];
+    return `Our next major event is the "${next.title}" (${next.type}) scheduled for ${next.date} at ${next.location}. We currently have ${next.registrations_count} cadets registered to participate!`;
+  }
+  if (q.includes('award') || q.includes('achievement') || q.includes('fame')) {
+    if (achievementsData.length === 0) return "We don't have any recent achievements published to the Wall of Fame yet.";
+    const latest = achievementsData[0];
+    return `Our latest celebrated achievement is "${latest.title}", which was awarded to ${latest.students.full_name}.`;
+  }
+
+  return "I'm not quite sure how to answer that specific query yet. Try asking me about 'revenue', 'top students', 'unpaid fees', or 'events'!";
 }
 
-function deleteStud(id) { if(confirm('Purge record?')) { students = students.filter(s => s.id !== id); refresh(); } }
+function sendAI() {
+  const input = $('ai-input'); const box = $('chat-box');
+  const query = input.value.trim(); if (!query) return;
 
-// --- AI COACH CHAT LOGIC ---
-function askAI() {
-    const input = document.getElementById('ai-input');
-    const box = document.getElementById('chat-box');
-    const query = input.value.trim();
-    if(!query) return;
+  const uEl = document.createElement('div');
+  uEl.className = 'msg-user'; uEl.textContent = query;
+  box.appendChild(uEl); input.value = '';
 
-    const uMsg = document.createElement('div');
-    uMsg.style.cssText = "max-width: 80%; padding: 12px; border-radius: 8px; font-size: 14px; margin-bottom: 10px; line-height: 1.5; background: var(--gold); color: #000; align-self: flex-end; margin-left: auto;";
-    uMsg.innerText = query;
-    box.appendChild(uMsg);
-    
-    input.value = ""; box.scrollTop = box.scrollHeight;
+  const thinking = document.createElement('div');
+  thinking.className = 'msg-ai msg-thinking'; thinking.textContent = '♟ Analysing live data...';
+  box.appendChild(thinking); box.scrollTop = box.scrollHeight;
+  setLoading('ai-send-btn', true);
 
-    setTimeout(() => {
-        const aiMsg = document.createElement('div');
-        aiMsg.style.cssText = "max-width: 80%; padding: 12px; border-radius: 8px; font-size: 14px; margin-bottom: 10px; line-height: 1.5; background: var(--bg3); color: var(--gold); border: 1px solid var(--border); align-self: flex-start;";
-        
-        let q = query.toLowerCase();
-        if(q.includes("revenue") || q.includes("money")) {
-            const rev = students.filter(s=>s.status==='Paid').reduce((a,b)=>a+b.fee,0);
-            aiMsg.innerText = `The academy has currently realized ₹${rev.toLocaleString()} in paid tuition.`;
-        } else if (q.includes("coach") || q.includes("load")) {
-            aiMsg.innerText = `Coach Prag has the most beginners, while GM Viswanathan is handling the Elite tier students.`;
-        } else {
-            aiMsg.innerText = `I am analyzing that request. Tactical patterns suggest focusing on student retention this month.`;
-        }
-        
-        box.appendChild(aiMsg); box.scrollTop = box.scrollHeight;
-    }, 600);
+  setTimeout(() => {
+    thinking.textContent = generateAIResponse(query);
+    thinking.classList.remove('msg-thinking');
+    setLoading('ai-send-btn', false);
+    box.scrollTop = box.scrollHeight;
+  }, 900);
 }
 
-// CHARTS & THEME
-function initCharts() {
-    if(!document.getElementById('chartElo')) return;
-    const isLight = document.body.getAttribute('data-theme') === 'light';
-    const chartTextColor = isLight ? '#8d99ae' : '#999995';
-
-    if(charts.elo) charts.elo.destroy(); if(charts.coach) charts.coach.destroy();
-    
-    charts.elo = new Chart(document.getElementById('chartElo'), { 
-        type: 'bar', 
-        data: { labels: students.map(s=>s.name.split(' ')[0]), datasets: [{ label: 'ELO', data: students.map(s=>s.elo), backgroundColor: '#d4af37', borderRadius: 4 }] }, 
-        options: { plugins: { legend: { display: false } }, scales: { y: { grid: { color: isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)' }, ticks: { color: chartTextColor } }, x: { grid: { display: false }, ticks: { color: chartTextColor } } } } 
-    });
-    
-    const coaches = {}; students.forEach(s => coaches[s.coach] = (coaches[s.coach] || 0) + 1);
-    charts.coach = new Chart(document.getElementById('chartCoach'), { 
-        type: 'doughnut', 
-        data: { labels: Object.keys(coaches), datasets: [{ data: Object.values(coaches), backgroundColor: ['#d4af37', '#5a9fff', '#52c41a'], borderWidth: isLight ? 2 : 0, borderColor: isLight ? '#ffffff' : 'transparent' }] },
-        options: { plugins: { legend: { labels: { color: chartTextColor } } } }
-    });
-}
-
-function toggleTheme() { 
-    document.body.setAttribute('data-theme', document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); 
-    initCharts(); 
+function toggleTheme() {
+  const next = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.body.setAttribute('data-theme', next);
+  if (document.querySelector('.page.active')?.id === 'page-dash') renderDash();
 }
 </script>
 </body>
