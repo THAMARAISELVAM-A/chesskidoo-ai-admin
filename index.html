@@ -53,14 +53,14 @@ body{background:var(--bg);color:var(--ivory);font-family:var(--font-body);min-he
 .top-nav-right{display:flex;align-items:center;gap:20px;}
 .content{padding:28px 36px 48px}
 
-/* ── MODERN MENU TOGGLE (HAMBURGER) ── */
+/* ── 3-STRIPE MENU TOGGLE ── */
 .menu-toggle {
   display: flex;
   align-items: center;
   justify-content: center;
   background: transparent;
   border: none;
-  color: var(--ivory-dim);
+  color: var(--gold);
   cursor: pointer;
   padding: 6px;
   margin-right: 4px;
@@ -69,7 +69,7 @@ body{background:var(--bg);color:var(--ivory);font-family:var(--font-body);min-he
 }
 .menu-toggle:hover { 
   background: var(--glass); 
-  color: var(--ivory);
+  color: var(--gold2);
 }
 .sidebar-overlay {
   display: none;
@@ -133,6 +133,53 @@ tr:hover td{background:var(--glass)}
 .badge-paid{background:rgba(82,196,26,.15);color:var(--success)}
 .badge-due{background:rgba(255,77,79,.15);color:var(--danger)}
 .badge-level{background:var(--gold-glow);color:var(--gold);text-transform:uppercase}
+
+/* ── NEW PREMIUM PROFILE HEADER (PARENT PORTAL) ── */
+.profile-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg2);
+  padding: 32px 36px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  margin-bottom: 28px;
+  flex-wrap: wrap; 
+  gap: 24px;
+}
+.profile-info {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.profile-av {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  border: 3px solid var(--gold);
+  object-fit: cover;
+  box-shadow: 0 8px 24px var(--gold-glow);
+  flex-shrink: 0;
+}
+.profile-details h1 {
+  font-family: var(--font-head);
+  color: var(--gold);
+  font-size: 34px;
+  margin-bottom: 8px;
+  line-height: 1;
+}
+.profile-meta {
+  display: flex;
+  gap: 16px;
+  color: var(--ivory-dim);
+  font-size: 14px;
+}
+.profile-meta b { color: var(--ivory); font-weight: 600; }
+.profile-actions {
+  display: flex;
+  gap: 12px;
+}
 
 /* ── MODALS ── */
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;z-index:3000;backdrop-filter:blur(5px)}
@@ -259,6 +306,13 @@ body.admin-mode .parent-only,body.parent-mode .admin-only{display:none!important
 .toast-info{background:var(--bg3);border:1px solid var(--border);color:var(--ivory)}
 @keyframes slideIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
 
+/* ── LOADING ── */
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(212,175,55,.3);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-state{display:flex;align-items:center;justify-content:center;padding:60px;color:var(--ivory-dim);gap:14px;font-size:14px}
+.empty-state{text-align:center;padding:60px;color:var(--ivory-dim)}
+.empty-state .empty-icon{font-size:48px;margin-bottom:14px}
+
 /* ── RESPONSIVE ── */
 @media(max-width:768px){
   .sidebar { transform: translateX(-100%); width: 260px; box-shadow: var(--shadow); }
@@ -266,6 +320,11 @@ body.admin-mode .parent-only,body.parent-mode .admin-only{display:none!important
   .main { margin-left: 0; }
   .top-bar { padding: 16px 20px; }
   .content { padding: 20px; }
+  
+  .profile-hdr { flex-direction: column; align-items: flex-start; padding: 24px; }
+  .profile-actions { width: 100%; flex-direction: column; }
+  .profile-actions .btn { width: 100%; }
+
   #page-dash > div:nth-child(2), #page-dash > div:nth-child(3), #page-child > div:nth-child(3) { grid-template-columns: 1fr; }
 }
 </style>
@@ -363,15 +422,19 @@ body.admin-mode .parent-only,body.parent-mode .admin-only{display:none!important
     <div id="page-child" class="page parent-only">
       <div id="child-loading" class="loading-state"><span class="spinner"></span> Loading profile…</div>
       <div id="child-content" style="display:none">
+        
         <div class="profile-hdr">
           <div class="profile-info">
             <div id="p-av-wrap"></div>
-            <div>
-              <h1 id="c-name" style="font-family:var(--font-head);color:var(--gold);margin-bottom:5px">—</h1>
-              <p style="color:var(--ivory-dim);font-size:14px">Level: <span id="c-level" style="color:var(--ivory);font-weight:600">—</span> &nbsp;|&nbsp; Coach: <span id="c-coach" style="color:var(--ivory);font-weight:600">—</span></p>
+            <div class="profile-details">
+              <h1 id="c-name">—</h1>
+              <div class="profile-meta">
+                <span><b>Level:</b> <span id="c-level" class="text-gold">—</span></span>
+                <span><b>Coach:</b> <span id="c-coach">—</span></span>
+              </div>
             </div>
           </div>
-          <div style="display:flex;flex-direction:column;gap:9px">
+          <div class="profile-actions">
             <button type="button" class="btn btn-gold" onclick="openContactModal()">✉️ Message Coach</button>
             <button type="button" class="btn btn-outline" onclick="openModal('fb-modal')">📝 Give Feedback</button>
           </div>
@@ -379,21 +442,21 @@ body.admin-mode .parent-only,body.parent-mode .admin-only{display:none!important
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-bottom:26px">
           <div class="card">
-            <h3 style="margin-bottom:14px;color:var(--gold)">Coach Review</h3>
-            <div style="padding:16px;background:var(--glass);border:1px solid var(--border);border-radius:10px;line-height:1.8;margin-bottom:16px;font-size:14px">
+            <h3 style="margin-bottom:18px;color:var(--gold)">Coach Review</h3>
+            <div style="padding:18px;background:var(--glass);border:1px solid rgba(255,255,255,0.05);border-radius:10px;line-height:1.8;margin-bottom:24px;font-size:14px">
               <span style="color:var(--success);font-weight:700">★ LATEST:</span><br>
-              <span id="c-notes">Student is showing great tactical progress. Focus on endgame patterns is recommended.</span>
+              <span id="c-notes" style="color:var(--ivory);">Student is showing great tactical progress. Focus on endgame patterns is recommended.</span>
             </div>
             <div class="stat-label">Current ELO Rating</div>
-            <div class="stat-value" id="c-elo" style="font-size:38px">—</div>
+            <div class="stat-value" id="c-elo" style="font-size:42px">—</div>
           </div>
           <div class="card">
-            <h3 style="margin-bottom:16px;color:var(--gold)">Skill Breakdown</h3>
+            <h3 style="margin-bottom:20px;color:var(--gold)">Skill Breakdown</h3>
             <div id="skill-bars"></div>
           </div>
         </div>
 
-        <h2 style="font-family:var(--font-head);margin-bottom:4px">My Achievements</h2>
+        <h2 style="font-family:var(--font-head);margin-bottom:12px; font-size:22px;">My Achievements</h2>
         <div class="ach-grid" id="parent-ach"></div>
       </div>
     </div>
@@ -1020,9 +1083,14 @@ function renderChild() {
     { label: 'Positional', val: s.positional_score || 50 },
   ];
   $('skill-bars').innerHTML = skills.map(sk => `
-    <div class="skill-bar-wrap">
-      <div class="skill-bar-label"><span>${sk.label}</span><span>${sk.val}/100</span></div>
-      <div class="skill-bar-track"><div class="skill-bar-fill" style="width:${sk.val}%"></div></div>
+    <div class="skill-bar-wrap" style="margin-bottom: 20px;">
+      <div class="skill-bar-label" style="display:flex; justify-content:space-between; font-size:13px; font-weight:600; color:var(--ivory); margin-bottom:8px;">
+        <span>${sk.label}</span>
+        <span style="color:var(--gold);">${sk.val}/100</span>
+      </div>
+      <div class="skill-bar-track" style="height:8px; background:rgba(255,255,255,0.05); border-radius:4px; overflow:hidden;">
+        <div class="skill-bar-fill" style="height:100%; width:${sk.val}%; background:linear-gradient(90deg, var(--gold), var(--gold2)); border-radius:4px; box-shadow:0 0 10px var(--gold-glow);"></div>
+      </div>
     </div>
   `).join('');
 
