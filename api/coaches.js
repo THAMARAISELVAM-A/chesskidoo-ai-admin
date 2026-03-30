@@ -1,26 +1,34 @@
-let coaches = [
-  { id: 'c1', full_name: 'GM Viswanathan', specialty: 'Advanced Theory', phone: '9876543210', salary: '80000' },
-  { id: 'c2', full_name: 'Coach Rohith', specialty: 'Midgame Tactics', phone: '9876543211', salary: '60000' }
-];
+ async function saveCoach() {
+  // (collect your coach form fields here)
+  const coachName = $('c-name').value.trim();
+  const specialty = $('c-specialty').value.trim();
+  const phone = $('c-phone').value.trim();
+  const salary = $('c-salary').value.trim();
 
-export default function handler(request, response) {
-  if (request.method === 'GET') {
-    response.status(200).json(coaches);
-  } else if (request.method === 'POST') {
-    const newCoach = { id: 'c' + Date.now(), ...request.body };
-    coaches.push(newCoach);
-    response.status(201).json(newCoach);
-  } else if (request.method === 'PUT') {
-    const { id } = request.query;
-    const index = coaches.findIndex(c => c.id === id);
-    if (index === -1) return response.status(404).json({ error: 'Coach not found' });
-    coaches[index] = { ...coaches[index], ...request.body };
-    response.status(200).json(coaches[index]);
-  } else if (request.method === 'DELETE') {
-    const { id } = request.query;
-    coaches = coaches.filter(c => c.id !== id);
-    response.status(200).json({ message: 'Coach deleted' });
-  } else {
-    response.status(405).json({ error: 'Method not allowed' });
+  if (!coachName) return toast('Please enter a Coach Name', 'error');
+  if (!phone) return toast('Please enter a Coach Phone', 'error');
+
+  try {
+    const response = await fetch('https://project-yj5uk.vercel.app/api/coaches', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        full_name: coachName,
+        specialty,
+        phone,
+        salary,
+      })
+    });
+
+    const newCoach = await response.json();
+    allCoaches.push(newCoach);
+
+    toast(`${coachName} added!`, 'success');
+    closeModals();
+    renderCoaches();
+    renderDash();
+  } catch (error) {
+    toast('Error adding coach', 'error');
+    console.error(error);
   }
 }
