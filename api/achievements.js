@@ -1,22 +1,20 @@
- const { MongoClient, ServerApiVersion } = require('mongodb');
+ import { MongoClient, ServerApiVersion } from 'mongodb';
 
 const uri = process.env.MONGODB_URI;
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  }
-});
+let client;
 
-async function connectDB() {
-  try {
+async function getDB() {
+  if (!client) {
+    client = new MongoClient(uri, {
+      serverApi: {
+        version: ServerApiVersion.v1,
+        strict: true,
+        deprecationErrors: true,
+      }
+    });
     await client.connect();
-    return client.db('chesskidoo').collection('achievements');
-  } catch (error) {
-    console.error('MongoDB connection error:', error);
-    throw error;
   }
+  return client.db('chesskidoo');
 }
 
 export default async function handler(request, response) {
@@ -27,33 +25,27 @@ export default async function handler(request, response) {
   if (request.method === 'OPTIONS') return response.status(200).end();
 
   try {
-    const collection = await connectDB();
+    const db = await getDB();
+    const collection = db.collection('achievements');
 
     if (request.method === 'GET') {
       const achievements = await collection.find({}).toArray();
       return response.status(200).json(achievements);
     } 
     else if (request.method === 'POST') {
-      const newAchievement = {
-        id: 'a' + Date.now(),
-        title: request.body.title,
-        student_id: request.body.student_id,
-        student_name: request.body.student_name,
-        date: new Date().toISOString()
-      };
+      const newAchievement = { id: 'a' + Date.now(), ...request.body };
       await collection.insertOne(newAchievement);
       return response.status(201).json(newAchievement);
     } 
     else if (request.method === 'DELETE') {
       const { id } = request.query;
-      await collection.deleteOne({ id: id });
-      return response.status(200).json({ message: 'Achievement deleted' });
+      await collection.deleteOne({ id });
+      return response.status(200).json({ message: 'Deleted' });
     } 
     else {
       return response.status(405).json({ error: 'Method not allowed' });
     }
   } catch (error) {
-    console.error('Error:', error);
-    return response.status(500).json({ error: 'Server error' });
+    return response.status(500).json({ error: error.message });
   }
 }
