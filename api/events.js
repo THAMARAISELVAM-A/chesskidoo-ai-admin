@@ -1,30 +1,33 @@
- async function saveEvent() {
-  const title = $('e-title').value.trim();
-  const date = $('e-date').value.trim();
-  const type = $('e-type').value.trim();
-  const prize = $('e-prize').value.trim();
-  const location = $('e-location').value.trim();
+ let events = [
+  { id: 'e1', title: 'Summer Blitz Tournament', date: '2024-08-15', type: 'Blitz', prize: '₹10,000', location: 'Main Hall', registrations_count: 12 }
+];
 
-  if (!title || !date) return toast('Complete all fields', 'error');
+export default function handler(request, response) {
+  response.setHeader('Access-Control-Allow-Origin', '*');
+  response.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  try {
-    const response = await fetch('https://project-yj5uk.vercel.app/api/events', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title, date, type, prize, location
-      })
-    });
+  if (request.method === 'OPTIONS') return response.status(200).end();
 
-    const newEvent = await response.json();
-    eventsData.push(newEvent);
-
-    toast('Event added!', 'success');
-    closeModals();
-    renderEvents();
-    renderDash();
-  } catch (error) {
-    toast('Error adding event', 'error');
-    console.error(error);
+  if (request.method === 'GET') {
+    return response.status(200).json(events);
+  } else if (request.method === 'POST') {
+    const newEvent = {
+      id: 'e' + Date.now(),
+      title: request.body.title,
+      date: request.body.date,
+      type: request.body.type,
+      prize: request.body.prize,
+      location: request.body.location,
+      registrations_count: 0
+    };
+    events.push(newEvent);
+    return response.status(201).json(newEvent);
+  } else if (request.method === 'DELETE') {
+    const { id } = request.query;
+    events = events.filter(e => e.id !== id);
+    return response.status(200).json({ message: 'Event deleted' });
+  } else {
+    return response.status(405).json({ error: 'Method not allowed' });
   }
 }
