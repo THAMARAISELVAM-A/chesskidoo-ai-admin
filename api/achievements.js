@@ -1,19 +1,28 @@
-let achievements = [
-  { id: 'a1', title: 'District Champion', student_id: 's1', date: '2024-03-15' }
-];
+ async function saveAward() {
+  const title = $('a-title').value.trim();
+  const student_id = $('a-student-id').value.trim();
 
-export default function handler(request, response) {
-  if (request.method === 'GET') {
-    response.status(200).json(achievements);
-  } else if (request.method === 'POST') {
-    const newAchievement = { id: 'a' + Date.now(), ...request.body, date: new Date().toISOString() };
-    achievements.push(newAchievement);
-    response.status(201).json(newAchievement);
-  } else if (request.method === 'DELETE') {
-    const { id } = request.query;
-    achievements = achievements.filter(a => a.id !== id);
-    response.status(200).json({ message: 'Achievement deleted' });
-  } else {
-    response.status(405).json({ error: 'Method not allowed' });
+  if (!title || !student_id) return toast('Complete all fields', 'error');
+
+  try {
+    const response = await fetch('https://project-yj5uk.vercel.app/api/achievements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title,
+        student_id,
+      })
+    });
+
+    const newAch = await response.json();
+    achievementsData.push(newAch);
+
+    toast('Achievement added!', 'success');
+    closeModals();
+    renderAwards();
+    renderDash();
+  } catch (error) {
+    toast('Error adding achievement', 'error');
+    console.error(error);
   }
 }
