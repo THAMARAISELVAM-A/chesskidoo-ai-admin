@@ -1,22 +1,20 @@
- const { MongoClient, ServerApiVersion } = require('mongodb');
+ import { MongoClient, ServerApiVersion } from 'mongodb';
 
 const uri = process.env.MONGODB_URI;
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  }
-});
+let client;
 
-async function connectDB() {
-  try {
+async function getDB() {
+  if (!client) {
+    client = new MongoClient(uri, {
+      serverApi: {
+        version: ServerApiVersion.v1,
+        strict: true,
+        deprecationErrors: true,
+      }
+    });
     await client.connect();
-    return client.db('chesskidoo').collection('coaches');
-  } catch (error) {
-    console.error('MongoDB connection error:', error);
-    throw error;
   }
+  return client.db('chesskidoo');
 }
 
 export default async function handler(request, response) {
@@ -27,40 +25,32 @@ export default async function handler(request, response) {
   if (request.method === 'OPTIONS') return response.status(200).end();
 
   try {
-    const collection = await connectDB();
+    const db = await getDB();
+    const collection = db.collection('students');
 
     if (request.method === 'GET') {
-      const coaches = await collection.find({}).toArray();
-      return response.status(200).json(coaches);
+      const students = await collection.find({}).toArray();
+      return response.status(200).json(students);
     } 
     else if (request.method === 'POST') {
-      const newCoach = { 
-        id: 'c' + Date.now(), 
-        ...request.body,
-        createdAt: new Date()
-      };
-      await collection.insertOne(newCoach);
-      return response.status(201).json(newCoach);
+      const newStudent = { id: 's' + Date.now(), ...request.body };
+      await collection.insertOne(newStudent);
+      return response.status(201).json(newStudent);
     } 
     else if (request.method === 'PUT') {
       const { id } = request.query;
-      const result = await collection.updateOne(
-        { id: id },
-        { $set: request.body }
-      );
-      if (result.matchedCount === 0) return response.status(404).json({ error: 'Coach not found' });
+      await collection.updateOne({ id }, { $set: request.body });
       return response.status(200).json({ message: 'Updated' });
     } 
     else if (request.method === 'DELETE') {
       const { id } = request.query;
-      await collection.deleteOne({ id: id });
-      return response.status(200).json({ message: 'Coach deleted' });
+      await collection.deleteOne({ id });
+      return response.status(200).json({ message: 'Deleted' });
     } 
     else {
       return response.status(405).json({ error: 'Method not allowed' });
     }
   } catch (error) {
-    console.error('Error:', error);
-    return response.status(500).json({ error: 'Server error' });
+    return response.status(500).json({ error: error.message });
   }
 }
