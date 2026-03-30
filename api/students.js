@@ -1,4 +1,4 @@
- const { MongoClient, ServerApiVersion } = require('mongodb');
+ import { MongoClient, ServerApiVersion } from 'mongodb';
 
 const uri = process.env.MONGODB_URI;
 const client = new MongoClient(uri, {
@@ -9,10 +9,17 @@ const client = new MongoClient(uri, {
   }
 });
 
+let cachedClient = null;
+
 async function connectDB() {
+  if (cachedClient) {
+    return cachedClient.db('chesskidoo').collection('students');
+  }
+  
   try {
-    await client.connect();
-    return client.db('chesskidoo').collection('students');
+    const newClient = await client.connect();
+    cachedClient = newClient;
+    return newClient.db('chesskidoo').collection('students');
   } catch (error) {
     console.error('MongoDB connection error:', error);
     throw error;
@@ -61,6 +68,6 @@ export default async function handler(request, response) {
     }
   } catch (error) {
     console.error('Error:', error);
-    return response.status(500).json({ error: 'Server error' });
+    return response.status(500).json({ error: error.message });
   }
 }
