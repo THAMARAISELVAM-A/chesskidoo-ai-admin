@@ -1,8 +1,14 @@
-let payments = [];
+ let payments = [];
 
 export default function handler(request, response) {
+  response.setHeader('Access-Control-Allow-Origin', '*');
+  response.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (request.method === 'OPTIONS') return response.status(200).end();
+
   if (request.method === 'GET') {
-    response.status(200).json(payments);
+    return response.status(200).json(payments);
   } else if (request.method === 'POST') {
     const newPayment = {
       id: 'pay' + Date.now(),
@@ -13,8 +19,8 @@ export default function handler(request, response) {
       method: request.body.method
     };
     payments.push(newPayment);
-    response.status(201).json(newPayment);
+    return response.status(201).json(newPayment);
   } else {
-    response.status(405).json({ error: 'Method not allowed' });
+    return response.status(405).json({ error: 'Method not allowed' });
   }
 }
