@@ -1,22 +1,20 @@
- const { MongoClient, ServerApiVersion } = require('mongodb');
+ import { MongoClient, ServerApiVersion } from 'mongodb';
 
 const uri = process.env.MONGODB_URI;
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  }
-});
+let client;
 
-async function connectDB() {
-  try {
+async function getDB() {
+  if (!client) {
+    client = new MongoClient(uri, {
+      serverApi: {
+        version: ServerApiVersion.v1,
+        strict: true,
+        deprecationErrors: true,
+      }
+    });
     await client.connect();
-    return client.db('chesskidoo').collection('games');
-  } catch (error) {
-    console.error('MongoDB connection error:', error);
-    throw error;
   }
+  return client.db('chesskidoo');
 }
 
 export default async function handler(request, response) {
@@ -27,18 +25,15 @@ export default async function handler(request, response) {
   if (request.method === 'OPTIONS') return response.status(200).end();
 
   try {
-    const collection = await connectDB();
+    const db = await getDB();
+    const collection = db.collection('games');
 
     if (request.method === 'GET') {
       const games = await collection.find({}).toArray();
       return response.status(200).json(games);
     } 
     else if (request.method === 'POST') {
-      const newGame = { 
-        id: Date.now(), 
-        ...request.body,
-        createdAt: new Date()
-      };
+      const newGame = { id: Date.now(), ...request.body };
       await collection.insertOne(newGame);
       return response.status(201).json(newGame);
     } 
@@ -46,7 +41,6 @@ export default async function handler(request, response) {
       return response.status(405).json({ error: 'Method not allowed' });
     }
   } catch (error) {
-    console.error('Error:', error);
-    return response.status(500).json({ error: 'Server error' });
+    return response.status(500).json({ error: error.message });
   }
 }
