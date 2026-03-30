@@ -1,40 +1,32 @@
-async function saveStudent() {
-  const name = $('m-name').value.trim();
-  const phone = $('m-phone').value.trim();
-  const eloVal = parseInt($('m-elo').value);
-  const feeVal = parseInt($('m-fee').value);
-  const joinDate = $('m-join').value;
+let students = [
+  { id: 's1', full_name: 'Riyas', gender: 'Male', join_date: '2024-01-15', level: 'ELITE', current_rating: 2450, coach_id: 'c1', payment_status: 'Paid', monthly_fee: 6500, batch_type: 'Evening', batch_time: '18:00' },
+  { id: 's2', full_name: 'Varun', gender: 'Male', join_date: '2024-02-10', level: 'ADVANCED', current_rating: 2100, coach_id: 'c1', payment_status: 'Paid', monthly_fee: 5000, batch_type: 'Weekend', batch_time: '10:00' }
+];
 
-  if (!name) return toast('Please enter a Full Name', 'error');
-  if (!isValidPhone(phone)) return toast('Parent Phone must be exactly 10 digits', 'error');
+export default function handler(request, response) {
+  response.setHeader('Access-Control-Allow-Origin', '*');
+  response.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  try {
-    const response = await fetch('https://project-yj5uk.vercel.app/api/students', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        full_name: name,
-        gender: $('m-gender').value,
-        join_date: joinDate,
-        level: $('m-level').value,
-        current_rating: eloVal,
-        coach_id: $('m-coach').value,
-        payment_status: 'Due',
-        monthly_fee: feeVal,
-        batch_type: $('m-batch-type').value,
-        batch_time: $('m-batch-time').value
-      })
-    });
+  if (request.method === 'OPTIONS') return response.status(200).end();
 
-    const newStudent = await response.json();
-    allStudents.push(newStudent);
-
-    toast(`${name} enrolled successfully!`, 'success');
-    closeModals();
-    renderStudents();
-    renderDash();
-  } catch (error) {
-    toast('Error enrolling student', 'error');
-    console.error(error);
+  if (request.method === 'GET') {
+    return response.status(200).json(students);
+  } else if (request.method === 'POST') {
+    const newStudent = { id: 's' + Date.now(), ...request.body };
+    students.push(newStudent);
+    return response.status(201).json(newStudent);
+  } else if (request.method === 'PUT') {
+    const { id } = request.query;
+    const index = students.findIndex(s => s.id === id);
+    if (index === -1) return response.status(404).json({ error: 'Student not found' });
+    students[index] = { ...students[index], ...request.body };
+    return response.status(200).json(students[index]);
+  } else if (request.method === 'DELETE') {
+    const { id } = request.query;
+    students = students.filter(s => s.id !== id);
+    return response.status(200).json({ message: 'Student deleted' });
+  } else {
+    return response.status(405).json({ error: 'Method not allowed' });
   }
 }
