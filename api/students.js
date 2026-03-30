@@ -1,31 +1,25 @@
- import { MongoClient, ServerApiVersion } from 'mongodb';
+ import { MongoClient } from 'mongodb';
 
 const uri = process.env.MONGODB_URI;
 let cachedClient = null;
 
 async function connectToDatabase() {
-  if (cachedClient) {
+  if (cachedClient && cachedClient.topology && cachedClient.topology.isConnected()) {
     return cachedClient;
   }
 
   try {
     const client = new MongoClient(uri, {
-      serverApi: {
-        version: ServerApiVersion.v1,
-        strict: false,
-        deprecationErrors: true,
-      },
       retryWrites: true,
       w: 'majority',
       maxPoolSize: 1,
-      minPoolSize: 1,
     });
 
     await client.connect();
     cachedClient = client;
     return client;
   } catch (error) {
-    console.error('MongoDB connection failed:', error);
+    console.error('MongoDB connection failed:', error.message);
     throw error;
   }
 }
@@ -44,21 +38,17 @@ export default async function handler(request, response) {
 
     if (request.method === 'GET') {
       const students = await collection.find({}).toArray();
-      return response.status(200).json(students);
+      return response.status(200).json(students || []);
     } 
     else if (request.method === 'POST') {
       const newStudent = { id: 's' + Date.now(), ...request.body };
-      await collection.insertOne(newStudent);
+      const result = await collection.insertOne(newStudent);
       return response.status(201).json(newStudent);
     } 
     else if (request.method === 'PUT') {
       const { id } = request.query;
-      const result = await collection.findOneAndUpdate(
-        { id },
-        { $set: request.body },
-        { returnDocument: 'after' }
-      );
-      return response.status(200).json(result.value || { message: 'Updated' });
+      await collection.updateOne({ id }, { $set: request.body });
+      return response.status(200).json({ message: 'Updated' });
     } 
     else if (request.method === 'DELETE') {
       const { id } = request.query;
@@ -69,7 +59,6 @@ export default async function handler(request, response) {
       return response.status(405).json({ error: 'Method not allowed' });
     }
   } catch (error) {
-    console.error('API Error:', error);
-    return response.status(500).json({ error: error.message || 'Server error' });
+    return response.status(500).json({ error: error.message });
   }
 }
