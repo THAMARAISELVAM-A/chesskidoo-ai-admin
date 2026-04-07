@@ -1,8 +1,19 @@
  {
-  "name": "chesskidoo-backend",
+  "name": "chesskidoo-ai-admin",
   "version": "1.0.0",
   "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "npx serve .",
+    "build": "echo 'No build step required'"
+  },
   "dependencies": {
-    "mongodb": "^6.3.0"
+    "mongodb": "^6.3.0",
+    "razorpay": "^2.9.2"
+  },
+  "devDependencies": {
+    "vercel": "^32.4.1"
   }
 }
+
+

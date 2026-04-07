@@ -1,20 +1,23 @@
- import { MongoClient, ServerApiVersion } from 'mongodb';
+ import { MongoClient } from 'mongodb';
 
 const uri = process.env.MONGODB_URI;
-let client;
+let cachedClient = null;
 
-async function getDB() {
-  if (!client) {
-    client = new MongoClient(uri, {
-      serverApi: {
-        version: ServerApiVersion.v1,
-        strict: true,
-        deprecationErrors: true,
-      }
-    });
-    await client.connect();
+async function connectToDatabase() {
+  if (cachedClient && cachedClient.topology && cachedClient.topology.isConnected()) {
+    return cachedClient;
   }
-  return client.db('chesskidoo');
+  if (!uri) throw new Error('MONGODB_URI is not defined');
+
+  try {
+    const client = new MongoClient(uri, { retryWrites: true, w: 'majority' });
+    await client.connect();
+    cachedClient = client;
+    return client;
+  } catch (error) {
+    console.error('MongoDB connection failed:', error.message);
+    throw error;
+  }
 }
 
 export default async function handler(request, response) {
@@ -25,32 +28,42 @@ export default async function handler(request, response) {
   if (request.method === 'OPTIONS') return response.status(200).end();
 
   try {
-    const db = await getDB();
-    const collection = db.collection('students');
+    const client = await connectToDatabase();
+    const db = client.db('chesskidoo');
+    const collection = db.collection('coaches');
 
-    if (request.method === 'GET') {
-      const students = await collection.find({}).toArray();
-      return response.status(200).json(students);
-    } 
-    else if (request.method === 'POST') {
-      const newStudent = { id: 's' + Date.now(), ...request.body };
-      await collection.insertOne(newStudent);
-      return response.status(201).json(newStudent);
-    } 
-    else if (request.method === 'PUT') {
-      const { id } = request.query;
-      await collection.updateOne({ id }, { $set: request.body });
-      return response.status(200).json({ message: 'Updated' });
-    } 
-    else if (request.method === 'DELETE') {
-      const { id } = request.query;
-      await collection.deleteOne({ id });
-      return response.status(200).json({ message: 'Deleted' });
-    } 
-    else {
-      return response.status(405).json({ error: 'Method not allowed' });
+    const { id } = request.query;
+
+    switch (request.method) {
+      case 'GET':
+        if (id) {
+          const coach = await collection.findOne({ id });
+          return coach ? response.status(200).json(coach) : response.status(404).json({ error: 'Coach not found' });
+        }
+        const coaches = await collection.find({}).toArray();
+        return response.status(200).json(coaches || []);
+
+      case 'POST':
+        const newCoach = { id: 'c' + Date.now(), ...request.body, createdAt: new Date().toISOString() };
+        await collection.insertOne(newCoach);
+        return response.status(201).json(newCoach);
+
+      case 'PUT':
+        if (!id) return response.status(400).json({ error: 'ID is required' });
+        await collection.updateOne({ id }, { $set: request.body });
+        return response.status(200).json({ message: 'Updated' });
+
+      case 'DELETE':
+        if (!id) return response.status(400).json({ error: 'ID is required' });
+        await collection.deleteOne({ id });
+        return response.status(200).json({ message: 'Deleted' });
+
+      default:
+        return response.status(405).json({ error: 'Method not allowed' });
     }
   } catch (error) {
+    console.error('API Error:', error);
     return response.status(500).json({ error: error.message });
   }
 }
+

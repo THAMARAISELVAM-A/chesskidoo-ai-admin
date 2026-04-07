@@ -1,20 +1,22 @@
- import { MongoClient, ServerApiVersion } from 'mongodb';
+ import { MongoClient } from 'mongodb';
 
 const uri = process.env.MONGODB_URI;
-let client;
+let cachedClient = null;
 
-async function getDB() {
-  if (!client) {
-    client = new MongoClient(uri, {
-      serverApi: {
-        version: ServerApiVersion.v1,
-        strict: true,
-        deprecationErrors: true,
-      }
-    });
-    await client.connect();
+async function connectToDatabase() {
+  if (cachedClient && cachedClient.topology && cachedClient.topology.isConnected()) {
+    return cachedClient;
   }
-  return client.db('chesskidoo');
+  if (!uri) throw new Error('MONGODB_URI is not defined');
+  try {
+    const client = new MongoClient(uri, { retryWrites: true, w: 'majority' });
+    await client.connect();
+    cachedClient = client;
+    return client;
+  } catch (error) {
+    console.error('MongoDB connection failed:', error.message);
+    throw error;
+  }
 }
 
 export default async function handler(request, response) {
@@ -25,22 +27,26 @@ export default async function handler(request, response) {
   if (request.method === 'OPTIONS') return response.status(200).end();
 
   try {
-    const db = await getDB();
+    const client = await connectToDatabase();
+    const db = client.db('chesskidoo');
     const collection = db.collection('payments');
 
-    if (request.method === 'GET') {
-      const payments = await collection.find({}).toArray();
-      return response.status(200).json(payments);
-    } 
-    else if (request.method === 'POST') {
-      const newPayment = { id: 'pay' + Date.now(), ...request.body };
-      await collection.insertOne(newPayment);
-      return response.status(201).json(newPayment);
-    } 
-    else {
-      return response.status(405).json({ error: 'Method not allowed' });
+    switch (request.method) {
+      case 'GET':
+        const payments = await collection.find({}).toArray();
+        return response.status(200).json(payments || []);
+
+      case 'POST':
+        const newPayment = { id: 'p' + Date.now(), ...request.body, createdAt: new Date().toISOString() };
+        await collection.insertOne(newPayment);
+        return response.status(201).json(newPayment);
+
+      default:
+        return response.status(405).json({ error: 'Method not allowed' });
     }
   } catch (error) {
+    console.error('API Error:', error);
     return response.status(500).json({ error: error.message });
   }
 }
+

@@ -1,71 +1,58 @@
 # Chesskidoo AI Admin
 
 ## Introduction
-Chesskidoo AI Admin is a web-based application designed to manage and enhance the Chesskidoo AI functionalities. This project allows users to interact with the AI, configure settings, and monitor performance through an intuitive interface.
+Chesskidoo AI Admin is a high-performance, real-time management console for Chesskidoo Academy. It features student lifecycle management, revenue tracking, an automated AI Intelligence Hub, and an public Wall of Fame to celebrate cadet achievements.
 
 ## Features
-- User-friendly interface for managing Chesskidoo AI settings
-- Integration with OpenAI API for advanced AI functionalities
-- Real-time performance monitoring
-- Deployment capabilities to GitHub Pages for ease of access
+- **Smart Dashboard**: Real-time ELO distribution and financial metrics.
+- **Student & Coach Management**: Full CRUD capabilities for institutional data.
+- **AI Intelligence Hub**: Query your academy data using common language.
+- **Wall of Fame**: Publicly celebrate student victories.
+- **Financial Tracking**: Manage payments and generate receipts instantly.
 
 ## Setup Instructions
-To set up the project locally, follow these steps:
 
+### Pre-requisites
+1. **Node.js** (v18+)
+2. **MongoDB Database**: A working cluster (e.g., MongoDB Atlas).
+3. **Vercel CLI** (Recommended for local API testing): `npm i -g vercel`.
+
+### Installation
 1. **Clone the repository**  
    ```bash
    git clone https://github.com/THAMARAISELVAM-A/chesskidoo-ai-admin.git
-   ```
-   
-2. **Navigate to the project directory**  
-   ```bash
    cd chesskidoo-ai-admin
    ```
-
-3. **Install dependencies**  
-   Ensure you have Node.js installed. Then run:  
+   
+2. **Install dependencies**
    ```bash
    npm install
    ```
 
-4. **Start the development server**  
+3. **Configure Environment Variables**
+   Create a `.env` file in the root and add:
+   ```plaintext
+   MONGODB_URI=your_mongodb_connection_string
+   OPENAI_API_KEY=your_openai_key (optional, for AI Hub)
+   ```
+
+4. **Run Locally**
+   To run both the frontend and backend (recommended):
+   ```bash
+   npm run dev
+   ```
+   Or for just the static frontend:
    ```bash
    npm start
-   ```  
-   You can view the application by navigating to `http://localhost:3000` in your web browser.
-
-## OpenAI API Configuration
-To configure the OpenAI API:
-
-1. Go to [OpenAI's website](https://openai.com/) and create an account if you don't have one.
-2. Generate your API key from the API section.
-3. Create a `.env` file in the root of the project and add the following line replacing `YOUR_API_KEY` with your actual key:
-   ```plaintext
-   OPENAI_API_KEY=YOUR_API_KEY
    ```
 
-## Deployment Guide to GitHub Pages
-Follow these steps to deploy the project to GitHub Pages:
-
-1. **Build the project for production**  
-   ```bash
-   npm run build
-   ```
-
-2. **Navigate to the `build` directory**  
-   ```bash
-   cd build
-   ```
-
-3. **Deploy to GitHub Pages**  
-   You can use the following command to deploy:
-   ```bash
-   npx gh-pages -d build
-   ```  
-   Make sure you have `gh-pages` installed:
-   ```bash
-   npm install gh-pages --save-dev
-   ```
+## API Documentation
+The API is built using Vercel Serverless Functions and acts as a bridge between the frontend and MongoDB.
+- `/api/students`: Manage cadets.
+- `/api/coaches`: Manage instructors.
+- `/api/achievements`: Manage Wall of Fame content.
+- `/api/events`: Manage academy events.
+- `/api/payments`: Track financial transactions.
 
 ## License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License.

@@ -6,6 +6,8 @@
 <title>Chesskidoo — Premium Chess Academy</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
 <style>
 :root {
@@ -25,6 +27,33 @@
   --glass:rgba(0,0,0,0.025); --border:rgba(0,0,0,0.09);
   --shadow:0 10px 30px rgba(0,0,0,0.07);
 }
+
+/* ── PRINT STYLES ── */
+@media print {
+  body * { visibility: hidden; }
+  #receipt-print-area, #receipt-print-area * { visibility: visible; }
+  #receipt-print-area { position: absolute; left: 0; top: 0; width: 100%; background: #fff !important; color: #000 !important; padding: 40px; }
+  .no-print { display: none !important; }
+}
+
+#receipt-print-area {
+  display: none;
+  background: white;
+  color: #333;
+  padding: 40px;
+  border-radius: 8px;
+  width: 800px;
+  margin: 0 auto;
+  font-family: 'DM Sans', sans-serif;
+}
+.invoice-header { display: flex; justify-content: space-between; border-bottom: 2px solid #eee; padding-bottom: 20px; margin-bottom: 30px; }
+.invoice-logo { font-family: 'Playfair Display'; font-size: 28px; font-weight: 700; color: #b8910f; }
+.invoice-details { text-align: right; font-size: 14px; line-height: 1.6; }
+.invoice-table { width: 100%; border-collapse: collapse; margin-top: 30px; }
+.invoice-table th { background: #f9f9f9; padding: 12px; border-bottom: 2px solid #eee; text-align: left; color: #666; font-size: 12px; }
+.invoice-table td { padding: 15px 12px; border-bottom: 1px solid #eee; font-size: 14px; }
+.invoice-footer { margin-top: 50px; text-align: center; border-top: 2px solid #eee; padding-top: 20px; font-size: 12px; color: #999; }
+
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--ivory);font-family:var(--font-body);min-height:100vh;display:flex;transition:background .3s,color .3s;overflow-x:hidden}
 
@@ -436,6 +465,18 @@ body.admin-mode .parent-only,body.parent-mode .admin-only{display:none!important
     </div>
 
     <div id="page-stud" class="page admin-only">
+      <div class="page-hdr" style="margin-bottom: 24px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <h2 style="font-family:var(--font-head); font-size:24px; color:var(--gold);">Student Registry</h2>
+          <p style="font-size:12px; color:var(--ivory-dim);">Manage your academy's growing talent pool.</p>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <input type="file" id="import-csv-input" style="display:none" accept=".csv" onchange="importStudents(this)"/>
+          <button class="btn btn-outline btn-sm" onclick="$('import-csv-input').click()">Import CSV</button>
+          <button class="btn btn-outline btn-sm" onclick="exportData('csv')">Export CSV</button>
+          <button class="btn btn-outline btn-sm" onclick="exportData('json')">Export JSON</button>
+        </div>
+      </div>
       <div class="filter-bar" id="student-filters">
         <select id="f-coach" onchange="renderStudents()"><option value="">All Coaches</option></select>
         <select id="f-status" onchange="renderStudents()">
@@ -822,41 +863,109 @@ body.admin-mode .parent-only,body.parent-mode .admin-only{display:none!important
 </div>
 
 <script>
-// ── MOCK DATABASE STATE ───────────────────────
-let allCoaches = [
-  { id: 'c1', full_name: 'GM Viswanathan', specialty: 'Advanced Theory', phone: '9876543210', address: 'Chennai, India', photo_url: '', salary: '80000', additional_details: 'Available weekends only' },
-  { id: 'c2', full_name: 'Transition Coach Rohith', specialty: 'Midgame Tactics', phone: '9876543211', address: 'Bangalore, India', photo_url: '', salary: '60000', additional_details: '' },
-  { id: 'c3', full_name: 'Coach Prag', specialty: 'Beginner Fundamentals', phone: '9876543212', address: 'Delhi, India', photo_url: '', salary: '45000', additional_details: 'Focuses on kids U-10' }
-];
+// ── DATABASE STATE ───────────────────────
+let allCoaches = [];
+let allStudents = [];
+let achievementsData = [];
+let eventsData = [];
+let mockCredentials = {}; // Will be populated from students
 
-let allStudents = [
-  { id: 's1', full_name: 'Riyas', gender: 'Male', join_date: '2024-01-15', level: 'ELITE', current_rating: 2450, coaches: allCoaches[0], payment_status: 'Paid', monthly_fee: 6500, batch_type: 'Evening', batch_time: '18:00', tactics_score: 95, endgame_score: 90, openings_score: 98, positional_score: 92, coach_notes: 'Exceptional board vision.' },
-  { id: 's2', full_name: 'Varun', gender: 'Male', join_date: '2024-02-10', level: 'ADVANCED', current_rating: 2100, coaches: allCoaches[0], payment_status: 'Paid', monthly_fee: 5000, batch_type: 'Weekend', batch_time: '10:00', tactics_score: 85, endgame_score: 80, openings_score: 88, positional_score: 85, coach_notes: 'Solid positional understanding.' },
-  { id: 's3', full_name: 'Krishna', gender: 'Male', join_date: '2024-03-01', level: 'INTERMEDIATE', current_rating: 1850, coaches: allCoaches[1], payment_status: 'Paid', monthly_fee: 4000, batch_type: 'Morning', batch_time: '07:00', tactics_score: 70, endgame_score: 65, openings_score: 75, positional_score: 70, coach_notes: 'Improving steadily.' },
-  { id: 's4', full_name: 'Saanvi Iyer', gender: 'Female', join_date: '2024-04-20', level: 'BEGINNER', current_rating: 1200, coaches: allCoaches[2], payment_status: 'Due', monthly_fee: 3000, batch_type: 'Evening', batch_time: '16:30', tactics_score: 50, endgame_score: 45, openings_score: 55, positional_score: 50, coach_notes: 'Focusing on opening principles.' }
-];
+async function loadAllData() {
+  try {
+    const [cRes, sRes, aRes, eRes] = await Promise.all([
+      fetch('/api/coaches'),
+      fetch('/api/students'),
+      fetch('/api/achievements'),
+      fetch('/api/events')
+    ]);
+    
+    allCoaches = await cRes.json();
+    allStudents = await sRes.json();
+    achievementsData = await aRes.json();
+    eventsData = await eRes.json();
 
-let achievementsData = [
-  { id: 'a1', title: 'District Champion', students: { full_name: 'Riyas' }, img_url: null }
-];
+    // Populate mock credentials from student phone numbers
+    mockCredentials = {};
+    allStudents.forEach(s => {
+      if (s.full_name) {
+        mockCredentials[s.full_name.toLowerCase()] = s.parent_phone || s.phone || '9876543210';
+      }
+    });
 
-let eventsData = [
-  { id: 'e1', title: 'Summer Blitz Tournament', date: 'Aug 15', type: 'Blitz', prize: '₹10,000', location: 'Main Academy Hall', registrations_count: 12 }
-];
+    console.log('✅ Data loaded from API');
+    syncCoachDropdowns();
+    if (role === 'admin') renderDash();
+    else if (role === 'parent') renderChild();
+  } catch (err) {
+    console.error('❌ API Load Error:', err);
+    toast('Failed to load data from server', 'error');
+  }
+}
 
-const mockCredentials = {
-  'riyas': '9876543210',
-  'varun': '9876543211',
-  'krishna': '9876543212',
-  'saanvi iyer': '9876543213'
-};
+// Initial load
+window.addEventListener('DOMContentLoaded', loadAllData);
 
 let loginHistory = { admin: [{ time: new Date(Date.now() - 86400000).toLocaleString(), device: 'Desktop - Chrome' }], parents: {} };
+
 
 let role = null;
 let currentStudent = null;
 let charts = {};
 let payTarget = null; 
+let aiHistory = []; 
+
+// ── DATA PORTABILITY ──
+function exportData(format) {
+  if (!allStudents.length) return toast('No data to export', 'error');
+  
+  if (format === 'json') {
+    const blob = new Blob([JSON.stringify(allStudents, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `Chesskidoo_Students_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+  } else {
+    const csv = Papa.unparse(allStudents);
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `Chesskidoo_Students_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+  }
+  toast(`Data exported as ${format.toUpperCase()} ✓`, 'success');
+}
+
+function importStudents(input) {
+  const file = input.files[0]; if (!file) return;
+  Papa.parse(file, {
+    header: true,
+    complete: async (results) => {
+      const data = results.data.filter(r => r.full_name);
+      if (!data.length) return toast('No valid student records found', 'error');
+      
+      toast(`Importing ${data.length} students...`, 'info');
+      let success = 0;
+      for (const s of data) {
+        try {
+          await fetch('/api/students', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              full_name: s.full_name,
+              level: s.level || 'Beginner',
+              current_rating: parseInt(s.current_rating) || 800,
+              parent_phone: s.parent_phone || s.phone || '9876543210',
+              monthly_fee: parseInt(s.monthly_fee) || 5000,
+              payment_status: s.payment_status || 'Due'
+            })
+          });
+          success++;
+        } catch (e) {}
+      }
+      toast(`Successfully imported ${success} students!`, 'success');
+      loadAllData();
+      input.value = '';
+    }
+  });
+}
 
 // ── UTILS & VALIDATION ──
 const $ = id => document.getElementById(id);
@@ -1200,24 +1309,36 @@ function saveCoach() {
     if(!name) return toast('Coach name required', 'error');
     if(phone && !isValidPhone(phone)) return toast('Phone must be 10 digits', 'error');
 
-    if(id) {
-        const c = allCoaches.find(x => x.id === id);
-        c.full_name = name; c.specialty = spec; c.phone = phone; c.address = address; c.photo_url = photo; c.salary = salary; c.additional_details = etc;
-        allStudents.forEach(s => { if(s.coaches && s.coaches.id === id) s.coaches.full_name = name; });
-        toast('Coach updated!', 'success');
-    } else {
-        allCoaches.push({ id: 'c' + Date.now(), full_name: name, specialty: spec, phone: phone, address: address, photo_url: photo, salary: salary, additional_details: etc });
-        toast('Coach added!', 'success');
-    }
-    syncCoachDropdowns(); closeModals(); renderCoachMgmt(); renderDash();
+    const coachData = { full_name: name, specialty: spec, phone: phone, address: address, photo_url: photo, salary: salary, additional_details: etc };
+
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `/api/coaches?id=${id}` : '/api/coaches';
+
+    fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(coachData)
+    })
+    .then(res => res.json())
+    .then(() => {
+        toast(`Coach ${id ? 'updated' : 'added'}!`, 'success');
+        closeModals();
+        loadAllData();
+    })
+    .catch(err => toast('Error saving coach', 'error'));
 }
+
 
 function deleteCoach(id) {
     if(!confirm("Delete this coach? Students assigned will become unassigned.")) return;
-    allCoaches = allCoaches.filter(c => c.id !== id);
-    allStudents.forEach(s => { if(s.coaches && s.coaches.id === id) s.coaches = null; });
-    syncCoachDropdowns(); toast('Coach removed', 'info'); renderCoachMgmt(); renderDash();
+    fetch(`/api/coaches?id=${id}`, { method: 'DELETE' })
+    .then(() => {
+        toast('Coach removed', 'info');
+        loadAllData();
+    })
+    .catch(() => toast('Delete failed', 'error'));
 }
+
 
 // ── EDIT/ENROLL STUDENT ──
 function openEdit(id) {
@@ -1234,7 +1355,7 @@ function openEdit(id) {
 }
 
 function updateStudent() {
-  const id = $('e-id').value; const s = allStudents.find(x => x.id === id); if (!s) return;
+  const id = $('e-id').value; if (!id) return;
 
   const newName = $('e-name').value.trim(); const phone = $('e-phone').value.trim();
   const eloVal = parseInt($('e-elo').value); const feeVal = parseInt($('e-fee').value);
@@ -1246,18 +1367,27 @@ function updateStudent() {
   if (isNaN(eloVal) || eloVal < 0) return toast('ELO must be a valid number 0 or greater', 'error');
   if (isNaN(feeVal) || feeVal < 0) return toast('Fee must be a valid positive number', 'error');
 
-  if (s.full_name.toLowerCase() !== newName.toLowerCase()) delete mockCredentials[s.full_name.toLowerCase()];
-  mockCredentials[newName.toLowerCase()] = phone;
+  const studentData = {
+    full_name: newName, parent_phone: phone, gender: $('e-gender').value, join_date: joinDate,
+    current_rating: eloVal, level: $('e-level').value,
+    coaches: allCoaches.find(c => c.id === $('e-coach').value) || null,
+    monthly_fee: feeVal, payment_status: $('e-status').value,
+    batch_type: $('e-batch-type').value, batch_time: $('e-batch-time').value
+  };
 
-  s.full_name = newName; s.gender = $('e-gender').value; s.join_date = joinDate;
-  s.current_rating = eloVal; s.level = $('e-level').value;
-  s.coaches = allCoaches.find(c => c.id === $('e-coach').value) || null;
-  s.monthly_fee = feeVal; s.payment_status = $('e-status').value;
-  s.batch_type = $('e-batch-type').value; s.batch_time = $('e-batch-time').value;
-
-  toast(`${s.full_name} updated successfully!`, 'success');
-  closeModals(); renderStudents(); renderDash(); 
+  fetch(`/api/students?id=${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(studentData)
+  })
+  .then(() => {
+    toast(`Student updated successfully!`, 'success');
+    closeModals();
+    loadAllData();
+  })
+  .catch(() => toast('Update failed', 'error'));
 }
+
 
 function openEnroll() {
   $('m-avatar-preview').style.display = 'none';
@@ -1279,28 +1409,41 @@ async function saveStudent() {
   let imgUrl = null; const file = $('m-avatar-file').files[0];
   if (file) imgUrl = await uploadFile(file);
   
-  let newStudent = {
-    id: 's' + Date.now(), full_name: name, gender: $('m-gender').value, join_date: joinDate,
+  const newStudent = {
+    full_name: name, parent_phone: phone, gender: $('m-gender').value, join_date: joinDate,
     current_rating: eloVal, level: $('m-level').value,
     coaches: allCoaches.find(c => c.id === $('m-coach').value) || null,
     monthly_fee: feeVal, payment_status: 'Due',
     batch_type: $('m-batch-type').value, batch_time: $('m-batch-time').value,
     tactics_score: 50, endgame_score: 50, openings_score: 50, positional_score: 50, custom_avatar: imgUrl
   };
-  
-  allStudents.unshift(newStudent); mockCredentials[name.toLowerCase()] = phone;
-  
-  ['m-name','m-phone','m-avatar-file'].forEach(id => $(id).value = '');
-  $('m-elo').value = '0'; $('m-fee').value = '5000'; $('m-batch-time').value = '17:00'; $('m-avatar-preview').style.display = 'none';
 
-  toast(`${name} enrolled successfully!`, 'success'); closeModals(); renderStudents(); renderDash();
+  fetch('/api/students', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(newStudent)
+  })
+  .then(() => {
+    toast(`${name} enrolled successfully!`, 'success');
+    closeModals();
+    loadAllData();
+    ['m-name','m-phone','m-avatar-file'].forEach(id => $(id).value = '');
+    $('m-elo').value = '0'; $('m-fee').value = '5000'; $('m-batch-time').value = '17:00'; $('m-avatar-preview').style.display = 'none';
+  })
+  .catch(() => toast('Enrollment failed', 'error'));
 }
+
 
 function deleteStudent(id, name) {
   if (!confirm(`Remove ${name}?`)) return;
-  allStudents = allStudents.filter(s => s.id !== id);
-  toast(`${name} removed.`, 'info'); renderStudents(); renderDash();
+  fetch(`/api/students?id=${id}`, { method: 'DELETE' })
+  .then(() => {
+    toast(`${name} removed.`, 'info');
+    loadAllData();
+  })
+  .catch(() => toast('Delete failed', 'error'));
 }
+
 
 // ── WALL OF FAME ──
 function renderFame() {
@@ -1327,15 +1470,34 @@ async function saveAward() {
   let student = allStudents.find(s => s.id === studentId);
   let imgUrl = $('award-img-url').value.trim() || null; const file = $('award-img-file').files[0];
   if (file) imgUrl = await uploadFile(file);
-  achievementsData.unshift({ id: 'a'+Date.now(), title, students: { full_name: student.full_name }, img_url: imgUrl });
-  ['award-title','award-img-file','award-img-url'].forEach(id => $(id).value = ''); $('award-img-preview').style.display = 'none';
-  toast('Achievement published!', 'success'); closeModals(); renderFame();
+  
+  const awardData = { title, students: { full_name: student.full_name }, img_url: imgUrl };
+
+  fetch('/api/achievements', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(awardData)
+  })
+  .then(() => {
+    toast('Achievement published!', 'success');
+    closeModals();
+    loadAllData();
+    ['award-title','award-img-file','award-img-url'].forEach(id => $(id).value = ''); $('award-img-preview').style.display = 'none';
+  })
+  .catch(() => toast('Failed to publish', 'error'));
 }
+
 
 function deleteAchievement(id) {
   if (!confirm('Remove achievement?')) return;
-  achievementsData = achievementsData.filter(a => a.id !== id); toast('Removed.', 'info'); renderFame();
+  fetch(`/api/achievements?id=${id}`, { method: 'DELETE' })
+  .then(() => {
+    toast('Removed.', 'info');
+    loadAllData();
+  })
+  .catch(() => toast('Delete failed', 'error'));
 }
+
 
 // ── EVENTS ──
 function renderEvents() {
@@ -1355,20 +1517,47 @@ function renderEvents() {
 
 function saveEvent() {
   const title = $('ev-title').value.trim(); if (!title) return toast('Please enter an Event Name', 'error');
-  eventsData.unshift({ id: 'e'+Date.now(), title, date: $('ev-date').value, type: $('ev-type').value, prize: $('ev-prize').value, location: $('ev-loc').value, registrations_count: 0 });
-  ['ev-title','ev-date','ev-prize','ev-loc'].forEach(id => $(id).value = '');
-  toast('Event published!', 'success'); closeModals(); renderEvents();
+  const eventData = { title, date: $('ev-date').value, type: $('ev-type').value, prize: $('ev-prize').value, location: $('ev-loc').value, registrations_count: 0 };
+  
+  fetch('/api/events', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(eventData)
+  })
+  .then(() => {
+    toast('Event published!', 'success');
+    closeModals();
+    loadAllData();
+    ['ev-title','ev-date','ev-prize','ev-loc'].forEach(id => $(id).value = '');
+  })
+  .catch(() => toast('Publish failed', 'error'));
 }
+
 
 function deleteEvent(id) {
   if (!confirm('Delete event?')) return;
-  eventsData = eventsData.filter(e => e.id !== id); toast('Deleted.', 'info'); renderEvents();
+  fetch(`/api/events?id=${id}`, { method: 'DELETE' })
+  .then(() => {
+    toast('Deleted.', 'info');
+    loadAllData();
+  })
+  .catch(() => toast('Delete failed', 'error'));
 }
 
+
 function registerEvent(eventId) {
-  let ev = eventsData.find(e => e.id === eventId); if(ev) ev.registrations_count++;
-  toast('Registered! Good luck! 🏆', 'success'); if(role === 'admin') renderEvents();
+    fetch(`/api/events?id=${eventId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ increment_registrations: true })
+    })
+    .then(() => {
+        toast('Registered! Good luck! 🏆', 'success');
+        loadAllData();
+    })
+    .catch(() => toast('Registration failed', 'error'));
 }
+
 
 // ── PAYMENTS ──
 function renderBills() {
@@ -1383,29 +1572,121 @@ function renderBills() {
 }
 
 function markPaid(id) {
-  let s = allStudents.find(st => st.id === id); if(s) s.payment_status = 'Paid';
-  toast('Marked as paid ✓', 'success'); renderBills(); renderDash(); 
+  fetch(`/api/students?id=${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ payment_status: 'Paid' })
+  })
+  .then(() => {
+    toast('Marked as paid ✓', 'success');
+    loadAllData();
+  })
+  .catch(() => toast('Update failed', 'error'));
 }
+
 
 function openPay(id, name, fee) {
   payTarget = { id, name, fee }; $('pay-amt').textContent = '₹' + fee.toLocaleString(); $('pay-name').textContent = name; openModal('pay-modal');
 }
 
-function simPay(provider) {
-  toast(`Connecting to ${provider}…`, 'info');
-  setTimeout(() => {
-    if (payTarget) {
-      let s = allStudents.find(st => st.id === payTarget.id); if(s) s.payment_status = 'Paid';
-      toast('Payment successful! 🎉', 'success'); downloadReceipt(payTarget.id, payTarget.name, payTarget.fee);
-      closeModals(); renderBills(); renderDash(); 
+async function simPay(provider) {
+  if (!payTarget) return;
+  
+  // ── RAZORPAY INTEGRATION BLOCK ──
+  // To use real Razorpay, we first create an order on our backend.
+  try {
+    const orderRes = await fetch('/api/razorpay/order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: payTarget.fee, currency: 'INR', receipt: `rcpt_${payTarget.id}` })
+    });
+    const orderData = await orderRes.json();
+    
+    if (orderData.simulated) {
+      toast(`Simulating ${provider} Checkout...`, 'info');
     }
-  }, 1300);
+
+    const options = {
+      key: "YOUR_RAZORPAY_KEY_ID", // Replace with real key in production
+      amount: orderData.amount * 100,
+      currency: orderData.currency,
+      name: "Chesskidoo Academy",
+      description: `Fees for ${payTarget.name}`,
+      order_id: orderData.id,
+      handler: async function (response) {
+        // Verify payment
+        const verifyRes = await fetch('/api/razorpay/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(response)
+        });
+        const verifyData = await verifyRes.json();
+        
+        if (verifyData.status === 'success') {
+          processPaymentSuccess(provider);
+        } else {
+          toast('Payment verification failed', 'error');
+        }
+      },
+      prefill: {
+        name: payTarget.name,
+        contact: "9876543210"
+      },
+      theme: { color: "#dca33e" }
+    };
+
+    if (orderData.simulated) {
+        // Auto-complete simulated flow
+        setTimeout(() => processPaymentSuccess(provider), 1500);
+    } else {
+        const rzp = new Razorpay(options);
+        rzp.open();
+    }
+  } catch (err) {
+    console.error('Payment Error:', err);
+    toast('Payment initialization failed', 'error');
+  }
 }
 
+function processPaymentSuccess(provider) {
+  if (!payTarget) return;
+  fetch(`/api/students?id=${payTarget.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ payment_status: 'Paid' })
+  })
+  .then(() => {
+    return fetch('/api/payments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ student_id: payTarget.id, student_name: payTarget.name, amount: payTarget.fee, provider })
+    });
+  })
+  .then(() => {
+    toast('Payment successful! 🎉', 'success');
+    downloadReceipt(payTarget.id, payTarget.name, payTarget.fee);
+    closeModals();
+    loadAllData();
+  })
+  .catch(() => toast('Error updating payment records', 'error'));
+}
+
+
 function downloadReceipt(id, name, fee) {
-  const text = `========================================\nCHESSKIDOO ACADEMY RECEIPT\n========================================\nDate: ${new Date().toLocaleDateString()}\nStudent: ${name}\nAmount: ₹${Number(fee).toLocaleString()}\nStatus: PAID IN FULL\n========================================`;
-  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
-  a.download = `Receipt_${name.replace(/\s+/g,'_')}.txt`; a.click();
+  // Update Print Template
+  $('pr-id').textContent = `CK-${id.slice(-4).toUpperCase()}`;
+  $('pr-date').textContent = new Date().toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+  $('pr-name').textContent = name;
+  $('pr-amt').textContent = `₹${Number(fee).toLocaleString()}`;
+  $('pr-total').textContent = `₹${Number(fee).toLocaleString()}`;
+
+  // Hide UI and Print
+  const originalDisplay = $('receipt-print-area').style.display;
+  $('receipt-print-area').style.display = 'block';
+  window.print();
+  $('receipt-print-area').style.display = originalDisplay;
+  
+  toast('Generating professional receipt...', 'info');
 }
 
 function openContactModal() { openModal('contact-modal'); }
@@ -1425,7 +1706,8 @@ function renderChild() {
   const skills = [ { label: 'Tactics', val: s.tactics_score || 50 }, { label: 'Endgame', val: s.endgame_score || 50 }, { label: 'Openings', val: s.openings_score || 50 }, { label: 'Positional', val: s.positional_score || 50 } ];
   $('skill-bars').innerHTML = skills.map(sk => `<div class="skill-bar-wrap" style="margin-bottom: 20px;"><div class="skill-bar-label" style="display:flex; justify-content:space-between; font-size:13px; font-weight:600; color:var(--ivory); margin-bottom:8px;"><span>${sk.label}</span><span style="color:var(--gold);">${sk.val}/100</span></div><div class="skill-bar-track" style="height:8px; background:rgba(255,255,255,0.05); border-radius:4px; overflow:hidden;"><div class="skill-bar-fill" style="height:100%; width:${sk.val}%; background:linear-gradient(90deg, var(--gold), var(--gold2)); border-radius:4px; box-shadow:0 0 10px var(--gold-glow);"></div></div></div>`).join('');
 
-  const myAchs = achievementsData.filter(a => a.students.full_name === s.full_name); const pc = $('parent-ach');
+  const myAchs = achievementsData.filter(a => a.students?.full_name === s.full_name); 
+  const pc = $('parent-ach');
   if (!myAchs.length) pc.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🎖</div><p>No achievements yet — keep practising!</p></div>`;
   else pc.innerHTML = myAchs.map(a => `<div class="ach-card">${a.img_url ? `<img src="${a.img_url}" class="ach-img" alt="${a.title}">` : `<div class="ach-img-placeholder">🏆</div>`}<div class="ach-info"><div class="ach-title">${a.title}</div><div class="ach-sub">Awarded to: ${s.full_name}</div></div></div>`).join('');
   
@@ -1435,39 +1717,80 @@ function renderChild() {
 // ── AI ASSISTANT ──
 function generateAIResponse(query) {
   const q = query.toLowerCase();
-  if (q.includes('hello') || q === 'hi' || q.includes('hi ') || q.includes('hey')) return "Hello! I am your Chesskidoo AI Assistant. Ask me about revenue, unpaid fees, top students, average ELO, or upcoming events.";
-  if (q.includes('help') || q.includes('what can you do')) return "I can instantly analyze our database! Try asking:\n- 'What is our total revenue?'\n- 'Who has unpaid fees?'\n- 'Who is the top student?'\n- 'What is the average rating?'\n- 'Show me upcoming events.'";
-  if (q.includes('revenue') || q.includes('money') || q.includes('income') || q.includes('collected')) return `So far this month, we have successfully collected ₹${allStudents.filter(s => s.payment_status === 'Paid').reduce((sum, s) => sum + Number(s.monthly_fee || 0), 0).toLocaleString()} in paid tuition fees.`;
-  if (q.includes('due') || q.includes('unpaid') || q.includes('pending') || q.includes('owe')) {
+  const matched = (keywords) => keywords.some(k => q.includes(k));
+
+  if (matched(['hello', 'hi ', 'hey'])) return "Hello! I am your Chesskidoo AI Assistant. Ask me about revenue, unpaid fees, top students, average ELO, or upcoming events.";
+  if (matched(['help', 'what can you do'])) return "I can instantly analyze our database! Try asking:\n- 'What is our total revenue?'\n- 'Who has unpaid fees?'\n- 'Who is the top student?'\n- 'What is the average rating?'\n- 'Show me upcoming events.'";
+  if (matched(['revenue', 'money', 'income', 'collected'])) return `So far this month, we have successfully collected ₹${allStudents.filter(s => s.payment_status === 'Paid').reduce((sum, s) => sum + Number(s.monthly_fee || 0), 0).toLocaleString()} in paid tuition fees.`;
+  if (matched(['due', 'unpaid', 'pending', 'owe'])) {
     const dueStudents = allStudents.filter(s => s.payment_status === 'Due');
     if (dueStudents.length === 0) return "Great news! All student accounts are fully paid up for this month.";
     return `We currently have ₹${dueStudents.reduce((sum, s) => sum + Number(s.monthly_fee || 0), 0).toLocaleString()} in outstanding fees. \n\nStudents with pending payments: ${dueStudents.map(s => s.full_name).join(', ')}.`;
   }
-  if (q.includes('top') || q.includes('best') || q.includes('highest')) {
+  if (matched(['top', 'best', 'highest'])) {
     if (allStudents.length === 0) return "There are no students currently enrolled in the academy.";
     const top = [...allStudents].sort((a,b) => b.current_rating - a.current_rating)[0];
     return `Our highest-rated cadet is ${top.full_name} with an ELO of ${top.current_rating}. They are currently training in the ${top.level} tier.`;
   }
-  if (q.includes('average') || q.includes('elo') || q.includes('rating') || q.includes('score')) return `The current average ELO across our ${allStudents.length} active cadets is ${Math.round(allStudents.reduce((sum, s) => sum + (s.current_rating||0), 0) / allStudents.length)}.`;
-  if (q.includes('student') || q.includes('cadet') || q.includes('enroll') || q.includes('how many')) return `We currently have ${allStudents.length} active cadets enrolled in the Chesskidoo academy.`;
-  if (q.includes('coach') || q.includes('trainer')) return `We have ${allCoaches.length} expert coaches on staff: ${allCoaches.map(c => c.full_name).join(', ')}.`;
-  if (q.includes('event') || q.includes('tournament') || q.includes('workshop')) {
-    if (eventsData.length === 0) return "There are no upcoming events currently scheduled in the calendar.";
-    return `Our next major event is the "${eventsData[0].title}" (${eventsData[0].type}) scheduled for ${eventsData[0].date} at ${eventsData[0].location}. We currently have ${eventsData[0].registrations_count} cadets registered to participate!`;
-  }
-  if (q.includes('award') || q.includes('achievement') || q.includes('fame')) {
-    if (achievementsData.length === 0) return "We don't have any recent achievements published to the Wall of Fame yet.";
-    return `Our latest celebrated achievement is "${achievementsData[0].title}", which was awarded to ${achievementsData[0].students.full_name}.`;
-  }
-  return "I'm not quite sure how to answer that specific query yet. Try asking me about 'revenue', 'top students', 'unpaid fees', or 'events'!";
+  if (matched(['average', 'elo', 'rating', 'score'])) return `The current average ELO across our ${allStudents.length} active cadets is ${Math.round(allStudents.reduce((sum, s) => sum + (s.current_rating||0), 0) / allStudents.length)}.`;
+  if (matched(['coach', 'trainer'])) return `We have ${allCoaches.length} expert coaches on staff: ${allCoaches.map(c => c.full_name).join(', ')}.`;
+  
+  return null; // Fallback to API
 }
 
 function sendAI() {
   const input = $('ai-input'); const box = $('chat-box'); const query = input.value.trim(); if (!query) return;
   const uEl = document.createElement('div'); uEl.className = 'msg-user'; uEl.textContent = query; box.appendChild(uEl); input.value = '';
-  const thinking = document.createElement('div'); thinking.className = 'msg-ai msg-thinking'; thinking.textContent = '♟ Analysing live data...'; box.appendChild(thinking); box.scrollTop = box.scrollHeight;
+  const thinking = document.createElement('div'); thinking.className = 'msg-ai msg-thinking'; thinking.textContent = '♟ Analysing data...'; box.appendChild(thinking); box.scrollTop = box.scrollHeight;
   const btn = $('ai-send-btn'); const originalText = btn.textContent; btn.textContent = '...'; btn.disabled = true;
-  setTimeout(() => { thinking.textContent = generateAIResponse(query); thinking.classList.remove('msg-thinking'); btn.textContent = originalText; btn.disabled = false; box.scrollTop = box.scrollHeight; }, 900);
+
+  // Try local response first for common queries
+  const localResponse = generateAIResponse(query);
+  if (localResponse) {
+    setTimeout(() => {
+        thinking.textContent = localResponse;
+        thinking.classList.remove('msg-thinking');
+        btn.textContent = originalText;
+        btn.disabled = false;
+        box.scrollTop = box.scrollHeight;
+    }, 600);
+    return;
+  }
+
+  // Fallback to OpenAI API for complex queries
+  const context = {
+    totalStudents: allStudents.length,
+    activeCoaches: allCoaches.length,
+    upcomingEvents: eventsData.slice(0, 3).map(e => e.title),
+    topStudent: [...allStudents].sort((a,b) => b.current_rating - a.current_rating)[0]?.full_name,
+    unpaidCount: allStudents.filter(s => s.payment_status === 'Due').length,
+    revenueCollected: allStudents.filter(s => s.payment_status === 'Paid').reduce((sum, s) => sum + (s.monthly_fee || 0), 0)
+  };
+
+  fetch('/api/ai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, context, history: aiHistory })
+  })
+  .then(res => res.json())
+  .then(data => {
+    thinking.textContent = data.answer || "I'm sorry, I couldn't process that request.";
+    thinking.classList.remove('msg-thinking');
+    btn.textContent = originalText;
+    btn.disabled = false;
+    box.scrollTop = box.scrollHeight;
+    
+    // Store in history
+    aiHistory.push({ role: 'user', content: query });
+    aiHistory.push({ role: 'assistant', content: data.answer });
+    if (aiHistory.length > 10) { aiHistory.shift(); aiHistory.shift(); } // Keep last 5 exchanges
+  })
+  .catch(() => {
+    thinking.textContent = "I'm having trouble connecting to my brain right now. Please try again later!";
+    thinking.classList.remove('msg-thinking');
+    btn.textContent = originalText;
+    btn.disabled = false;
+  });
 }
 
 function toggleTheme() {
@@ -1475,5 +1798,43 @@ function toggleTheme() {
   document.body.setAttribute('data-theme', next); if (document.querySelector('.page.active')?.id === 'page-dash') renderDash();
 }
 </script>
+<!-- ── HIDDEN PRINT RECEIPT ── -->
+<div id="receipt-print-area">
+  <div class="invoice-header">
+    <div class="invoice-logo">CHESSKIDOO ACADEMY</div>
+    <div class="invoice-details">
+      <strong>Receipt #:</strong> <span id="pr-id"></span><br>
+      <strong>Date:</strong> <span id="pr-date"></span>
+    </div>
+  </div>
+  <div style="margin-bottom: 30px;">
+    <strong>Billed To:</strong><br>
+    <span id="pr-name" style="font-size: 18px; font-weight: 700;"></span><br>
+    Chesskidoo Member
+  </div>
+  <table class="invoice-table">
+    <thead>
+      <tr>
+        <th>DESCRIPTION</th>
+        <th style="text-align: right;">AMOUNT</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Monthly Tuition Fee - Professional Training</td>
+        <td style="text-align: right;" id="pr-amt"></td>
+      </tr>
+    </tbody>
+  </table>
+  <div style="text-align: right; margin-top: 30px;">
+    <div style="font-size: 14px; color: #666;">Total Particulars</div>
+    <div style="font-size: 24px; font-weight: 700; color: #b8910f;" id="pr-total"></div>
+  </div>
+  <div class="invoice-footer">
+    Thank you for choosing Chesskidoo Academy. This is a computer-generated receipt.<br>
+    Questions? Contact support@chesskidoo.com
+  </div>
+</div>
 </body>
 </html>
+

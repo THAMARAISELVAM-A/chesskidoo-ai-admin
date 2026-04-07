@@ -8,11 +8,14 @@ async function connectToDatabase() {
     return cachedClient;
   }
 
+  if (!uri) {
+    throw new Error('MONGODB_URI is not defined in environment variables');
+  }
+
   try {
     const client = new MongoClient(uri, {
       retryWrites: true,
       w: 'majority',
-      maxPoolSize: 1,
     });
 
     await client.connect();
@@ -25,6 +28,7 @@ async function connectToDatabase() {
 }
 
 export default async function handler(request, response) {
+  // CORS headers
   response.setHeader('Access-Control-Allow-Origin', '*');
   response.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -36,29 +40,44 @@ export default async function handler(request, response) {
     const db = client.db('chesskidoo');
     const collection = db.collection('students');
 
-    if (request.method === 'GET') {
-      const students = await collection.find({}).toArray();
-      return response.status(200).json(students || []);
-    } 
-    else if (request.method === 'POST') {
-      const newStudent = { id: 's' + Date.now(), ...request.body };
-      const result = await collection.insertOne(newStudent);
-      return response.status(201).json(newStudent);
-    } 
-    else if (request.method === 'PUT') {
-      const { id } = request.query;
-      await collection.updateOne({ id }, { $set: request.body });
-      return response.status(200).json({ message: 'Updated' });
-    } 
-    else if (request.method === 'DELETE') {
-      const { id } = request.query;
-      await collection.deleteOne({ id });
-      return response.status(200).json({ message: 'Deleted' });
-    } 
-    else {
-      return response.status(405).json({ error: 'Method not allowed' });
+    const { id } = request.query;
+
+    switch (request.method) {
+      case 'GET':
+        if (id) {
+          const student = await collection.findOne({ id });
+          return student 
+            ? response.status(200).json(student)
+            : response.status(404).json({ error: 'Student not found' });
+        }
+        const students = await collection.find({}).toArray();
+        return response.status(200).json(students || []);
+
+      case 'POST':
+        const newStudent = { 
+          id: 's' + Date.now(), 
+          ...request.body,
+          createdAt: new Date().toISOString()
+        };
+        await collection.insertOne(newStudent);
+        return response.status(201).json(newStudent);
+
+      case 'PUT':
+        if (!id) return response.status(400).json({ error: 'ID is required' });
+        const updateResult = await collection.updateOne({ id }, { $set: request.body });
+        return response.status(200).json({ message: 'Updated', modifiedCount: updateResult.modifiedCount });
+
+      case 'DELETE':
+        if (!id) return response.status(400).json({ error: 'ID is required' });
+        await collection.deleteOne({ id });
+        return response.status(200).json({ message: 'Deleted' });
+
+      default:
+        return response.status(405).json({ error: 'Method not allowed' });
     }
   } catch (error) {
-    return response.status(500).json({ error: error.message });
+    console.error('API Error:', error);
+    return response.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 }
+
