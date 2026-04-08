@@ -409,7 +409,6 @@ body.admin-mode .parent-only,body.parent-mode .admin-only{display:none!important
     <div class="nav-item" id="nav-events" onclick="setPage('events')"><span class="ico">📅</span> Events</div>
     <div class="nav-item" id="nav-bills" onclick="setPage('bills')"><span class="ico">💳</span> Payments</div>
     <div class="nav-item admin-only" id="nav-coach" onclick="setPage('coach')"><span class="ico">💬</span> AI Assistant</div>
-    <div class="nav-item admin-only" id="nav-backup" onclick="setPage('backup')"><span class="ico">🔄</span> GitHub Backup</div>
   </div>
   <div style="padding:16px;border-top:1px solid var(--border)">
     <div class="nav-item" onclick="toggleTheme()"><span class="ico">🌗</span> Switch Theme</div>
@@ -1111,7 +1110,7 @@ function openProfile() {
 }
 
 // ── NAVIGATION ──
-const PAGE_TITLES = { dash:'Academy Overview', stud:'Student Registry', 'coach-mgmt':'Coach Management', child:'My Child\'s Progress', fame:'Wall of Fame', events:'Upcoming Events', bills:'Financials & Payments', coach:'AI Intelligence Hub', backup:'GitHub Backup' };
+const PAGE_TITLES = { dash:'Academy Overview', stud:'Student Registry', 'coach-mgmt':'Coach Management', child:'My Child\'s Progress', fame:'Wall of Fame', events:'Upcoming Events', bills:'Financials & Payments', coach:'AI Intelligence Hub' };
 
 function setPage(p) {
   document.querySelectorAll('.page').forEach(pg => pg.classList.remove('active'));
@@ -1135,7 +1134,6 @@ function setPage(p) {
     if (p === 'events') renderEvents();
     if (p === 'bills') renderBills();
     if (p === 'child') renderChild();
-    if (p === 'backup') renderBackup();
   }, 100);
 }
 
@@ -1833,74 +1831,6 @@ function sendAI() {
 function toggleTheme() {
   const next = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
   document.body.setAttribute('data-theme', next); if (document.querySelector('.page.active')?.id === 'page-dash') renderDash();
-}
-
-// ── GITHUB BACKUP FUNCTIONS ──
-async function createBackup() {
-  const btn = $('backup-btn');
-  const statusDiv = $('backup-status');
-  const msgDiv = $('backup-message');
-  
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Creating...';
-  statusDiv.style.display = 'block';
-  msgDiv.innerHTML = 'Initiating backup to GitHub...';
-  
-  try {
-    const res = await fetch('/api/database', { method: 'POST' });
-    const data = await res.json();
-    
-    if (data.success) {
-      msgDiv.innerHTML = `
-        <span style="color:var(--success);font-weight:700">✓ Backup Successful!</span><br>
-        File: ${data.filename}<br>
-        Collections: ${data.collectionsCount}<br>
-        Total Records: ${data.totalRecords}<br>
-        <span style="color:var(--ivory-dim);font-size:11px">Saved to: backups/${data.filename}</span>
-      `;
-      toast('Backup created successfully!', 'success');
-      loadBackups();
-    } else {
-      msgDiv.innerHTML = `<span style="color:var(--danger)">✕ Error: ${data.error}</span>`;
-      toast('Backup failed', 'error');
-    }
-  } catch (err) {
-    msgDiv.innerHTML = `<span style="color:var(--danger)">✕ Network Error: ${err.message}</span>`;
-    toast('Backup failed', 'error');
-  }
-  
-  btn.disabled = false;
-  btn.innerHTML = 'Create Backup Now';
-}
-
-async function loadBackups() {
-  const tbody = $('backup-list');
-  tbody.innerHTML = '<tr><td colspan="4"><div class="loading-state"><span class="spinner"></span> Loading backups…</div></td></tr>';
-  
-  try {
-    const res = await fetch('/api/github-backup');
-    const files = await res.json();
-    
-    if (!files.length) {
-      tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state"><div class="empty-icon">📂</div><p>No backups found. Create your first backup!</p></div></td></tr>';
-      return;
-    }
-    
-    tbody.innerHTML = files.filter(f => f.name.endsWith('.json')).map(f => `
-      <tr>
-        <td style="font-family:'DM Mono';color:var(--gold)">${f.name}</td>
-        <td>${new Date(f.commit ? f.commit.author.date : f.updated_at).toLocaleDateString()}</td>
-        <td>${(f.size / 1024).toFixed(1)} KB</td>
-        <td><a href="${f.download_url}" target="_blank" class="btn btn-outline-blue btn-sm">Download</a></td>
-      </tr>
-    `).join('');
-  } catch (err) {
-    tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state">Failed to load backups</div></td></tr>';
-  }
-}
-
-function renderBackup() {
-  loadBackups();
 }
 </script>
 <!-- ── HIDDEN PRINT RECEIPT ── -->

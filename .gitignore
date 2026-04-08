@@ -23,6 +23,13 @@ pids
 *.seed
 *.pid.lock
 
+# Local database and backups
+data/
+backups/
+*.db
+*.db-shm
+*.db-wal
+
 # Coverage directory used by tools like istanbul
 coverage/
 .lcov/
