@@ -409,6 +409,7 @@ body.admin-mode .parent-only,body.parent-mode .admin-only{display:none!important
     <div class="nav-item" id="nav-events" onclick="setPage('events')"><span class="ico">📅</span> Events</div>
     <div class="nav-item" id="nav-bills" onclick="setPage('bills')"><span class="ico">💳</span> Payments</div>
     <div class="nav-item admin-only" id="nav-coach" onclick="setPage('coach')"><span class="ico">💬</span> AI Assistant</div>
+    <div class="nav-item admin-only" id="nav-backup" onclick="setPage('backup')"><span class="ico">🔄</span> GitHub Backup</div>
   </div>
   <div style="padding:16px;border-top:1px solid var(--border)">
     <div class="nav-item" onclick="toggleTheme()"><span class="ico">🌗</span> Switch Theme</div>
@@ -590,6 +591,33 @@ body.admin-mode .parent-only,body.parent-mode .admin-only{display:none!important
         <div style="display:flex;gap:10px;margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
           <input type="text" id="ai-input" placeholder="Try: 'Who is the top student?' or 'What is our total revenue?'" style="margin:0;flex:1" onkeydown="if(event.key==='Enter')sendAI()">
           <button type="button" class="btn btn-gold" id="ai-send-btn" onclick="sendAI()">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="page-backup" class="page admin-only">
+      <div class="card" style="margin-bottom: 24px;">
+        <h3 style="margin-bottom:18px;color:var(--gold)">🔄 GitHub Data Backup</h3>
+        <p style="color:var(--ivory-dim);margin-bottom:20px;font-size:14px;line-height:1.7">
+          Automatically backup all your academy data (students, coaches, payments, events, achievements) to a GitHub repository.
+          This ensures your data is safely stored in the cloud and can be restored anytime.
+        </p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+          <button class="btn btn-gold" onclick="createBackup()" id="backup-btn">Create Backup Now</button>
+          <button class="btn btn-outline" onclick="loadBackups()">View Backup History</button>
+        </div>
+        <div id="backup-status" style="padding:16px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);display:none">
+          <div style="font-weight:600;color:var(--gold);margin-bottom:8px">Backup Status</div>
+          <div id="backup-message" style="font-size:13px;color:var(--ivory);line-height:1.6"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:18px;color:var(--gold)">📂 Available Backups</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Filename</th><th>Date</th><th>Size</th><th>Action</th></tr></thead>
+            <tbody id="backup-list"><tr><td colspan="4"><div class="loading-state"><span class="spinner"></span> Loading backups…</div></td></tr></tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -857,6 +885,7 @@ body.admin-mode .parent-only,body.parent-mode .admin-only{display:none!important
       <div class="upi-item" onclick="simPay('Google Pay')"><img src="https://cdn-icons-png.flaticon.com/512/300/300221.png" class="upi-logo"><b>Google Pay</b></div>
       <div class="upi-item" onclick="simPay('PhonePe')"><img src="https://cdn-icons-png.flaticon.com/512/5968/5968310.png" class="upi-logo"><b>PhonePe</b></div>
       <div class="upi-item" onclick="simPay('Paytm')"><img src="https://cdn-icons-png.flaticon.com/512/825/825508.png" class="upi-logo"><b>Paytm / BHIM</b></div>
+      <div class="upi-item" onclick="simPay('Card')" style="border-color:var(--gold);background:var(--gold-glow)"><img src="https://cdn-icons-png.flaticon.com/512/893/893081.png" class="upi-logo"><b>Credit/Debit Card</b><span style="color:var(--gold);font-size:10px;margin-left:4px">(via Razorpay)</span></div>
     </div>
     <button type="button" class="btn btn-outline" style="width:100%" onclick="closeModals()">Cancel</button>
   </div>
@@ -1082,7 +1111,7 @@ function openProfile() {
 }
 
 // ── NAVIGATION ──
-const PAGE_TITLES = { dash:'Academy Overview', stud:'Student Registry', 'coach-mgmt':'Coach Management', child:'My Child\'s Progress', fame:'Wall of Fame', events:'Upcoming Events', bills:'Financials & Payments', coach:'AI Intelligence Hub' };
+const PAGE_TITLES = { dash:'Academy Overview', stud:'Student Registry', 'coach-mgmt':'Coach Management', child:'My Child\'s Progress', fame:'Wall of Fame', events:'Upcoming Events', bills:'Financials & Payments', coach:'AI Intelligence Hub', backup:'GitHub Backup' };
 
 function setPage(p) {
   document.querySelectorAll('.page').forEach(pg => pg.classList.remove('active'));
@@ -1106,6 +1135,7 @@ function setPage(p) {
     if (p === 'events') renderEvents();
     if (p === 'bills') renderBills();
     if (p === 'child') renderChild();
+    if (p === 'backup') renderBackup();
   }, 100);
 }
 
@@ -1592,8 +1622,17 @@ function openPay(id, name, fee) {
 async function simPay(provider) {
   if (!payTarget) return;
   
+  // Get Razorpay key from server
+  let razorpayKeyId = null;
+  try {
+    const configRes = await fetch('/api/razorpay/config');
+    const config = await configRes.json();
+    razorpayKeyId = config.keyId;
+  } catch (e) {
+    console.log('Using simulated mode - no Razorpay key');
+  }
+  
   // ── RAZORPAY INTEGRATION BLOCK ──
-  // To use real Razorpay, we first create an order on our backend.
   try {
     const orderRes = await fetch('/api/razorpay/order', {
       method: 'POST',
@@ -1602,19 +1641,18 @@ async function simPay(provider) {
     });
     const orderData = await orderRes.json();
     
-    if (orderData.simulated) {
+    if (orderData.simulated || !razorpayKeyId) {
       toast(`Simulating ${provider} Checkout...`, 'info');
     }
 
     const options = {
-      key: "YOUR_RAZORPAY_KEY_ID", // Replace with real key in production
+      key: razorpayKeyId || "SIMULATED_KEY",
       amount: orderData.amount * 100,
       currency: orderData.currency,
       name: "Chesskidoo Academy",
       description: `Fees for ${payTarget.name}`,
       order_id: orderData.id,
       handler: async function (response) {
-        // Verify payment
         const verifyRes = await fetch('/api/razorpay/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1622,7 +1660,7 @@ async function simPay(provider) {
         });
         const verifyData = await verifyRes.json();
         
-        if (verifyData.status === 'success') {
+        if (verifyData.status === 'success' || verifyData.simulated) {
           processPaymentSuccess(provider);
         } else {
           toast('Payment verification failed', 'error');
@@ -1635,8 +1673,7 @@ async function simPay(provider) {
       theme: { color: "#dca33e" }
     };
 
-    if (orderData.simulated) {
-        // Auto-complete simulated flow
+    if (!razorpayKeyId || orderData.simulated) {
         setTimeout(() => processPaymentSuccess(provider), 1500);
     } else {
         const rzp = new Razorpay(options);
@@ -1796,6 +1833,74 @@ function sendAI() {
 function toggleTheme() {
   const next = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
   document.body.setAttribute('data-theme', next); if (document.querySelector('.page.active')?.id === 'page-dash') renderDash();
+}
+
+// ── GITHUB BACKUP FUNCTIONS ──
+async function createBackup() {
+  const btn = $('backup-btn');
+  const statusDiv = $('backup-status');
+  const msgDiv = $('backup-message');
+  
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Creating...';
+  statusDiv.style.display = 'block';
+  msgDiv.innerHTML = 'Initiating backup to GitHub...';
+  
+  try {
+    const res = await fetch('/api/database', { method: 'POST' });
+    const data = await res.json();
+    
+    if (data.success) {
+      msgDiv.innerHTML = `
+        <span style="color:var(--success);font-weight:700">✓ Backup Successful!</span><br>
+        File: ${data.filename}<br>
+        Collections: ${data.collectionsCount}<br>
+        Total Records: ${data.totalRecords}<br>
+        <span style="color:var(--ivory-dim);font-size:11px">Saved to: backups/${data.filename}</span>
+      `;
+      toast('Backup created successfully!', 'success');
+      loadBackups();
+    } else {
+      msgDiv.innerHTML = `<span style="color:var(--danger)">✕ Error: ${data.error}</span>`;
+      toast('Backup failed', 'error');
+    }
+  } catch (err) {
+    msgDiv.innerHTML = `<span style="color:var(--danger)">✕ Network Error: ${err.message}</span>`;
+    toast('Backup failed', 'error');
+  }
+  
+  btn.disabled = false;
+  btn.innerHTML = 'Create Backup Now';
+}
+
+async function loadBackups() {
+  const tbody = $('backup-list');
+  tbody.innerHTML = '<tr><td colspan="4"><div class="loading-state"><span class="spinner"></span> Loading backups…</div></td></tr>';
+  
+  try {
+    const res = await fetch('/api/github-backup');
+    const files = await res.json();
+    
+    if (!files.length) {
+      tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state"><div class="empty-icon">📂</div><p>No backups found. Create your first backup!</p></div></td></tr>';
+      return;
+    }
+    
+    tbody.innerHTML = files.filter(f => f.name.endsWith('.json')).map(f => `
+      <tr>
+        <td style="font-family:'DM Mono';color:var(--gold)">${f.name}</td>
+        <td>${new Date(f.commit ? f.commit.author.date : f.updated_at).toLocaleDateString()}</td>
+        <td>${(f.size / 1024).toFixed(1)} KB</td>
+        <td><a href="${f.download_url}" target="_blank" class="btn btn-outline-blue btn-sm">Download</a></td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state">Failed to load backups</div></td></tr>';
+  }
+}
+
+function renderBackup() {
+  loadBackups();
 }
 </script>
 <!-- ── HIDDEN PRINT RECEIPT ── -->
