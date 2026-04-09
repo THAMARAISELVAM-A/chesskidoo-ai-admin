@@ -106,16 +106,21 @@ Deno.serve(async (req) => {
         headers: { 'Content-Type': 'application/json' }
       });
       
-      const { full_name, specialty, phone, address, photo_url, salary, additional_details, ...rest } = body;
-      const updateData = { 
-        ...rest,
-        name: full_name || body.name,
-        phone: phone || body.phone,
-        specialization: specialty || body.specialization,
-        bio: body.bio || additional_details,
-        hourly_rate: salary || body.hourly_rate,
-        updated_at: new Date().toISOString()
-      };
+      // Only update columns that exist in database
+      const updateData: Record<string, unknown> = {};
+      
+      if (body.full_name || body.name) updateData.name = body.full_name || body.name;
+      if (body.phone) updateData.phone = body.phone;
+      if (body.email) updateData.email = body.email;
+      if (body.specialization || body.specialty) updateData.specialization = body.specialization || body.specialty;
+      if (body.experience) updateData.experience = body.experience;
+      if (body.rating) updateData.rating = body.rating;
+      if (body.bio || body.additional_details) updateData.bio = body.bio || body.additional_details;
+      if (body.status) updateData.status = body.status;
+      if (body.hourly_rate || body.salary) updateData.hourly_rate = body.hourly_rate || body.salary;
+      if (body.availability) updateData.availability = body.availability;
+      if (body.address) updateData.address = body.address;
+      updateData.updated_at = new Date().toISOString();
       
       const { data: updatedCoach, error: updateError } = await supabase
         .from('coaches')

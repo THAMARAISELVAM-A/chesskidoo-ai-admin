@@ -82,24 +82,23 @@ Deno.serve(async (req) => {
 
     if (req.method === 'POST') {
       const { level, join_date, full_name, parent_phone, current_rating, coaches, payment_status, ...rest } = body;
-      const newStudent = { 
+      
+      // Only insert columns that exist in database
+      const newStudent: Record<string, unknown> = { 
         id: 's' + Date.now(), 
         name: full_name || body.name || '',
-        email: body.email || null,
-        phone: parent_phone || body.phone || '',
-        age: body.age || null,
-        grade: level || body.grade || null,
-        parent_name: body.parent_name || '',
-        parent_phone: parent_phone || body.parent_phone || '',
-        address: body.address || null,
         enrollment_date: body.enrollment_date || join_date || new Date().toISOString().split('T')[0],
         status: payment_status === 'Paid' ? 'active' : 'pending',
-        coach_id: coaches?.id || body.coach_id || null,
         rating: current_rating || body.rating || 800,
-        notes: body.notes || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
+      
+      if (body.email) newStudent.email = body.email;
+      if (parent_phone || body.phone) newStudent.phone = parent_phone || body.phone;
+      if (body.age) newStudent.age = body.age;
+      if (level || body.grade) newStudent.grade = level || body.grade;
+      if (body.coach_id || coaches?.id) newStudent.coach_id = coaches?.id || body.coach_id;
       
       const { data: insertedStudent, error: insertError } = await supabase
         .from('students')
@@ -120,29 +119,19 @@ Deno.serve(async (req) => {
         headers: { 'Content-Type': 'application/json' }
       });
       
-      const updateData = { 
-        name: body.full_name || body.name,
-        phone: body.parent_phone || body.phone,
-        parent_phone: body.parent_phone || body.phone,
-        gender: body.gender,
-        grade: body.level || body.grade,
-        level: body.level,
-        enrollment_date: body.join_date || body.enrollment_date,
-        join_date: body.join_date || body.enrollment_date,
-        rating: body.current_rating || body.rating,
-        current_rating: body.current_rating || body.rating,
-        coach_id: body.coaches?.id || body.coach_id,
-        monthly_fee: body.monthly_fee,
-        payment_status: body.payment_status,
-        status: body.payment_status === 'Paid' ? 'active' : 'pending',
-        batch_type: body.batch_type,
-        batch_time: body.batch_time,
-        tactics_score: body.tactics_score,
-        endgame_score: body.endgame_score,
-        openings_score: body.openings_score,
-        positional_score: body.positional_score,
-        updated_at: new Date().toISOString()
-      };
+      // Only update columns that exist in the database
+      const updateData: Record<string, unknown> = {};
+      
+      if (body.full_name || body.name) updateData.name = body.full_name || body.name;
+      if (body.parent_phone || body.phone) updateData.phone = body.parent_phone || body.phone;
+      if (body.gender) updateData.gender = body.gender;
+      if (body.level || body.grade) updateData.grade = body.level || body.grade;
+      if (body.join_date || body.enrollment_date) updateData.enrollment_date = body.join_date || body.enrollment_date;
+      if (body.current_rating || body.rating) updateData.rating = body.current_rating || body.rating;
+      if (body.coach_id || body.coaches?.id) updateData.coach_id = body.coaches?.id || body.coach_id;
+      if (body.monthly_fee) updateData.monthly_fee = body.monthly_fee;
+      if (body.payment_status) updateData.status = body.payment_status === 'Paid' ? 'active' : 'pending';
+      updateData.updated_at = new Date().toISOString();
       
       const { data: updatedStudent, error: updateError } = await supabase
         .from('students')
