@@ -1861,12 +1861,13 @@ function toast(msg, type = 'info') {
   const el = document.createElement('div');
   el.className = `toast toast-${type}`;
   el.innerHTML = `<span>${type==='success'?'✓':type==='error'?'✕':'ℹ'}</span> ${msg}`;
-  $('toast-container').appendChild(el);
+  const container = $('toast-container');
+  if (container) container.appendChild(el);
   setTimeout(() => el.remove(), 3800);
 }
 
 var isModalOpen = false;
-function openModal(id)  { isModalOpen = true; $(id).style.display = 'flex'; }
+function openModal(id)  { const el = $(id); if (el) { isModalOpen = true; el.style.display = 'flex'; } }
 function closeModals()  { isModalOpen = false; document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
 document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if(e.target === m) closeModals(); }));
 
