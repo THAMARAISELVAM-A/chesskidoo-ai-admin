@@ -1643,41 +1643,6 @@ async function simPay(provider) {
     processPaymentSuccess(provider);
   }, 1500);
 }
-      name: "Chesskidoo Academy",
-      description: `Fees for ${payTarget.name}`,
-      order_id: orderData.id,
-      handler: async function (response) {
-        const verifyRes = await fetch('/api/razorpay/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(response)
-        });
-        const verifyData = await verifyRes.json();
-        
-        if (verifyData.status === 'success' || verifyData.simulated) {
-          processPaymentSuccess(provider);
-        } else {
-          toast('Payment verification failed', 'error');
-        }
-      },
-      prefill: {
-        name: payTarget.name,
-        contact: "9876543210"
-      },
-      theme: { color: "#dca33e" }
-    };
-
-    if (!razorpayKeyId || orderData.simulated) {
-        setTimeout(() => processPaymentSuccess(provider), 1500);
-    } else {
-        const rzp = new Razorpay(options);
-        rzp.open();
-    }
-  } catch (err) {
-    console.error('Payment Error:', err);
-    toast('Payment initialization failed', 'error');
-  }
-}
 
 function processPaymentSuccess(provider) {
   if (!payTarget) return;
