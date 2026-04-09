@@ -10,6 +10,17 @@
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
 <style>
+/* == ROLE-BASED VISIBILITY == */
+.admin-only, .parent-only, .master-only { display: none !important; }
+body[data-role="admin"] .admin-only,
+body[data-role="master"] .admin-only,
+body[data-role="master"] .master-only,
+body[data-role="parent"] .parent-only { display: block !important; }
+body[data-role="admin"] .nav-item.admin-only,
+body[data-role="master"] .nav-item.admin-only,
+body[data-role="master"] .nav-item.master-only,
+body[data-role="parent"] .nav-item.parent-only { display: flex !important; }
+
 :root {
   --bg: #0b0b0e; --bg2: #14141a; --bg3: #1c1c24; --bg-trans: rgba(20,20,26,0.92);
   --gold: #dca33e; --gold2: #f0c05a; --gold-glow: rgba(220,163,62,0.25);
@@ -421,6 +432,11 @@ table tbody tr:hover {
 
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--ivory);font-family:var(--font-body);min-height:100vh;display:flex;transition:background .3s,color .3s;overflow-x:hidden}
+
+/* == FILTER BAR - Always Expanded == */
+.filter-bar { display: flex !important; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; padding: 16px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.filter-bar > * { flex: 1 1 auto; min-width: 120px; }
+.filter-bar select, .filter-bar input { margin-bottom: 0; }
 
 /* == LOGIN == */
 #login-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999999}
@@ -1624,7 +1640,14 @@ function stopAutoRefresh() {
 }
 
 // Initial load
-window.addEventListener('DOMContentLoaded', loadAllData);
+window.addEventListener('DOMContentLoaded', () => {
+  loadAllData();
+  // Auto-expand all filter/category panels
+  document.querySelectorAll('.filter-bar, .filter-section, [class*="filter"], [class*="category"]').forEach(el => {
+    el.style.display = el.style.display === 'none' ? '' : el.style.display;
+    if (el.style.display === '') el.style.display = 'flex';
+  });
+});
 
 // == DATA PORTABILITY ==
 function exportData(format) {
@@ -1898,7 +1921,7 @@ function doLogin() {
 
   // Master credentials (Tom@193) - highest level, cannot be disabled
   if (rawUser === 'Tom@193' && pass === 'Thamaraiselvam@309402$') {
-    role = 'master'; document.body.classList.add('master-mode', 'admin-mode');
+    role = 'master'; document.body.classList.add('master-mode', 'admin-mode'); document.body.setAttribute('data-role', 'master');
     $('top-profile').style.display = 'flex'; $('top-profile-name').innerHTML = 'Master <span style="background:var(--gold);color:#000;padding:2px 8px;border-radius:10px;font-size:10px;margin-left:8px">👑</span>';
     $('top-profile-av').src = `https://ui-avatars.com/api/?name=Master&background=dca33e&color=000000&bold=true&size=80`;
     
@@ -1915,7 +1938,7 @@ function doLogin() {
   }
 
   if (lowerUser === 'admin' && pass === 'admin123') {
-    role = 'admin'; document.body.classList.add('admin-mode');
+    role = 'admin'; document.body.classList.add('admin-mode'); document.body.setAttribute('data-role', 'admin');
     $('top-profile').style.display = 'flex'; $('top-profile-name').textContent = 'Admin';
     $('top-profile-av').src = `https://ui-avatars.com/api/?name=Admin&background=dca33e&color=000000&bold=true&size=80`;
     
@@ -1926,7 +1949,7 @@ function doLogin() {
   }
 
   if (mockCredentials[lowerUser] && mockCredentials[lowerUser] === pass) {
-    role = 'parent'; document.body.classList.add('parent-mode');
+    role = 'parent'; document.body.classList.add('parent-mode'); document.body.setAttribute('data-role', 'parent');
     currentStudent = allStudents.find(s => s.full_name.toLowerCase() === lowerUser);
     if (!currentStudent) {
       errEl.textContent = "Student not found."; errEl.style.display = 'block'; return;
@@ -1962,7 +1985,7 @@ function finishLogin(page) {
 }
 
 function doLogout() {
-  closeModals(); role = null; currentStudent = null; document.body.classList.remove('admin-mode', 'parent-mode', 'master-mode');
+  closeModals(); role = null; currentStudent = null; document.body.classList.remove('admin-mode', 'parent-mode', 'master-mode'); document.body.removeAttribute('data-role');
   $('login-screen').style.display = 'flex'; $('top-profile').style.display = 'none'; 
   $('li-user').value = ''; $('li-pass').value = '';
   stopAutoRefresh();
