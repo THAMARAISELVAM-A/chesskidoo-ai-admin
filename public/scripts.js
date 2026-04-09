@@ -65,10 +65,31 @@
 
   function makeAvSrc(s) {
     if (s.custom_avatar) return s.custom_avatar;
-    if (s.full_name && s.full_name.toLowerCase() === 'saanvi iyer') {
-      return `https://ui-avatars.com/api/?name=${encodeURIComponent(s.full_name)}&background=1d4ed8&color=ffffff&bold=true&size=80`;
+    const name = s.full_name || s.name || 'Student';
+    if (name.toLowerCase() === 'saanvi iyer') {
+      return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1d4ed8&color=ffffff&bold=true&size=80`;
     }
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(s.full_name || 'Student')}&background=dca33e&color=000000&bold=true&size=80`;
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=dca33e&color=000000&bold=true&size=80`;
+  }
+
+  function getStudentName(s) {
+    return s.full_name || s.name || 'Unknown';
+  }
+
+  function getStudentLevel(s) {
+    return s.level || s.grade || 'Beginner';
+  }
+
+  function getStudentRating(s) {
+    return s.current_rating || s.rating || 800;
+  }
+
+  function getStudentDate(s) {
+    return s.join_date || s.enrollment_date || '—';
+  }
+
+  function getStudentPhone(s) {
+    return s.parent_phone || s.phone || '';
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -317,8 +338,8 @@
     charts.elo = new Chart(eloCtx, {
       type: 'bar',
       data: {
-        labels: studs.map(s => (s.full_name || '').split(' ')[0]),
-        datasets: [{ label: 'ELO', data: studs.map(s => s.current_rating || 800), backgroundColor: '#dca33e', borderRadius: 5 }]
+        labels: studs.map(s => getStudentName(s).split(' ')[0]),
+        datasets: [{ label: 'ELO', data: studs.map(s => getStudentRating(s)), backgroundColor: '#dca33e', borderRadius: 5 }]
       },
       options: {
         plugins: { legend: { display: false } },
@@ -351,11 +372,9 @@
   function clearFilters() {
     if ($('f-coach')) $('f-coach').value = '';
     if ($('f-status')) $('f-status').value = '';
-    if ($('f-gender')) $('f-gender').value = '';
     if ($('f-min-fee')) $('f-min-fee').value = '';
     if ($('f-max-fee')) $('f-max-fee').value = '';
     if ($('f-date')) $('f-date').value = '';
-    if ($('f-awards')) $('f-awards').value = '';
     renderStudents();
   }
 
@@ -375,14 +394,8 @@
       let match = true;
       if (fCoach && s.coaches?.id !== fCoach) match = false;
       if (fStatus && s.payment_status !== fStatus) match = false;
-      if (fGender && s.gender !== fGender) match = false;
       if ((s.monthly_fee || 0) < fMinFee || (s.monthly_fee || 0) > fMaxFee) match = false;
-      if (fDate && s.join_date !== fDate) match = false;
-      if (fAwards) {
-        const hasAward = achievementsData.some(a => a.students && a.students.full_name === s.full_name);
-        if (fAwards === 'yes' && !hasAward) match = false;
-        if (fAwards === 'no' && hasAward) match = false;
-      }
+      if (fDate && getStudentDate(s) !== fDate) match = false;
       return match;
     });
 
@@ -395,15 +408,15 @@
       <tr>
         <td>
           <div class="av-cell">
-            <img src="${makeAvSrc(s)}" class="av-sm" alt="${s.full_name || 'Student'}">
-            <div>${s.full_name || 'Unknown'}<br><span style="font-size:10px;color:var(--ivory-dim);font-weight:400">${s.gender || 'Unknown'}</span></div>
+            <img src="${makeAvSrc(s)}" class="av-sm" alt="${getStudentName(s)}">
+            <div>${getStudentName(s)}</div>
           </div>
         </td>
         <td>
-          <span class="text-gold">${s.level || 'Beginner'}</span><br>
-          <span style="font-family:'DM Mono'; font-size:12px">${s.current_rating || 800}</span>
+          <span class="text-gold">${getStudentLevel(s)}</span><br>
+          <span style="font-family:'DM Mono'; font-size:12px">${getStudentRating(s)}</span>
         </td>
-        <td style="font-size:13px">${s.join_date || '—'}</td>
+        <td style="font-size:13px">${getStudentDate(s)}</td>
         <td style="color:var(--ivory-dim);font-size:13px">${(s.coaches && s.coaches.full_name) || '—'}</td>
         <td>
           <span class="${s.payment_status === 'Paid' ? 'text-success' : 'text-danger'}">${s.payment_status || 'Due'}</span><br>
@@ -413,7 +426,7 @@
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             <button type="button" class="btn btn-outline-blue btn-sm" onclick="viewStudent('${s.id}')">View</button>
             <button type="button" class="btn btn-outline-grey btn-sm" onclick="openEdit('${s.id}')">Edit</button>
-            <button type="button" class="btn btn-danger btn-sm" onclick="deleteStudent('${s.id}','${(s.full_name || '').replace(/'/g, "\\'")}')">Delete</button>
+            <button type="button" class="btn btn-danger btn-sm" onclick="deleteStudent('${s.id}','${getStudentName(s).replace(/'/g, "\\'")}')">Delete</button>
           </div>
         </td>
       </tr>
@@ -425,11 +438,10 @@
     if (!s) return;
 
     if ($('sv-av')) $('sv-av').src = makeAvSrc(s);
-    if ($('sv-name')) $('sv-name').textContent = s.full_name || '—';
-    if ($('sv-level')) $('sv-level').textContent = s.level || 'Beginner';
-    if ($('sv-elo')) $('sv-elo').textContent = s.current_rating || 800;
-    if ($('sv-join')) $('sv-join').textContent = s.join_date || '—';
-    if ($('sv-gender')) $('sv-gender').textContent = s.gender || '—';
+    if ($('sv-name')) $('sv-name').textContent = getStudentName(s);
+    if ($('sv-level')) $('sv-level').textContent = getStudentLevel(s);
+    if ($('sv-elo')) $('sv-elo').textContent = getStudentRating(s);
+    if ($('sv-join')) $('sv-join').textContent = getStudentDate(s);
     if ($('sv-coach')) $('sv-coach').textContent = (s.coaches && s.coaches.full_name) || 'Unassigned';
     if ($('sv-batch')) $('sv-batch').textContent = s.batch_type || '—';
     if ($('sv-time')) $('sv-time').textContent = formatTime(s.batch_time);
@@ -438,8 +450,8 @@
       $('sv-status').innerHTML = `<span class="${s.payment_status === 'Paid' ? 'text-success' : 'text-danger'}">${s.payment_status || 'Due'}</span>`;
     }
 
-    const phone = mockCredentials[(s.full_name || '').toLowerCase()] || 'Not Provided';
-    if ($('sv-phone')) $('sv-phone').textContent = phone;
+    const phone = getStudentPhone(s);
+    if ($('sv-phone')) $('sv-phone').textContent = phone || 'Not Provided';
 
     const editBtn = $('sv-edit-btn');
     if (editBtn) editBtn.onclick = () => { closeModals(); openEdit(s.id); };
@@ -592,17 +604,16 @@
     if (!s) return;
 
     if ($('e-id')) $('e-id').value = s.id;
-    if ($('e-name')) $('e-name').value = s.full_name || '';
-    if ($('e-gender')) $('e-gender').value = s.gender || 'Male';
-    if ($('e-join')) $('e-join').value = s.join_date || '';
-    if ($('e-elo')) $('e-elo').value = s.current_rating || 0;
-    if ($('e-level')) $('e-level').value = s.level || 'BEGINNER';
+    if ($('e-name')) $('e-name').value = getStudentName(s);
+    if ($('e-join')) $('e-join').value = getStudentDate(s);
+    if ($('e-elo')) $('e-elo').value = getStudentRating(s);
+    if ($('e-level')) $('e-level').value = getStudentLevel(s).toUpperCase();
     if ($('e-coach')) {
       $('e-coach').innerHTML = allCoaches.map(c => `<option value="${c.id}" ${s.coaches && c.id === s.coaches.id ? 'selected' : ''}>${c.full_name}</option>`).join('');
     }
     if ($('e-fee')) $('e-fee').value = s.monthly_fee || 0;
     if ($('e-status')) $('e-status').value = s.payment_status || 'Due';
-    if ($('e-phone')) $('e-phone').value = mockCredentials[(s.full_name || '').toLowerCase()] || '';
+    if ($('e-phone')) $('e-phone').value = getStudentPhone(s);
     if ($('e-batch-type')) $('e-batch-type').value = s.batch_type || 'Evening';
     if ($('e-batch-time')) $('e-batch-time').value = s.batch_time || '17:00';
 
@@ -627,12 +638,11 @@
 
     const coachId = $('e-coach')?.value;
     const studentData = {
-      full_name: newName,
-      parent_phone: phone,
-      gender: $('e-gender')?.value,
+      name: newName,
+      phone: phone,
       join_date: joinDate,
-      current_rating: eloVal,
-      level: $('e-level')?.value,
+      rating: eloVal,
+      grade: $('e-level')?.value,
       coach_id: coachId || null,
       monthly_fee: feeVal,
       payment_status: $('e-status')?.value,
@@ -681,12 +691,11 @@
 
     const coachId = $('m-coach')?.value;
     const newStudent = {
-      full_name: name,
-      parent_phone: phone,
-      gender: $('m-gender')?.value,
-      join_date: joinDate,
-      current_rating: eloVal,
-      level: $('m-level')?.value,
+      name: name,
+      phone: phone,
+      enrollment_date: joinDate,
+      rating: eloVal,
+      grade: $('m-level')?.value,
       coach_id: coachId || null,
       monthly_fee: feeVal,
       payment_status: 'Due',
@@ -982,9 +991,9 @@ Status: PAID IN FULL
     if (!currentStudent) return;
     const s = currentStudent;
 
-    if ($('c-name')) $('c-name').textContent = s.full_name || '—';
-    if ($('c-elo')) $('c-elo').textContent = s.current_rating || 800;
-    if ($('c-level')) $('c-level').textContent = s.level || 'Beginner';
+    if ($('c-name')) $('c-name').textContent = getStudentName(s);
+    if ($('c-elo')) $('c-elo').textContent = getStudentRating(s);
+    if ($('c-level')) $('c-level').textContent = getStudentLevel(s);
     if ($('c-coach')) $('c-coach').textContent = (s.coaches && s.coaches.full_name) || '—';
     if ($('c-notes')) $('c-notes').textContent = s.coach_notes || 'Great progress! Keep focusing on tactical patterns.';
     if ($('contact-coach')) $('contact-coach').textContent = (s.coaches && s.coaches.full_name) || '—';

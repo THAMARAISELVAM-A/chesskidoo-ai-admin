@@ -117,19 +117,9 @@
           <option value="Paid">Paid</option>
           <option value="Due">Due</option>
         </select>
-        <select id="f-gender" onchange="renderStudents()">
-          <option value="">All Genders</option>
-          <option value="Male">Male</option>
-          <option value="Female">Female</option>
-        </select>
         <input type="number" id="f-min-fee" placeholder="Min Fee ₹" oninput="renderStudents()">
         <input type="number" id="f-max-fee" placeholder="Max Fee ₹" oninput="renderStudents()">
         <input type="date" id="f-date" onchange="renderStudents()" title="Join Date">
-        <select id="f-awards" onchange="renderStudents()">
-          <option value="">Awards (All)</option>
-          <option value="yes">Has Awards</option>
-          <option value="no">No Awards</option>
-        </select>
         <button class="btn btn-outline-grey btn-sm" onclick="clearFilters()" style="padding: 9px 12px; margin-bottom: 0;">Clear Filters</button>
       </div>
 
@@ -264,13 +254,12 @@
     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 13px; line-height: 1.6; color: var(--ivory-dim);">
       <div><b style="color:var(--ivory)">ELO Rating:</b> <span id="sv-elo"></span></div>
       <div><b style="color:var(--ivory)">Join Date:</b> <span id="sv-join"></span></div>
-      <div><b style="color:var(--ivory)">Gender:</b> <span id="sv-gender"></span></div>
       <div><b style="color:var(--ivory)">Coach:</b> <span id="sv-coach"></span></div>
       <div><b style="color:var(--ivory)">Batch:</b> <span id="sv-batch"></span></div>
       <div><b style="color:var(--ivory)">Timing:</b> <span id="sv-time"></span></div>
       <div><b style="color:var(--ivory)">Monthly Fee:</b> ₹<span id="sv-fee"></span></div>
       <div><b style="color:var(--ivory)">Status:</b> <span id="sv-status"></span></div>
-      <div style="grid-column: 1 / -1;"><b style="color:var(--ivory)">Parent/Guardian Phone:</b> <span id="sv-phone"></span></div>
+      <div><b style="color:var(--ivory)">Phone:</b> <span id="sv-phone"></span></div>
     </div>
     <div style="margin-top:24px; display:flex; gap:10px;">
       <button type="button" class="btn btn-outline" style="flex:1" onclick="closeModals()">Close</button>
@@ -308,13 +297,7 @@
     <div class="modal-sub">Student info & parent credentials</div>
     <input type="text" id="m-name" placeholder="Full Name">
     <input type="text" id="m-phone" placeholder="Parent Phone (10 digits)" maxlength="10">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <select id="m-gender" style="margin-bottom:0">
-        <option value="Male">Male</option>
-        <option value="Female">Female</option>
-      </select>
-      <input type="date" id="m-join" style="margin-bottom:0" title="Joining Date">
-    </div>
+    <input type="date" id="m-join" title="Joining Date">
     <div style="height:13px"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <input type="number" id="m-elo" placeholder="Initial ELO" value="0" style="margin-bottom:0">
@@ -354,13 +337,7 @@
     <input type="hidden" id="e-id">
     <input type="text" id="e-name" placeholder="Full Name">
     <input type="text" id="e-phone" placeholder="Parent Phone (10 digits)" maxlength="10">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <select id="e-gender" style="margin-bottom:0">
-        <option value="Male">Male</option>
-        <option value="Female">Female</option>
-      </select>
-      <input type="date" id="e-join" style="margin-bottom:0">
-    </div>
+    <input type="date" id="e-join">
     <div style="height:13px"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <input type="number" id="e-elo" placeholder="ELO" style="margin-bottom:0">
