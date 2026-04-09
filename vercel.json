@@ -10,6 +10,7 @@
     { "source": "/api/events", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/events" },
     { "source": "/api/achievements", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/achievements" },
     { "source": "/api/payments", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/payments" },
-    { "source": "/api/messages", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/messages" }
+    { "source": "/api/messages", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/messages" },
+    { "source": "/api/sessions", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/sessions" }
   ]
 }

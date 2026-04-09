@@ -1186,36 +1186,180 @@ function exportData(format) {
 
 function importStudents(input) {
   const file = input.files[0]; if (!file) return;
-  Papa.parse(file, {
-    header: true,
-    complete: async (results) => {
-      const data = results.data.filter(r => r.full_name);
-      if (!data.length) return toast('No valid student records found', 'error');
-      
-      toast(`Importing ${data.length} students...`, 'info');
-      let success = 0;
-      for (const s of data) {
-        try {
-          await fetch(API_BASE + '/students', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              full_name: s.full_name,
-              level: s.level || 'Beginner',
-              current_rating: parseInt(s.current_rating) || 800,
-              parent_phone: s.parent_phone || s.phone || '9876543210',
-              monthly_fee: parseInt(s.monthly_fee) || 5000,
-              payment_status: s.payment_status || 'Due'
-            })
-          });
-          success++;
-        } catch (e) {}
+  const fileName = file.name.toLowerCase();
+  const fileExt = fileName.split('.').pop();
+  
+  // Check file type
+  if (!['csv', 'xlsx', 'xls', 'json', 'txt'].includes(fileExt)) {
+    toast('Unsupported file format. Please use CSV, Excel, JSON, or TXT', 'error');
+    return;
+  }
+  
+  if (fileExt === 'json') {
+    // Handle JSON files
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        const students = Array.isArray(data) ? data : [data];
+        await processImport(students);
+      } catch (err) {
+        toast('Invalid JSON file', 'error');
       }
-      toast(`Successfully imported ${success} students!`, 'success');
-      loadAllData();
-      input.value = '';
-    }
-  });
+    };
+    reader.readAsText(file);
+  } else if (fileExt === 'txt') {
+    // Handle TXT files (tab or pipe separated)
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const text = e.target.result;
+        const lines = text.split('\n').filter(l => l.trim());
+        const data = lines.map(line => {
+          const parts = line.split(/[\t|]/);
+          return {
+            full_name: parts[0]?.trim(),
+            level: parts[1]?.trim(),
+            current_rating: parseInt(parts[2]) || 800,
+            parent_phone: parts[3]?.trim(),
+            monthly_fee: parseInt(parts[4]) || 5000,
+            payment_status: parts[5]?.trim() || 'Due'
+          };
+        }).filter(r => r.full_name);
+        await processImport(data);
+      } catch (err) {
+        toast('Invalid TXT file format', 'error');
+      }
+    };
+    reader.readAsText(file);
+  } else {
+    // Handle CSV and Excel files using PapaParse
+    Papa.parse(file, {
+      header: true,
+      complete: async (results) => {
+        await processImport(results.data);
+      }
+    });
+  }
+}
+
+async function processImport(data) {
+  const validData = data.filter(r => r.full_name || r.name || r['Full Name']);
+  if (!validData.length) return toast('No valid student records found', 'error');
+  
+  toast(`Importing ${validData.length} students...`, 'info');
+  let success = 0;
+  for (const s of validData) {
+    try {
+      await fetch('/api/students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: s.full_name || s.name || s['Full Name'] || '',
+          level: s.level || s.Level || s.grade || 'Beginner',
+          current_rating: parseInt(s.current_rating || s['Current Rating'] || s.rating) || 800,
+          parent_phone: s.parent_phone || s['Parent Phone'] || s.phone || '9876543210',
+          monthly_fee: parseInt(s.monthly_fee || s['Monthly Fee'] || s.fee) || 5000,
+          payment_status: s.payment_status || s['Payment Status'] || 'Due'
+        })
+      });
+      success++;
+    } catch (e) {}
+  }
+  toast(`Successfully imported ${success} students!`, 'success');
+  loadAllData();
+  input.value = '';
+}
+
+function exportToGoogleSheets() {
+  // Create a formatted dataset
+  const data = allStudents.map(s => ({
+    'Full Name': s.full_name,
+    'Level': s.level,
+    'Current Rating': s.current_rating,
+    'Parent Phone': s.parent_phone,
+    'Monthly Fee': s.monthly_fee,
+    'Payment Status': s.payment_status,
+    'Join Date': s.join_date,
+    'Batch': s.batch_type
+  }));
+  
+  // Create CSV that can be imported to Google Sheets
+  const csv = Papa.unparse(data);
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Chesskidoo_Students_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  toast('Data exported! Open in Google Sheets via File > Import', 'success');
+}
+
+function openImportModal() {
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.style.display = 'flex';
+  modal.innerHTML = `
+    <div class="modal-box" style="width:450px;">
+      <div class="modal-title">📥 Import Data</div>
+      <div class="modal-sub">Import students from external files</div>
+      
+      <div style="margin-bottom:20px;">
+        <p style="color:var(--ivory-dim);font-size:13px;margin-bottom:12px">Supported formats:</p>
+        <ul style="color:var(--ivory-dim);font-size:12px;padding-left:20px;line-height:1.8">
+          <li>📄 CSV files (from Excel, Google Sheets)</li>
+          <li>📊 Excel files (.xlsx, .xls)</li>
+          <li>📋 JSON files</li>
+          <li>📝 Text files (tab/pipe separated)</li>
+        </ul>
+      </div>
+      
+      <input type="file" id="import-file-input" accept=".csv,.xlsx,.xls,.json,.txt" style="display:none" onchange="importStudents(this)">
+      <button class="btn btn-gold" style="width:100%;margin-bottom:12px" onclick="$('import-file-input').click()">📂 Select File to Import</button>
+      
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+        <p style="color:var(--gold);font-size:13px;margin-bottom:8px">Quick Templates:</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-outline btn-sm" onclick="downloadTemplate('csv')">CSV Template</button>
+          <button class="btn btn-outline btn-sm" onclick="downloadTemplate('json')">JSON Template</button>
+        </div>
+      </div>
+      
+      <button class="btn btn-outline" style="width:100%;margin-top:16px" onclick="closeModals()">Cancel</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', (e) => { if(e.target === modal) modal.remove(); });
+}
+
+function downloadTemplate(format) {
+  const sampleData = [{
+    full_name: "John Doe",
+    level: "Beginner",
+    current_rating: 800,
+    parent_phone: "9876543210",
+    monthly_fee: 5000,
+    payment_status: "Due"
+  }];
+  
+  let content, filename, type;
+  if (format === 'json') {
+    content = JSON.stringify(sampleData, null, 2);
+    filename = 'student_template.json';
+    type = 'application/json';
+  } else {
+    content = Papa.unparse(sampleData);
+    filename = 'student_template.csv';
+    type = 'text/csv';
+  }
+  
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  toast(`Template downloaded: ${filename}`, 'success');
 }
 
 // ── UTILS & VALIDATION ──
@@ -1295,7 +1439,10 @@ function doLogin() {
     role = 'admin'; document.body.classList.add('admin-mode');
     $('top-profile').style.display = 'flex'; $('top-profile-name').textContent = 'Admin';
     $('top-profile-av').src = `https://ui-avatars.com/api/?name=Admin&background=dca33e&color=000000&bold=true&size=80`;
-    loginHistory.admin.unshift({ time: now, device: 'Current Session (Web)' });
+    
+    // Save login session to API
+    saveLoginSession('admin', 'admin', 'Admin', 'Web Browser');
+    
     finishLogin('dash'); syncCoachDropdowns(); return;
   }
 
@@ -1307,11 +1454,26 @@ function doLogin() {
     }
     $('top-profile').style.display = 'flex'; $('top-profile-name').textContent = currentStudent.full_name.split(' ')[0];
     $('top-profile-av').src = makeAvSrc(currentStudent);
-    if (!loginHistory.parents[lowerUser]) loginHistory.parents[lowerUser] = [];
-    loginHistory.parents[lowerUser].unshift({ time: now, device: 'Current Session (Web)' });
+    
+    // Save login session to API
+    saveLoginSession('parent', currentStudent.id, currentStudent.full_name, 'Web Browser');
+    
     finishLogin('child'); return;
   }
   errEl.textContent = "Invalid username or password."; errEl.style.display = 'block';
+}
+
+function saveLoginSession(userType, userId, userName, device) {
+  fetch('/api/sessions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      user_type: userType,
+      user_id: userId,
+      user_name: userName,
+      device: device || 'Web Browser'
+    })
+  }).catch(err => console.error('Failed to save session:', err));
 }
 
 function finishLogin(page) { 
@@ -1330,12 +1492,43 @@ function doLogout() {
 function openProfile() {
   if (role === 'admin') {
     $('prof-admin-view').style.display = 'block'; $('prof-parent-view').style.display = 'none';
-    $('active-users-list').innerHTML = `<div style="margin-bottom:6px"><span style="color:var(--success)">●</span> You (Admin)</div><div><span style="color:var(--success)">●</span> Parent of Varun (Mobile App)</div>`;
-    $('admin-history-list').innerHTML = loginHistory.admin.map(h => `<div class="history-item">${h.time} <span>📱 ${h.device}</span></div>`).join('');
+    
+    // Fetch real login sessions from API
+    fetch('/api/sessions?user_type=admin')
+    .then(res => res.json())
+    .then(sessions => {
+      if (sessions && sessions.length > 0) {
+        const currentSession = sessions[0];
+        const otherSessions = sessions.slice(1);
+        let html = `<div style="margin-bottom:6px"><span style="color:var(--success)">●</span> You (Current Session)</div>`;
+        otherSessions.forEach(s => {
+          html += `<div><span style="color:var(--ivory-dim)">●</span> ${s.user_name} <span style="color:var(--ivory-dim);font-size:11px">(${s.device})</span></div>`;
+        });
+        $('active-users-list').innerHTML = html;
+        $('admin-history-list').innerHTML = sessions.map(h => `<div class="history-item">${new Date(h.created_at).toLocaleString()} <span>📱 ${h.device || 'Web'}</span></div>`).join('');
+      } else {
+        $('active-users-list').innerHTML = `<div style="margin-bottom:6px"><span style="color:var(--success)">●</span> You (Current Session)</div>`;
+        $('admin-history-list').innerHTML = '<div class="history-item" style="color:var(--ivory-dim)">No previous login history</div>';
+      }
+    })
+    .catch(() => {
+      $('active-users-list').innerHTML = `<div style="margin-bottom:6px"><span style="color:var(--success)">●</span> You (Current Session)</div>`;
+      $('admin-history-list').innerHTML = '<div class="history-item" style="color:var(--ivory-dim)">Unable to load history</div>';
+    });
   } else {
     $('prof-admin-view').style.display = 'none'; $('prof-parent-view').style.display = 'block';
-    const pName = currentStudent.full_name.toLowerCase();
-    $('parent-history-list').innerHTML = (loginHistory.parents[pName] || []).map(h => `<div class="history-item">${h.time} <span>📱 ${h.device}</span></div>`).join('');
+    fetch('/api/sessions?user_id=' + currentStudent.id)
+    .then(res => res.json())
+    .then(sessions => {
+      if (sessions && sessions.length > 0) {
+        $('parent-history-list').innerHTML = sessions.map(h => `<div class="history-item">${new Date(h.created_at).toLocaleString()} <span>📱 ${h.device || 'Web'}</span></div>`).join('');
+      } else {
+        $('parent-history-list').innerHTML = '<div class="history-item" style="color:var(--ivory-dim)">No login history</div>';
+      }
+    })
+    .catch(() => {
+      $('parent-history-list').innerHTML = '<div class="history-item" style="color:var(--ivory-dim)">Unable to load history</div>';
+    });
   }
   openModal('profile-modal');
 }
