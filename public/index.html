@@ -562,6 +562,7 @@ body.admin-mode .parent-only,body.parent-mode .admin-only{display:none!important
     <div class="nav-item" id="nav-fame" onclick="setPage('fame')"><span class="ico">🏆</span> Wall of Fame</div>
     <div class="nav-item" id="nav-events" onclick="setPage('events')"><span class="ico">📅</span> Events</div>
     <div class="nav-item" id="nav-bills" onclick="setPage('bills')"><span class="ico">💳</span> Payments</div>
+    <div class="nav-item admin-only" id="nav-msgs" onclick="setPage('msgs')"><span class="ico">✉️</span> Messages <span id="msg-badge" style="display:none;background:var(--danger);color:#fff;font-size:10px;padding:2px 6px;border-radius:10px;margin-left:6px">0</span></div>
     <div class="nav-item admin-only" id="nav-coach" onclick="setPage('coach')"><span class="ico">💬</span> AI Assistant</div>
   </div>
   <div style="padding:16px;border-top:1px solid var(--border)">
@@ -733,6 +734,18 @@ body.admin-mode .parent-only,body.parent-mode .admin-only{display:none!important
           <tbody id="bill-body"><tr><td colspan="5"><div class="loading-state"><span class="spinner"></span> Loading payments…</div></td></tr></tbody>
         </table>
       </div>
+    </div>
+
+    <div id="page-msgs" class="page admin-only">
+      <div class="page-hdr" style="margin-bottom: 24px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <h2 style="font-family:var(--font-head); font-size:24px; color:var(--gold);">Messages & Feedback</h2>
+          <p style="font-size:12px; color:var(--ivory-dim);">Parent queries and feedback from academy community.</p>
+        </div>
+        <button class="btn btn-outline" onclick="loadMessages()">🔄 Refresh</button>
+      </div>
+      <div id="msgs-loading" class="loading-state" style="display:none"><span class="spinner"></span> Loading messages…</div>
+      <div class="msgs-list" id="msgs-list" style="display:grid; gap:16px;"></div>
     </div>
 
     <div id="page-coach" class="page admin-only">
@@ -1019,11 +1032,26 @@ body.admin-mode .parent-only,body.parent-mode .admin-only{display:none!important
   <div class="modal-box">
     <div class="modal-title">Academy Feedback</div>
     <div class="modal-sub">Help us improve Chesskidoo.</div>
-    <textarea id="fb-msg" rows="5" placeholder="How was your experience this month?"></textarea>
+    <textarea id="fb-msg" rows="5" placeholder="How was your experience this month? Any suggestions?"></textarea>
     <div style="display:flex;gap:10px">
       <button type="button" class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
       <button type="button" class="btn btn-gold" style="flex:1" onclick="sendFeedback()">Submit</button>
     </div>
+  </div>
+</div>
+
+<div class="modal" id="reply-msg-modal">
+  <div class="modal-box">
+    <div class="modal-title">Reply to Message</div>
+    <input type="hidden" id="reply-to-id">
+    <input type="text" id="reply-subject" placeholder="Subject">
+    <textarea id="reply-msg" rows="5" placeholder="Type your reply…"></textarea>
+    <div style="display:flex;gap:10px">
+      <button type="button" class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
+      <button type="button" class="btn btn-gold" style="flex:1" onclick="sendReply()">Send Reply</button>
+    </div>
+  </div>
+</div>
   </div>
 </div>
 
@@ -1053,6 +1081,7 @@ let eventsData = [];
 let mockCredentials = {}; // Will be populated from students
 
 const API_BASE = 'https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1';
+let autoRefreshInterval = null;
 
 async function loadAllData() {
   try {
@@ -1076,21 +1105,45 @@ async function loadAllData() {
     });
 
     syncCoachDropdowns();
-    if (role === 'admin') renderDash();
+    if (role === 'admin') {
+      renderDash();
+      updateMsgBadge();
+    }
     else if (role === 'parent') renderChild();
   } catch (err) {
     toast('Failed to load data from server', 'error');
   }
 }
-    });
 
-    console.log('✅ Data loaded from API');
-    syncCoachDropdowns();
-    if (role === 'admin') renderDash();
-    else if (role === 'parent') renderChild();
-  } catch (err) {
-    console.error('❌ API Load Error:', err);
-    toast('Failed to load data from server', 'error');
+async function updateMsgBadge() {
+  try {
+    const res = await fetch('/api/messages');
+    const msgs = await res.json();
+    const unread = msgs.filter(m => !m.is_read && m.receiver_type === 'admin').length;
+    const badge = $('msg-badge');
+    if (unread > 0) {
+      badge.style.display = 'inline';
+      badge.textContent = unread;
+    } else {
+      badge.style.display = 'none';
+    }
+  } catch (e) {}
+}
+
+function startAutoRefresh(intervalMs = 15000) {
+  if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+  autoRefreshInterval = setInterval(() => {
+    if (role) {
+      loadAllData();
+      console.log('🔄 Auto-refreshed data');
+    }
+  }, intervalMs);
+}
+
+function stopAutoRefresh() {
+  if (autoRefreshInterval) {
+    clearInterval(autoRefreshInterval);
+    autoRefreshInterval = null;
   }
 }
 
@@ -1255,12 +1308,17 @@ function doLogin() {
   errEl.textContent = "Invalid username or password."; errEl.style.display = 'block';
 }
 
-function finishLogin(page) { $('login-screen').style.display = 'none'; setPage(page); }
+function finishLogin(page) { 
+  $('login-screen').style.display = 'none'; 
+  setPage(page);
+  startAutoRefresh(15000);
+}
 
 function doLogout() {
   closeModals(); role = null; currentStudent = null; document.body.classList.remove('admin-mode', 'parent-mode');
   $('login-screen').style.display = 'flex'; $('top-profile').style.display = 'none'; 
   $('li-user').value = ''; $('li-pass').value = '';
+  stopAutoRefresh();
 }
 
 function openProfile() {
@@ -1277,7 +1335,7 @@ function openProfile() {
 }
 
 // ── NAVIGATION ──
-const PAGE_TITLES = { dash:'Academy Overview', stud:'Student Registry', 'coach-mgmt':'Coach Management', child:'My Child\'s Progress', fame:'Wall of Fame', events:'Upcoming Events', bills:'Financials & Payments', coach:'AI Intelligence Hub' };
+const PAGE_TITLES = { dash:'Academy Overview', stud:'Student Registry', 'coach-mgmt':'Coach Management', child:'My Child\'s Progress', fame:'Wall of Fame', events:'Upcoming Events', bills:'Financials & Payments', msgs:'Messages & Feedback', coach:'AI Intelligence Hub' };
 
 function setPage(p) {
   document.querySelectorAll('.page').forEach(pg => pg.classList.remove('active'));
@@ -1300,6 +1358,7 @@ function setPage(p) {
     if (p === 'fame') renderFame();
     if (p === 'events') renderEvents();
     if (p === 'bills') renderBills();
+    if (p === 'msgs') renderMsgs();
     if (p === 'child') renderChild();
   }, 100);
 }
@@ -1844,7 +1903,162 @@ function downloadReceipt(id, name, fee) {
 
 function openContactModal() { openModal('contact-modal'); }
 function sendMsg() { if(!$('contact-msg').value.trim()) return toast('Message cannot be empty', 'error'); $('contact-msg').value = ''; toast(`Message sent to coach! ✓`, 'success'); closeModals(); }
-function sendFeedback() { if(!$('fb-msg').value.trim()) return toast('Feedback cannot be empty', 'error'); $('fb-msg').value = ''; toast('Thank you for your feedback! 🙏', 'success'); closeModals(); }
+function sendFeedback() { if(!$('fb-msg').value.trim()) return toast('Feedback cannot be empty', 'error'); 
+  const msg = $('fb-msg').value.trim();
+  $('fb-msg').value = '';
+  
+  fetch('/api/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sender_type: 'parent',
+      sender_id: currentStudent?.id || null,
+      receiver_type: 'admin',
+      subject: 'Parent Feedback',
+      message: msg,
+      priority: 'normal'
+    })
+  })
+  .then(res => res.json())
+  .then(() => {
+    toast('Thank you for your feedback! 🙏', 'success');
+    closeModals();
+  })
+  .catch(() => toast('Failed to send feedback', 'error'));
+}
+
+let allMessages = [];
+
+async function loadMessages() {
+  try {
+    $('msgs-loading').style.display = 'flex';
+    $('msgs-list').style.display = 'none';
+    
+    const res = await fetch('/api/messages');
+    allMessages = await res.json();
+    
+    renderMsgs();
+  } catch (err) {
+    toast('Failed to load messages', 'error');
+    $('msgs-loading').style.display = 'none';
+  }
+}
+
+function renderMsgs() {
+  $('msgs-loading').style.display = 'none';
+  $('msgs-list').style.display = 'grid';
+  
+  const container = $('msgs-list');
+  const unread = allMessages.filter(m => !m.is_read && m.receiver_type === 'admin');
+  
+  const badge = $('msg-badge');
+  if (unread.length > 0) {
+    badge.style.display = 'inline';
+    badge.textContent = unread.length;
+  } else {
+    badge.style.display = 'none';
+  }
+  
+  if (!allMessages.length) {
+    container.innerHTML = `<div class="empty-state" style="grid-column:1/-1; padding:60px 0;"><div class="empty-icon">📬</div><p>No messages yet.</p></div>`;
+    return;
+  }
+  
+  container.innerHTML = allMessages.map(m => {
+    const isUnread = !m.is_read;
+    const priorityClass = m.priority === 'urgent' ? 'border-left:4px solid var(--danger)' : (m.priority === 'high' ? 'border-left:4px solid var(--gold)' : '');
+    const readStyle = isUnread ? 'background:var(--bg3);border-left:4px solid var(--gold)' : '';
+    const senderLabel = m.sender_type === 'admin' ? '👑 Admin' : '👤 Parent';
+    const timeAgo = getTimeAgo(m.created_at);
+    
+    return `
+      <div class="msg-card" style="padding:20px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);${readStyle};${priorityClass}">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px;">
+          <div>
+            <span style="color:var(--gold);font-weight:600">${senderLabel}</span>
+            ${m.subject ? `<span style="color:var(--ivory);margin-left:8px">— ${m.subject}</span>` : ''}
+          </div>
+          <span style="color:var(--ivory-dim);font-size:12px">${timeAgo}</span>
+        </div>
+        <div style="color:var(--ivory);line-height:1.6;margin-bottom:16px;font-size:14px">${m.message}</div>
+        <div style="display:flex;gap:10px;">
+          ${!m.is_read ? `<button class="btn btn-outline-blue btn-sm" onclick="markMsgRead('${m.id}')">✓ Mark Read</button>` : ''}
+          <button class="btn btn-outline btn-sm" onclick="replyToMsg('${m.id}')">↩️ Reply</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteMsg('${m.id}')">🗑️ Delete</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function getTimeAgo(dateStr) {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diff = Math.floor((now - date) / 1000);
+  if (diff < 60) return 'Just now';
+  if (diff < 3600) return Math.floor(diff / 60) + ' min ago';
+  if (diff < 86400) return Math.floor(diff / 3600) + ' hours ago';
+  return date.toLocaleDateString();
+}
+
+function markMsgRead(id) {
+  fetch('/api/messages?id=' + id, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ is_read: true })
+  })
+  .then(() => {
+    toast('Marked as read', 'success');
+    loadMessages();
+  })
+  .catch(() => toast('Failed to update', 'error'));
+}
+
+function replyToMsg(id) {
+  const msg = allMessages.find(m => m.id === id);
+  if (!msg) return;
+  openModal('reply-msg-modal');
+  $('reply-to-id').value = id;
+  $('reply-subject').value = msg.subject ? 'Re: ' + msg.subject : 'Re: Message';
+}
+
+function sendReply() {
+  const id = $('reply-to-id').value;
+  const subject = $('reply-subject').value;
+  const replyMsg = $('reply-msg').value.trim();
+  if (!replyMsg) return toast('Reply cannot be empty', 'error');
+  
+  fetch('/api/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sender_type: 'admin',
+      sender_id: 'admin',
+      receiver_type: 'parent',
+      receiver_id: id.includes('parent') ? null : allMessages.find(m => m.id === id)?.sender_id,
+      subject: subject,
+      message: replyMsg,
+      priority: 'normal',
+      reply_to: id
+    })
+  })
+  .then(() => {
+    toast('Reply sent! ✓', 'success');
+    closeModals();
+    loadMessages();
+  })
+  .catch(() => toast('Failed to send reply', 'error'));
+}
+
+function deleteMsg(id) {
+  if (!confirm('Delete this message?')) return;
+  fetch('/api/messages?id=' + id, { method: 'DELETE' })
+  .then(() => {
+    toast('Message deleted', 'info');
+    loadMessages();
+  })
+  .catch(() => toast('Failed to delete', 'error'));
+}
 
 // ── CHILD VIEW ──
 function renderChild() {
