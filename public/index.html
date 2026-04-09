@@ -8,7 +8,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-<script src="security-module.js"></script>
 
 <style>
 :root {
@@ -1534,14 +1533,52 @@ body.parent-mode .admin-only,body.parent-mode .master-only,body.master-mode .par
 
 <script>
 // == DATABASE STATE =======================
-let allCoaches = [];
-let allStudents = [];
-let achievementsData = [];
-let eventsData = [];
-let mockCredentials = {}; // Will be populated from students
+var allCoaches = [];
+var allStudents = [];
+var achievementsData = [];
+var eventsData = [];
+var mockCredentials = {};
 
-const API_BASE = 'https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1';
-let autoRefreshInterval = null;
+var API_BASE = 'https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1';
+var autoRefreshInterval = null;
+var role = null;
+var currentStudent = null;
+var charts = {};
+var payTarget = null;
+var aiHistory = [];
+var allMessages = [];
+
+// Load all data
+async function loadAllData() {
+  try {
+    var cRes = await fetch('/api/coaches');
+    var sRes = await fetch('/api/students');
+    var aRes = await fetch('/api/achievements');
+    var eRes = await fetch('/api/events');
+    
+    allCoaches = await cRes.json();
+    allStudents = await sRes.json();
+    achievementsData = await aRes.json();
+    eventsData = await eRes.json();
+
+    mockCredentials = {};
+    allStudents.forEach(function(s) {
+      if (s.full_name) {
+        mockCredentials[s.full_name.toLowerCase()] = s.parent_phone || s.phone || '9876543210';
+      }
+    });
+
+    syncCoachDropdowns();
+    if (role === 'admin' || role === 'master') {
+      renderDash();
+      updateMsgBadge();
+    } else if (role === 'parent') {
+      renderChild();
+    }
+  } catch (err) {
+    toast('Failed to load data from server', 'error');
+  }
+}
 
 async function loadAllData() {
   try {
@@ -1610,14 +1647,12 @@ function stopAutoRefresh() {
 // Initial load
 window.addEventListener('DOMContentLoaded', loadAllData);
 
-let loginHistory = { admin: [{ time: new Date(Date.now() - 86400000).toLocaleString(), device: 'Desktop - Chrome' }], parents: {} };
+var loginHistory = { admin: [{ time: new Date(Date.now() - 86400000).toLocaleString(), device: 'Desktop - Chrome' }], parents: {} };
 
 
-let role = null;
-let currentStudent = null;
-let charts = {};
-let payTarget = null; 
-let aiHistory = []; 
+var currentStudent = null;
+var payTarget = null; 
+var aiHistory = []; 
 
 // == DATA PORTABILITY ==
 function exportData(format) {
