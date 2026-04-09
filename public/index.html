@@ -902,17 +902,22 @@ const API_BASE = 'https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1';
 
 async function loadAllData() {
   try {
+    console.log('Starting to load data...');
     const [cRes, sRes, aRes, eRes] = await Promise.all([
-      fetch(API_BASE + '/coaches'),
-      fetch(API_BASE + '/students'),
-      fetch(API_BASE + '/achievements'),
-      fetch(API_BASE + '/events')
+      fetch('/api/coaches'),
+      fetch('/api/students'),
+      fetch('/api/achievements'),
+      fetch('/api/events')
     ]);
+    
+    console.log('API responses:', cRes.status, sRes.status, aRes.status, eRes.status);
     
     allCoaches = await cRes.json();
     allStudents = await sRes.json();
     achievementsData = await aRes.json();
     eventsData = await eRes.json();
+
+    console.log('Data loaded - Coaches:', allCoaches.length, 'Students:', allStudents.length);
 
     // Populate mock credentials from student phone numbers
     mockCredentials = {};
