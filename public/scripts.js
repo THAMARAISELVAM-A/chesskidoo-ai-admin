@@ -456,8 +456,6 @@ async function updateStudent() {
       name: name,
       phone: phone,
       rating: parseInt($('m-elo').value) || 800,
-      grade: $('m-level').value,
-      enrollment_date: $('m-join').value,
       status: 'pending'
     };
 
@@ -592,7 +590,7 @@ async function updateStudent() {
 
     $('fame-grid').innerHTML = achievementsData.map(a => `
       <div class="ach-card">
-        ${role === 'admin' ? `<button class="del-btn" onclick="deleteAchievement('${a.id}')">✕</button>` : ''}
+        ${role === 'admin' || role === 'master' ? `<button class="del-btn" onclick="deleteAchievement('${a.id}')">✕</button>` : ''}
         ${a.img_url ? `<img src="${a.img_url}" class="ach-img">` : `<div class="ach-img-placeholder">🏆</div>`}
         <div class="ach-info"><div class="ach-title">${a.title || 'Achievement'}</div><div class="ach-sub">${(a.students && a.students.full_name) || '—'}</div></div>
       </div>`).join('');
@@ -658,7 +656,7 @@ async function updateStudent() {
         <div class="ev-meta">📍 ${e.location || '—'}<br>🏆 ${e.prize || '—'}</div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-gold btn-sm" style="flex:1" onclick="registerEvent('${e.id}')">Register</button>
-          ${role === 'admin' ? `<button class="btn btn-danger btn-sm" onclick="deleteEvent('${e.id}')">Del</button>` : ''}
+          ${role === 'admin' || role === 'master' ? `<button class="btn btn-danger btn-sm" onclick="deleteEvent('${e.id}')">Del</button>` : ''}
         </div>
       </div>`).join('');
   }
