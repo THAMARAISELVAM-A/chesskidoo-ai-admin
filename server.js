@@ -27,7 +27,7 @@ app.use(express.static(join(__dirname, '../public')));
 
 // Import API routes dynamically
 const apiRoutes = [
-  'students', 'coaches', 'events', 'achievements', 'games', 'payments', 'ai', 'hello'
+  'students', 'coaches', 'events', 'achievements', 'games', 'payments', 'ai', 'hello', 'sessions'
 ];
 
 for (const route of apiRoutes) {

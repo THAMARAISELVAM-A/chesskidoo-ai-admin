@@ -11,6 +11,7 @@
     { "source": "/api/achievements", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/achievements" },
     { "source": "/api/payments", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/payments" },
     { "source": "/api/messages", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/messages" },
-    { "source": "/api/sessions", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/sessions" }
+    { "source": "/api/sessions", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/sessions" },
+    { "source": "/api/security", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/security" }
   ]
 }

