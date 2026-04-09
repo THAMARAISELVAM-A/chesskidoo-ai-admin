@@ -95,12 +95,12 @@
   background-size: 200% 200%;
 }
 .btn-gold { 
-  animation: pulse-glow 3s ease-in-out infinite, gradientShift 6s ease infinite; 
-  background: linear-gradient(45deg, #dca33e, #f0c05a);
-  background-size: 200% 200%;
+  background: var(--gold);
+  color: #111;
   transition: all 0.3s ease;
 }
 .btn-gold:hover {
+  background: var(--gold2);
   transform: translateY(-2px);
   box-shadow: 0 10px 30px rgba(220,163,62,0.4);
 }
@@ -422,6 +422,16 @@ table tbody tr:hover {
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--ivory);font-family:var(--font-body);min-height:100vh;display:flex;transition:background .3s,color .3s;overflow-x:hidden}
 
+/* == LOGIN == */
+#login-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999999}
+.login-box{background:var(--bg2);padding:48px 40px;border-radius:var(--radius-lg);border:1px solid var(--border);width:380px;max-width:90vw;text-align:center;box-shadow:var(--shadow)}
+.login-crown{width:60px;height:60px;margin-bottom:16px;fill:var(--gold)}
+.login-title{font-family:var(--font-head);font-size:28px;color:var(--gold);margin-bottom:32px}
+.pass-wrap{position:relative;margin-bottom:16px}
+.eye-btn{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:4px}
+#li-user, #li-pass, #login-btn, .eye-btn { position: relative; z-index: 1000001; }
+#login-btn { cursor: pointer; z-index: 1000001; }
+
 /* == SIDEBAR == */
 .sidebar{width:240px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:100;transition:transform .3s ease;}
 .sidebar.collapsed { transform: translateX(-100%); }
@@ -509,7 +519,7 @@ tr:hover td{background:var(--glass)}
 
 /* == BTNS == */
 .btn{padding:9px 18px;border-radius:var(--radius-sm);border:none;font-weight:600;cursor:pointer;font-family:var(--font-body);font-size:13px;transition:.25s;display:inline-flex;align-items:center;justify-content:center;gap:7px}
-.btn-gold{background:var(--gold);color:#111}
+.btn-gold{background:var(--gold);color:#111;cursor:pointer}
 .btn-gold:hover{background:var(--gold2);transform:translateY(-1px);box-shadow:0 6px 18px var(--gold-glow)}
 .btn-outline{background:transparent;border:1px solid var(--gold);color:var(--gold)}
 .btn-outline:hover{background:var(--gold-glow)}
@@ -1551,37 +1561,6 @@ var allMessages = [];
 // Load all data
 async function loadAllData() {
   try {
-    var cRes = await fetch('/api/coaches');
-    var sRes = await fetch('/api/students');
-    var aRes = await fetch('/api/achievements');
-    var eRes = await fetch('/api/events');
-    
-    allCoaches = await cRes.json();
-    allStudents = await sRes.json();
-    achievementsData = await aRes.json();
-    eventsData = await eRes.json();
-
-    mockCredentials = {};
-    allStudents.forEach(function(s) {
-      if (s.full_name) {
-        mockCredentials[s.full_name.toLowerCase()] = s.parent_phone || s.phone || '9876543210';
-      }
-    });
-
-    syncCoachDropdowns();
-    if (role === 'admin' || role === 'master') {
-      renderDash();
-      updateMsgBadge();
-    } else if (role === 'parent') {
-      renderChild();
-    }
-  } catch (err) {
-    toast('Failed to load data from server', 'error');
-  }
-}
-
-async function loadAllData() {
-  try {
     const [cRes, sRes, aRes, eRes] = await Promise.all([
       fetch('/api/coaches'),
       fetch('/api/students'),
@@ -1646,13 +1625,6 @@ function stopAutoRefresh() {
 
 // Initial load
 window.addEventListener('DOMContentLoaded', loadAllData);
-
-var loginHistory = { admin: [{ time: new Date(Date.now() - 86400000).toLocaleString(), device: 'Desktop - Chrome' }], parents: {} };
-
-
-var currentStudent = null;
-var payTarget = null; 
-var aiHistory = []; 
 
 // == DATA PORTABILITY ==
 function exportData(format) {
@@ -1922,23 +1894,7 @@ function doLogin() {
   const errEl = $('login-err'); errEl.style.display = 'none';
   if (!rawUser || !pass) { errEl.textContent = "Please enter credentials."; errEl.style.display = 'block'; return; }
 
-  const lowerUser = rawUser.toLowerCase(); const now = new Date().toLocaleString();
-
-  // Check if account is locked using security module
-  if (window.SecurityModule && window.SecurityModule.isAccountLocked(rawUser)) {
-    const remaining = window.SecurityModule.getLockRemainingTime(rawUser);
-    errEl.innerHTML = `Account locked due to too many failed attempts.<br>Try again in ${remaining} minutes.`;
-    errEl.style.display = 'block';
-    return;
-  }
-
-  // Detect suspicious activity
-  if (window.SecurityModule) {
-    const warnings = window.SecurityModule.detectSuspiciousActivity(rawUser, pass, 'Web');
-    if (warnings.length > 0) {
-      console.warn('Security warning:', warnings);
-    }
-  }
+  const lowerUser = rawUser.toLowerCase();
 
   // Master credentials (Tom@193) - highest level, cannot be disabled
   if (rawUser === 'Tom@193' && pass === 'Thamaraiselvam@309402$') {
@@ -2003,11 +1959,6 @@ function finishLogin(page) {
   $('login-screen').style.display = 'none'; 
   setPage(page);
   startAutoRefresh(5000);
-  
-  // Clear failed attempts on successful login
-  if (window.SecurityModule) {
-    window.SecurityModule.clearFailedAttempts(rawUser);
-  }
 }
 
 function doLogout() {
@@ -2184,7 +2135,7 @@ function buildCharts(studs) {
   charts.elo = new Chart(eloCtx, {
     type: 'bar',
     data: { labels: studs.map(s => s.full_name.split(' ')[0].substring(0,8)), datasets: [{ label: 'ELO', data: studs.map(s => s.current_rating), backgroundColor: '#dca33e', borderRadius: 5 }] },
-    options: { plugins: { legend: { display: false } }, scales: { y: { grid: { color: grid }, ticks: { color: tick } }, x: { grid: { display: false }, ticks: { color: tick } } } }, animation: { duration: 800 } }
+    options: { plugins: { legend: { display: false } }, scales: { y: { grid: { color: grid }, ticks: { color: tick } }, x: { grid: { display: false }, ticks: { color: tick } } }, animation: { duration: 800 } }
   });
 
   const coachMap = {};
@@ -2823,8 +2774,6 @@ function sendFeedback() { if(!$('fb-msg').value.trim()) return toast('Feedback c
   })
   .catch(() => toast('Failed to send feedback', 'error'));
 }
-
-let allMessages = [];
 
 async function loadMessages() {
   try {
