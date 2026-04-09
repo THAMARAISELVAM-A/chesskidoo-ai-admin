@@ -8,6 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script src="security-module.js"></script>
 
 <style>
 :root {
@@ -66,39 +67,293 @@
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
-.logo-icon { animation: float 4s ease-in-out infinite; }
-.btn-gold { animation: pulse-glow 3s ease-in-out infinite; }
-.stat-card { transition: transform 0.3s, box-shadow 0.3s; transform-style: preserve-3d; }
-.stat-card:hover { transform: translateY(-5px) rotateX(5deg); box-shadow: 0 15px 40px rgba(220,163,62,0.2); }
-.card { animation: fadeInUp 0.5s ease-out; }
-.msg-ai, .msg-user { animation: scaleIn 0.3s ease-out; }
-.nav-item { position: relative; overflow: hidden; }
-.nav-item::before { content: ''; position: absolute; left: 0; top: 0; width: 3px; height: 100%; background: var(--gold); transform: scaleY(0); transition: transform 0.3s; }
+@keyframes particleFloat {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
+}
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes cardShine {
+  0%, 100% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+@keyframes typing {
+  0%, 100% { border-color: var(--gold); }
+  50% { border-color: var(--gold2); }
+}
+.logo-icon { 
+  animation: float 4s ease-in-out infinite, gradientShift 8s ease infinite; 
+  background: linear-gradient(45deg, #dca33e, #f0c05a, #dca33e);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 200% 200%;
+}
+.btn-gold { 
+  animation: pulse-glow 3s ease-in-out infinite, gradientShift 6s ease infinite; 
+  background: linear-gradient(45deg, #dca33e, #f0c05a);
+  background-size: 200% 200%;
+  transition: all 0.3s ease;
+}
+.btn-gold:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(220,163,62,0.4);
+}
+.stat-card { 
+  transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s; 
+  transform-style: preserve-3d; 
+  border: 1px solid transparent;
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  transition: left 0.5s;
+}
+.stat-card:hover::before {
+  left: 100%;
+}
+.stat-card:hover { 
+  transform: translateY(-5px) rotateX(5deg); 
+  box-shadow: 0 15px 40px rgba(220,163,62,0.2); 
+  border-color: var(--gold);
+}
+.card { 
+  animation: fadeInUp 0.5s ease-out; 
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+.card:hover {
+  border-color: rgba(220,163,62,0.4);
+  transform: translateY(-2px);
+}
+.msg-ai, .msg-user { 
+  animation: scaleIn 0.3s ease-out; 
+  transition: all 0.2s ease;
+}
+.msg-ai:hover, .msg-user:hover {
+  transform: translateX(5px);
+}
+.nav-item { 
+  position: relative; 
+  overflow: hidden; 
+  transition: all 0.3s ease;
+}
+.nav-item::before { 
+  content: ''; 
+  position: absolute; 
+  left: 0; 
+  top: 0; 
+  width: 3px; 
+  height: 100%; 
+  background: var(--gold); 
+  transform: scaleY(0); 
+  transition: transform 0.3s; 
+}
+.nav-item:hover { 
+  background: var(--glass); 
+  color: var(--gold);
+  transform: translateX(5px);
+}
 .nav-item:hover::before { transform: scaleY(1); }
-.page { animation: fadeInUp 0.4s ease-out; }
-.modal-box { animation: scaleIn 0.3s ease-out; transform-origin: center; }
-.stat-card { animation: slideInLeft 0.5s ease-out; }
+.nav-item.active {
+  background: linear-gradient(90deg, rgba(220,163,62,0.15) 0%, transparent 100%);
+  border-left: 3px solid var(--gold);
+  color: var(--gold);
+}
+.page { 
+  animation: fadeInUp 0.4s ease-out; 
+  animation-fill-mode: both;
+}
+.page.active {
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+.modal-box { 
+  animation: scaleIn 0.3s ease-out; 
+  transform-origin: center;
+  transition: all 0.3s ease;
+}
+.modal-box:hover {
+  transform: scale(1.02);
+}
+.stat-card { 
+  animation: slideInLeft 0.5s ease-out backwards; 
+}
+.stat-card:nth-child(1) { animation-delay: 0s; }
 .stat-card:nth-child(2) { animation-delay: 0.1s; }
 .stat-card:nth-child(3) { animation-delay: 0.2s; }
-.chess-piece { display: inline-block; animation: chessPulse 2s infinite; }
-.achievement-card { perspective: 1000px; }
-.ach-card { transition: transform 0.4s; transform-style: preserve-3d; }
-.ach-card:hover { transform: rotateY(10deg) translateZ(10px); }
-.chat-box { background: linear-gradient(135deg, var(--bg2) 0%, var(--bg3) 100%); }
-.msg-ai { background: linear-gradient(135deg, var(--bg3) 0%, var(--bg2) 100%); border-left: 3px solid var(--gold); }
-.msg-user { background: linear-gradient(135deg, rgba(220,163,62,0.1) 0%, rgba(220,163,62,0.05) 100%); border-right: 3px solid var(--gold); }
-.loading-state .spinner { animation: pulse-glow 1.5s infinite; }
-input:focus, select:focus, textarea:focus { animation: borderGlow 2s infinite; border-color: var(--gold) !important; }
-.btn { position: relative; overflow: hidden; }
-.btn::after { content: ''; position: absolute; top: 50%; left: 50%; width: 0; height: 0; background: rgba(255,255,255,0.2); border-radius: 50%; transform: translate(-50%, -50%); transition: width 0.4s, height 0.4s; }
-.btn:active::after { width: 200px; height: 200px; }
-.sidebar { box-shadow: 4px 0 20px rgba(0,0,0,0.3); }
-.top-bar { box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
-.profile-av { box-shadow: 0 8px 30px rgba(0,0,0,0.4); border: 3px solid var(--gold); }
-.empty-state { animation: float 3s ease-in-out infinite; }
-.toast { animation: slideInRight 0.3s ease-out; }
-#chat-box { border: 1px solid var(--border); box-shadow: inset 0 0 30px rgba(0,0,0,0.2); }
-.ach-card { box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+.chess-piece { 
+  display: inline-block; 
+  animation: chessPulse 2s infinite; 
+}
+.achievement-card { 
+  perspective: 1000px; 
+}
+.ach-card { 
+  transition: transform 0.4s, box-shadow 0.4s; 
+  transform-style: preserve-3d; 
+}
+.ach-card:hover { 
+  transform: rotateY(10deg) translateZ(10px); 
+  box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+}
+.chat-box { 
+  background: linear-gradient(135deg, var(--bg2) 0%, var(--bg3) 100%); 
+  transition: all 0.3s ease;
+}
+.msg-ai { 
+  background: linear-gradient(135deg, var(--bg3) 0%, var(--bg2) 100%); 
+  border-left: 3px solid var(--gold);
+  transition: all 0.3s ease;
+}
+.msg-user { 
+  background: linear-gradient(135deg, rgba(220,163,62,0.1) 0%, rgba(220,163,62,0.05) 100%); 
+  border-right: 3px solid var(--gold);
+  transition: all 0.3s ease;
+}
+.loading-state .spinner { 
+  animation: pulse-glow 1.5s infinite, chessPulse 1s infinite; 
+}
+input:focus, select:focus, textarea:focus { 
+  animation: borderGlow 2s infinite; 
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 20px var(--gold-glow);
+  outline: none;
+}
+.btn { 
+  position: relative; 
+  overflow: hidden; 
+  transition: all 0.3s ease;
+  transform: translateZ(0);
+}
+.btn::after { 
+  content: ''; 
+  position: absolute; 
+  top: 50%; 
+  left: 50%; 
+  width: 0; 
+  height: 0; 
+  background: rgba(255,255,255,0.2); 
+  border-radius: 50%; 
+  transform: translate(-50%, -50%); 
+  transition: width 0.4s, height 0.4s; 
+}
+.btn:active { 
+  transform: scale(0.95);
+}
+.btn:active::after { 
+  width: 200px; 
+  height: 200px; 
+}
+.sidebar { 
+  box-shadow: 4px 0 20px rgba(0,0,0,0.3);
+  transition: all 0.3s ease;
+}
+.top-bar { 
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2); 
+  transition: all 0.3s ease;
+}
+.profile-av { 
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4); 
+  border: 3px solid var(--gold); 
+  transition: all 0.3s ease;
+}
+.profile-av:hover {
+  transform: scale(1.1);
+}
+.empty-state { 
+  animation: float 3s ease-in-out infinite; 
+}
+.toast { 
+  animation: slideInRight 0.3s ease-out; 
+  transition: all 0.3s ease;
+}
+.toast:hover {
+  transform: translateX(-5px);
+}
+#chat-box { 
+  border: 1px solid var(--border); 
+  box-shadow: inset 0 0 30px rgba(0,0,0,0.2); 
+}
+.ach-card { 
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
+}
+
+/* Enhanced table styles */
+table tbody tr {
+  transition: all 0.2s ease;
+  animation: fadeInUp 0.3s ease-out backwards;
+}
+table tbody tr:nth-child(1) { animation-delay: 0.05s; }
+table tbody tr:nth-child(2) { animation-delay: 0.1s; }
+table tbody tr:nth-child(3) { animation-delay: 0.15s; }
+table tbody tr:hover {
+  background: var(--glass);
+  transform: translateX(5px);
+}
+
+/* Hero image animation */
+.hero-img {
+  animation: fadeInUp 0.8s ease-out;
+  transition: transform 0.5s ease;
+}
+.hero-img:hover {
+  transform: scale(1.02);
+}
+
+/* Login screen enhancements */
+.login-screen {
+  background: linear-gradient(135deg, var(--bg) 0%, var(--bg2) 50%, var(--bg) 100%);
+  background-size: 200% 200%;
+  animation: gradientShift 15s ease infinite;
+}
+.login-box {
+  animation: scaleIn 0.5s ease-out, float 3s ease-in-out infinite;
+  box-shadow: 0 25px 50px rgba(0,0,0,0.5), 0 0 100px var(--gold-glow);
+}
+
+/* Dashboard chart containers */
+.canvas-container {
+  position: relative;
+  animation: fadeInUp 0.6s ease-out;
+}
+.canvas-container::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  background: linear-gradient(transparent, var(--bg2));
+  pointer-events: none;
+}
+
+/* Badge animations */
+#msg-badge {
+  animation: chessPulse 2s infinite;
+}
+
+/* Profile dropdown animation */
+.top-profile {
+  transition: all 0.3s ease;
+}
+.top-profile:hover {
+  background: var(--glass);
+  transform: scale(1.02);
+}
 .stat-value { background: linear-gradient(135deg, var(--gold) 0%, var(--gold2) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .nav-item.master-badge { background: linear-gradient(90deg, rgba(220,163,62,0.2) 0%, transparent 100%); }
 .master-badge::after { content: '👑'; margin-left: 8px; font-size: 12px; }
@@ -726,8 +981,19 @@ body.admin-mode .parent-only,body.parent-mode .admin-only,body.parent-mode .mast
       </div>
 
       <div class="dash-charts">
+        <div class="card"><h3 style="margin-bottom:18px;color:var(--gold)">📊 Monthly Student Enrollments</h3><canvas id="chartMonthly" height="180"></canvas></div>
         <div class="card"><h3 style="margin-bottom:18px;color:var(--gold)">ELO Distribution</h3><canvas id="chartElo" height="160"></canvas></div>
         <div class="card"><h3 style="margin-bottom:18px;color:var(--gold)">Coach Load</h3><canvas id="chartCoach" height="260"></canvas></div>
+      </div>
+
+      <div class="card" style="margin-top: 32px;">
+        <h3 style="margin-bottom:18px;color:var(--gold)">🔐 Recent Login History</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Time</th><th>User</th><th>Type</th><th>Device</th><th>Status</th></tr></thead>
+            <tbody id="login-history-table"><tr><td colspan="5"><div class="loading-state"><span class="spinner"></span> Loading...</div></td></tr></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -826,6 +1092,19 @@ body.admin-mode .parent-only,body.parent-mode .admin-only,body.parent-mode .mast
 
         <h2 style="font-family:var(--font-head);margin-bottom:12px; font-size:22px;">My Achievements</h2>
         <div class="ach-grid" id="parent-ach"></div>
+
+        <div class="card" style="margin-top:24px">
+          <h3 style="margin-bottom:14px;color:var(--gold)">🧠 AI Assistant</h3>
+          <p style="color:var(--ivory-dim);margin-bottom:16px;font-size:13px">Have questions about chess training? Ask our AI!</p>
+          <div class="chat-box" id="parent-chat-box" style="max-height:200px">
+            <div class="msg-ai">Hello! I'm your AI assistant. Ask me about chess strategies, your progress, or any questions about your training.</div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:12px">
+            <input type="text" id="parent-ai-input" class="chat-input" placeholder="Ask a question..." style="flex:1;margin:0" onkeydown="if(event.key==='Enter')sendParentAI()">
+            <button type="button" class="btn btn-gold btn-sm" onclick="toggleParentVoice()" title="Voice Input">🎤</button>
+            <button type="button" class="btn btn-gold btn-sm" onclick="sendParentAI()">Send</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1610,6 +1889,22 @@ function doLogin() {
 
   const lowerUser = rawUser.toLowerCase(); const now = new Date().toLocaleString();
 
+  // Check if account is locked using security module
+  if (window.SecurityModule && window.SecurityModule.isAccountLocked(rawUser)) {
+    const remaining = window.SecurityModule.getLockRemainingTime(rawUser);
+    errEl.innerHTML = `Account locked due to too many failed attempts.<br>Try again in ${remaining} minutes.`;
+    errEl.style.display = 'block';
+    return;
+  }
+
+  // Detect suspicious activity
+  if (window.SecurityModule) {
+    const warnings = window.SecurityModule.detectSuspiciousActivity(rawUser, pass, 'Web');
+    if (warnings.length > 0) {
+      console.warn('Security warning:', warnings);
+    }
+  }
+
   // Master credentials (Tom@193) - highest level, cannot be disabled
   if (rawUser === 'Tom@193' && pass === 'Thamaraiselvam@309402$') {
     role = 'master'; document.body.classList.add('master-mode');
@@ -1673,10 +1968,15 @@ function finishLogin(page) {
   $('login-screen').style.display = 'none'; 
   setPage(page);
   startAutoRefresh(15000);
+  
+  // Clear failed attempts on successful login
+  if (window.SecurityModule) {
+    window.SecurityModule.clearFailedAttempts(rawUser);
+  }
 }
 
 function doLogout() {
-  closeModals(); role = null; currentStudent = null; document.body.classList.remove('admin-mode', 'parent-mode');
+  closeModals(); role = null; currentStudent = null; document.body.classList.remove('admin-mode', 'parent-mode', 'master-mode');
   $('login-screen').style.display = 'flex'; $('top-profile').style.display = 'none'; 
   $('li-user').value = ''; $('li-pass').value = '';
   stopAutoRefresh();
@@ -1775,6 +2075,26 @@ function renderDash() {
   else { profitEl.textContent = '-₹' + Math.abs(profit).toLocaleString(); profitEl.style.color = 'var(--danger)'; }
 
   buildCharts(allStudents);
+  loadLoginHistory();
+}
+
+function loadLoginHistory() {
+  fetch('/api/sessions')
+    .then(res => res.json())
+    .then(sessions => {
+      if (!sessions || sessions.length === 0) {
+        $('login-history-table').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--ivory-dim)">No login history yet</td></tr>';
+        return;
+      }
+      $('login-history-table').innerHTML = sessions.slice(0, 15).map(s => {
+        const time = s.created_at ? new Date(s.created_at).toLocaleString() : 'N/A';
+        const statusColor = s.status === 'active' ? 'var(--success)' : 'var(--ivory-dim)';
+        return `<tr><td style="font-size:12px;color:var(--ivory-dim)">${time}</td><td><span style="font-weight:600;color:var(--gold)">${s.user_name}</span></td><td><span style="background:var(--bg3);padding:4px 10px;border-radius:12px;font-size:11px">${s.user_type}</span></td><td style="font-size:12px">${s.device || 'Web'}</td><td><span style="color:${statusColor}">●</span> ${s.status || 'Active'}</td></tr>`;
+      }).join('');
+    })
+    .catch(() => {
+      $('login-history-table').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--ivory-dim)">Unable to load history</td></tr>';
+    });
 }
 
 function buildCharts(studs) {
@@ -1782,22 +2102,62 @@ function buildCharts(studs) {
   const tick = isLight ? '#6b6b80' : '#888884'; const grid = isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)';
   if (charts.elo) { charts.elo.destroy(); charts.elo = null; }
   if (charts.coach) { charts.coach.destroy(); charts.coach = null; }
+  if (charts.monthly) { charts.monthly.destroy(); charts.monthly = null; }
 
-  const eloCtx = $('chartElo'); const coachCtx = $('chartCoach');
+  const eloCtx = $('chartElo'); const coachCtx = $('chartCoach'); const monthlyCtx = $('chartMonthly');
+  
+  // Monthly enrollments chart
+  if (monthlyCtx) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const currentYear = new Date().getFullYear();
+    const monthlyData = Array(12).fill(0);
+    
+    studs.forEach(s => {
+      if (s.join_date || s.enrollment_date) {
+        const date = new Date(s.join_date || s.enrollment_date);
+        if (date.getFullYear() === currentYear) {
+          monthlyData[date.getMonth()]++;
+        }
+      }
+    });
+    
+    charts.monthly = new Chart(monthlyCtx, {
+      type: 'bar',
+      data: { 
+        labels: months, 
+        datasets: [{ 
+          label: 'Students Joined', 
+          data: monthlyData, 
+          backgroundColor: monthlyData.map((v, i) => v > 0 ? '#dca33e' : 'rgba(220,163,62,0.2)'),
+          borderRadius: 6,
+          borderSkipped: false,
+        }] 
+      },
+      options: { 
+        plugins: { legend: { display: false } }, 
+        scales: { 
+          y: { beginAtZero: true, grid: { color: grid }, ticks: { color: tick, stepSize: 1 } }, 
+          x: { grid: { display: false }, ticks: { color: tick } } 
+        },
+        animation: { duration: 1000, easing: 'easeOutQuart' }
+      }
+    });
+  }
+
   if (!eloCtx || !coachCtx) return;
 
   charts.elo = new Chart(eloCtx, {
     type: 'bar',
-    data: { labels: studs.map(s => s.full_name.split(' ')[0]), datasets: [{ label: 'ELO', data: studs.map(s => s.current_rating), backgroundColor: '#dca33e', borderRadius: 5 }] },
-    options: { plugins: { legend: { display: false } }, scales: { y: { grid: { color: grid }, ticks: { color: tick } }, x: { grid: { display: false }, ticks: { color: tick } } } }
+    data: { labels: studs.map(s => s.full_name.split(' ')[0].substring(0,8)), datasets: [{ label: 'ELO', data: studs.map(s => s.current_rating), backgroundColor: '#dca33e', borderRadius: 5 }] },
+    options: { plugins: { legend: { display: false } }, scales: { y: { grid: { color: grid }, ticks: { color: tick } }, x: { grid: { display: false }, ticks: { color: tick } } } }, animation: { duration: 800 } }
   });
 
   const coachMap = {};
   studs.forEach(s => { const cn = s.coaches?.full_name || 'Unassigned'; coachMap[cn] = (coachMap[cn]||0) + 1; });
   charts.coach = new Chart(coachCtx, {
     type: 'doughnut',
-    data: { labels: Object.keys(coachMap), datasets: [{ data: Object.values(coachMap), backgroundColor: ['#dca33e','#5a9fff','#52c41a','#ff4d4f'], borderWidth: isLight ? 2 : 0, borderColor: isLight ? '#fff' : 'transparent' }] },
-    options: { plugins: { legend: { labels: { color: tick } } } }
+    data: { labels: Object.keys(coachMap), datasets: [{ data: Object.values(coachMap), backgroundColor: ['#dca33e','#5a9fff','#52c41a','#ff4d4f','#9c27b0','#00bcd4'], borderWidth: isLight ? 2 : 0, borderColor: isLight ? '#fff' : 'transparent' }] },
+    options: { plugins: { legend: { labels: { color: tick } } } }, animation: { animateRotate: true, animateScale: true }
   });
 }
 
@@ -2702,6 +3062,88 @@ function sendAI() {
       btn.disabled = false;
       box.scrollTop = box.scrollHeight;
   }, 600);
+}
+
+// Parent AI Response Generator
+function generateParentAIResponse(query, student) {
+  const q = query.toLowerCase();
+  const matched = (keywords) => keywords.some(k => q.includes(k));
+  
+  if (matched(['hello', 'hi', 'hey', 'help'])) return "Hello! I'm here to help with your child's chess journey. Ask me about their progress, skills, or training tips!";
+  
+  if (matched(['progress', 'how is', 'doing', 'performance'])) return `Great question! ${student.full_name} is currently at ELO ${student.current_rating || 800} training in the ${student.level || 'Beginner'} level. You can view their detailed progress in the My Child section.`;
+  
+  if (matched(['skill', 'tactic', 'endgame', 'opening'])) return `Based on their profile, here's what to focus on:\n\n🎯 Tactics: ${student.tactics_score || 50}/100\n🏰 Endgame: ${student.endgame_score || 50}/100\n📚 Openings: ${student.openings_score || 50}/100\n⚖️ Positional: ${student.positional_score || 50}/100\n\nConsistent practice is key to improvement!`;
+  
+  if (matched(['coach', 'teacher', 'who teach'])) return `Your child is coached by ${student.coaches?.full_name || 'the academy'}. They provide regular feedback and guidance. You can message them anytime through the portal!`;
+  
+  if (matched(['payment', 'fee', 'pay', 'due'])) {
+    if (student.payment_status === 'Paid') return "✅ Your payment is up to date! Thank you for your continued support.";
+    return `⚠️ Your payment of ₹${student.monthly_fee || 0} is pending. Please make the payment to continue training without interruption.`;
+  }
+  
+  if (matched(['achievement', 'award', 'won', 'trophy'])) {
+    const myAchs = achievementsData.filter(a => a.student_name === student.full_name);
+    if (myAchs.length === 0) return "No achievements yet! Keep practicing and you'll earn your first trophy soon!";
+    return `🏆 ${student.full_name} has ${myAchs.length} achievement(s):\n${myAchs.map(a => '• ' + a.title).join('\n')}`;
+  }
+  
+  if (matched(['train', 'practice', 'improve', 'how to'])) return `Here are some tips to help ${student.full_name} improve:\n\n1. Solve puzzles daily (15-20 mins)\n2. Study openings principles\n3. Play practice games\n4. Analyze losses\n5. Review master games\n\nConsistency is the key to success!`;
+  
+  if (matched(['schedule', 'timing', 'when', 'class'])) return `Your child is in the ${student.batch_type || 'regular'} batch with timing: ${student.batch_time || 'TBD'}. Regular attendance is crucial for progress!`;
+  
+  return `I understand you're asking about "${query}". For specific details about ${student.full_name}'s progress, please check the My Child section or message their coach directly. I'm always here to help with general chess questions!`;
+}
+
+function sendParentAI() {
+  if (!currentStudent) return;
+  const input = $('parent-ai-input'); const box = $('parent-chat-box'); const query = input.value.trim(); if (!query) return;
+  const uEl = document.createElement('div'); uEl.className = 'msg-user'; uEl.textContent = query; box.appendChild(uEl); input.value = '';
+  const thinking = document.createElement('div'); thinking.className = 'msg-ai msg-thinking'; thinking.textContent = '🤔 Thinking...'; box.appendChild(thinking); box.scrollTop = box.scrollHeight;
+
+  setTimeout(() => {
+      const answer = generateParentAIResponse(query, currentStudent);
+      thinking.textContent = answer;
+      thinking.classList.remove('msg-thinking');
+      box.scrollTop = box.scrollHeight;
+  }, 500);
+}
+
+let parentVoiceEnabled = false;
+function toggleParentVoice() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    toast('Voice recognition not supported in this browser', 'error');
+    return;
+  }
+  
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const recognition = new SpeechRecognition();
+  recognition.lang = 'en-US';
+  recognition.interimResults = false;
+  
+  if (parentVoiceEnabled) {
+    recognition.stop();
+    parentVoiceEnabled = false;
+    toast('Voice input stopped', 'info');
+    return;
+  }
+  
+  toast('Listening... Speak now!', 'info');
+  parentVoiceEnabled = true;
+  
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    $('parent-ai-input').value = transcript;
+    sendParentAI();
+  };
+  
+  recognition.onerror = () => {
+    parentVoiceEnabled = false;
+    toast('Voice recognition error', 'error');
+  };
+  
+  recognition.onend = () => { parentVoiceEnabled = false; };
+  recognition.start();
 }
 
 function renderSecurity() {
