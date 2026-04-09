@@ -29,7 +29,7 @@
   --shadow:0 10px 30px rgba(0,0,0,0.07);
 }
 
-/* ── 3D ANIMATIONS & ENHANCED EFFECTS ── */
+/* == 3D ANIMATIONS & ENHANCED EFFECTS == */
 @keyframes float {
   0%, 100% { transform: translateY(0px) rotateY(0deg); }
   50% { transform: translateY(-10px) rotateY(5deg); }
@@ -360,7 +360,7 @@ table tbody tr:hover {
 .chat-input { background: linear-gradient(135deg, var(--bg3) 0%, var(--bg2) 100%); border: 1px solid var(--border); }
 .chat-input:focus { border-color: var(--gold); box-shadow: 0 0 20px var(--gold-glow); }
 
-/* ── RESPONSIVE ENHANCEMENTS ── */
+/* == RESPONSIVE ENHANCEMENTS == */
 @media (max-width: 768px) {
   .stat-card:hover { transform: none; }
   .nav-item::before { display: none; }
@@ -423,7 +423,7 @@ table tbody tr:hover {
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--ivory);font-family:var(--font-body);min-height:100vh;display:flex;transition:background .3s,color .3s;overflow-x:hidden}
 
-/* ── SIDEBAR ── */
+/* == SIDEBAR == */
 .sidebar{width:240px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:100;transition:transform .3s ease;}
 .sidebar.collapsed { transform: translateX(-100%); }
 .logo{padding:28px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border)}
@@ -439,7 +439,7 @@ body{background:var(--bg);color:var(--ivory);font-family:var(--font-body);min-he
 }
 .nav-item .ico{font-size:16px;min-width:20px;text-align:center}
 
-/* ── MAIN ── */
+/* == MAIN == */
 .main{margin-left:240px;flex:1;display:flex;flex-direction:column;min-height:100vh;transition:margin-left .3s ease; width: calc(100% - 240px);}
 .main.expanded { margin-left: 0; width: 100%; }
 
@@ -448,7 +448,7 @@ body{background:var(--bg);color:var(--ivory);font-family:var(--font-body);min-he
 .top-nav-right{display:flex;align-items:center;gap:20px;}
 .content{padding:28px 36px 48px}
 
-/* ── 3-STRIPE MENU TOGGLE ── */
+/* == 3-STRIPE MENU TOGGLE == */
 .menu-toggle {
   display: flex;
   align-items: center;
@@ -478,7 +478,7 @@ body{background:var(--bg);color:var(--ivory);font-family:var(--font-body);min-he
 }
 .sidebar-overlay.active { display: block; opacity: 1; }
 
-/* ── TOP PROFILE ── */
+/* == TOP PROFILE == */
 .top-profile{display:flex;align-items:center;gap:12px;cursor:pointer;padding:6px 12px;border-radius:var(--radius-sm);transition:.2s;}
 .top-profile:hover{background:var(--glass);}
 .top-profile-av{width:36px;height:36px;border-radius:50%;border:2px solid var(--gold);object-fit:cover;}
@@ -486,14 +486,14 @@ body{background:var(--bg);color:var(--ivory);font-family:var(--font-body);min-he
 .top-profile-hello{font-size:11px;color:var(--ivory-dim);line-height:1.2;}
 .top-profile-name{font-size:14px;color:var(--ivory);font-weight:600;}
 
-/* ── HERO & CARDS ── */
+/* == HERO & CARDS == */
 .hero-img{width:100%;height:210px;border-radius:var(--radius-lg);object-fit:cover;margin-bottom:28px;border:1px solid var(--border);object-position:center 35%;box-shadow:var(--shadow)}
 .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;transition:.25s;box-shadow:var(--shadow); min-width: 0;}
 .card:hover{border-color:rgba(212,175,55,0.35)}
 .stat-label{font-size:10px;text-transform:uppercase;color:var(--ivory-dim);letter-spacing:1.5px;margin-bottom:8px;font-weight:700}
 .stat-value{font-size:30px;font-weight:700;color:var(--gold);font-family:'DM Mono',monospace}
 
-/* ── TABLE ── */
+/* == TABLE == */
 .table-wrap{background:var(--bg2);border-radius:var(--radius-lg);border:1px solid var(--border);overflow:hidden;box-shadow:var(--shadow);overflow-x:auto;}
 table{width:100%;border-collapse:collapse;min-width:600px;}
 th{text-align:left;padding:16px 18px;font-size:11px;color:var(--ivory-dim);border-bottom:1px solid var(--border);background:var(--glass);font-weight:700;letter-spacing:.5px;text-transform:uppercase}
@@ -503,12 +503,12 @@ tr:hover td{background:var(--glass)}
 .av-cell{display:flex;align-items:center;gap:11px;font-weight:600}
 .av-sm{width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid var(--border);flex-shrink:0}
 
-/* ── TEXT FORMATTING ── */
+/* == TEXT FORMATTING == */
 .text-gold { color: var(--gold); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
 .text-success { color: var(--success); font-weight: 700; }
 .text-danger { color: var(--danger); font-weight: 700; }
 
-/* ── BTNS ── */
+/* == BTNS == */
 .btn{padding:9px 18px;border-radius:var(--radius-sm);border:none;font-weight:600;cursor:pointer;font-family:var(--font-body);font-size:13px;transition:.25s;display:inline-flex;align-items:center;justify-content:center;gap:7px}
 .btn-gold{background:var(--gold);color:#111}
 .btn-gold:hover{background:var(--gold2);transform:translateY(-1px);box-shadow:0 6px 18px var(--gold-glow)}
@@ -523,13 +523,13 @@ tr:hover td{background:var(--glass)}
 .btn-danger{background:transparent;border:1px solid var(--danger);color:var(--danger)}
 .btn-danger:hover{background:rgba(255,77,79,.1)}
 
-/* ── BADGES ── */
+/* == BADGES == */
 .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.3px}
 .badge-paid{background:rgba(82,196,26,.15);color:var(--success)}
 .badge-due{background:rgba(255,77,79,.15);color:var(--danger)}
 .badge-level{background:var(--gold-glow);color:var(--gold);text-transform:uppercase}
 
-/* ── NEW PREMIUM PROFILE HEADER ── */
+/* == NEW PREMIUM PROFILE HEADER == */
 .profile-hdr {
   display: flex;
   align-items: center;
@@ -576,7 +576,7 @@ tr:hover td{background:var(--glass)}
   gap: 12px;
 }
 
-/* ── MODALS ── */
+/* == MODALS == */
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;z-index:3000;backdrop-filter:blur(5px)}
 .modal-box{background:var(--bg2);width:480px;max-width:94vw;padding:36px;border-radius:var(--radius-lg);border:1px solid var(--border);position:relative;box-shadow:var(--shadow)}
 .modal-title{font-family:var(--font-head);font-size:22px;color:var(--gold);margin-bottom:6px}
@@ -591,12 +591,12 @@ input[type="time"], input[type="date"] { color-scheme: dark; }
 .history-item { margin-bottom: 8px; border-bottom: 1px solid var(--glass); padding-bottom: 8px; font-size: 13px;}
 .history-item span { color: var(--ivory-dim); font-size: 11px; display: block; margin-top: 2px;}
 
-/* ── SCHEDULE UI ── */
+/* == SCHEDULE UI == */
 .schedule-day { display: flex; justify-content: space-between; padding: 12px 16px; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 8px;}
 .schedule-day b { color: var(--gold); }
 .schedule-time { color: var(--ivory); font-family: 'DM Mono', monospace; font-size: 13px;}
 
-/* ── ACHIEVEMENT GRID ── */
+/* == ACHIEVEMENT GRID == */
 .ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:22px;margin-top:18px}
 .ach-card{position:relative;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;transition:.3s;box-shadow:var(--shadow);cursor:default}
 .ach-card:hover{transform:translateY(-4px);border-color:var(--gold);box-shadow:0 12px 35px rgba(0,0,0,.35)}
@@ -608,7 +608,7 @@ input[type="time"], input[type="date"] { color-scheme: dark; }
 .del-btn{position:absolute;top:10px;right:10px;background:var(--danger);color:#fff;border:none;border-radius:50%;width:26px;height:26px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.4);transition:.2s;z-index:5}
 .del-btn:hover{transform:scale(1.15);background:#e03033}
 
-/* ── EVENTS ── */
+/* == EVENTS == */
 .ev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:22px}
 .ev-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:22px;position:relative;transition:.25s;box-shadow:var(--shadow)}
 .ev-card:hover{border-color:var(--gold)}
@@ -617,13 +617,13 @@ input[type="time"], input[type="date"] { color-scheme: dark; }
 .ev-title{font-family:var(--font-head);font-size:17px;color:var(--ivory);margin-bottom:10px}
 .ev-meta{font-size:12px;color:var(--ivory-dim);line-height:1.8;margin-bottom:16px}
 
-/* ── CHAT ── */
+/* == CHAT == */
 .chat-box{flex:1;overflow-y:auto;padding:4px 0 16px;display:flex;flex-direction:column;gap:10px}
 .msg-ai{max-width:82%;padding:12px 16px;border-radius:12px 12px 12px 3px;font-size:14px;line-height:1.6;background:var(--bg3);color:var(--ivory);border-left:3px solid var(--gold);border-top:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border);align-self:flex-start; white-space: pre-wrap;}
 .msg-user{max-width:82%;padding:12px 16px;border-radius:12px 12px 3px 12px;font-size:14px;line-height:1.6;background:var(--gold);color:#000;font-weight:500;align-self:flex-end}
 .msg-thinking{opacity:.6;font-style:italic}
 
-/* ════════════════ LOGIN SCREEN ════════════════ */
+/* ===================== LOGIN SCREEN ===================== */
 #login-screen {
   position: fixed;
   inset: 0;
@@ -686,7 +686,7 @@ input[type="time"], input[type="date"] { color-scheme: dark; }
 }
 .login-box .btn-gold { width: 100%; padding: 16px; font-size: 15px; border-radius: 8px;}
 
-/* ── UPI & MISC ── */
+/* == UPI & MISC == */
 .upi-list{display:flex;flex-direction:column;gap:11px;margin:22px 0}
 .upi-item{display:flex;align-items:center;gap:14px;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:.2s}
 .upi-item:hover{border-color:var(--gold);transform:scale(1.01)}
@@ -696,7 +696,7 @@ input[type="time"], input[type="date"] { color-scheme: dark; }
 .upload-zone input{display:none}
 .upload-preview{width:100%;height:120px;object-fit:cover;border-radius:var(--radius-sm);margin-bottom:13px;display:none}
 
-/* ── FILTERS ── */
+/* == FILTERS == */
 .filter-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 16px; background: var(--bg3); border-radius: var(--radius-sm); margin-bottom: 20px; border: 1px solid var(--border); }
 .filter-bar select, .filter-bar input { margin-bottom: 0; padding: 8px 12px; font-size: 13px; max-width: 140px; }
 
@@ -711,18 +711,18 @@ body.parent-mode .admin-only,body.parent-mode .master-only,body.master-mode .par
 .toast-info{background:var(--bg3);border:1px solid var(--border);color:var(--ivory)}
 @keyframes slideIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
 
-/* ── DASHBOARD GRID LAYOUTS ── */
+/* == DASHBOARD GRID LAYOUTS == */
 .dash-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:22px; margin-bottom:22px; }
 .dash-charts { display:grid; grid-template-columns:1.5fr 1fr; gap:22px; }
 
-/* ── LOADING ── */
+/* == LOADING == */
 .spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(212,175,55,.3);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading-state{display:flex;align-items:center;justify-content:center;padding:60px;color:var(--ivory-dim);gap:14px;font-size:14px}
 .empty-state{text-align:center;padding:60px;color:var(--ivory-dim)}
 .empty-state .empty-icon{font-size:48px;margin-bottom:14px}
 
-/* ── RESPONSIVE ── */
+/* == RESPONSIVE == */
 /* Mobile Phones (320px - 480px) */
 @media screen and (max-width: 480px) {
   .sidebar { transform: translateX(-100%); width: 280px; box-shadow: var(--shadow); }
@@ -1533,7 +1533,7 @@ body.parent-mode .admin-only,body.parent-mode .master-only,body.master-mode .par
 </div>
 
 <script>
-// ── DATABASE STATE ───────────────────────
+// == DATABASE STATE =======================
 let allCoaches = [];
 let allStudents = [];
 let achievementsData = [];
@@ -1595,7 +1595,7 @@ function startAutoRefresh(intervalMs = 5000) {
   autoRefreshInterval = setInterval(() => {
     if (role) {
       loadAllData();
-      console.log('🔄 Auto-refreshed data');
+      console.log('Auto-refreshed data');
     }
   }, intervalMs);
 }
@@ -1619,7 +1619,7 @@ let charts = {};
 let payTarget = null; 
 let aiHistory = []; 
 
-// ── DATA PORTABILITY ──
+// == DATA PORTABILITY ==
 function exportData(format) {
   if (!allStudents.length) return toast('No data to export', 'error');
   
@@ -1816,7 +1816,7 @@ function downloadTemplate(format) {
   toast(`Template downloaded: ${filename}`, 'success');
 }
 
-// ── UTILS & VALIDATION ──
+// == UTILS & VALIDATION ==
 const $ = id => document.getElementById(id);
 const isValidPhone = p => /^\d{10}$/.test(p);
 const formatTime = time24 => {
@@ -1875,7 +1875,7 @@ function toggleSidebar() {
   }
 }
 
-// ── LOGIN / PROFILES ──
+// == LOGIN / PROFILES ==
 function toggleEye() {
   const p = $('li-pass'); const icon = $('eye-icon');
   if (p.type === 'password') { p.type = 'text'; icon.innerHTML = `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>`; } 
@@ -2026,7 +2026,7 @@ function openProfile() {
   openModal('profile-modal');
 }
 
-// ── NAVIGATION ──
+// == NAVIGATION ==
 const PAGE_TITLES = { dash:'Academy Overview', stud:'Student Registry', 'coach-mgmt':'Coach Management', child:'My Child\'s Progress', fame:'Wall of Fame', events:'Upcoming Events', bills:'Financials & Payments', msgs:'Messages & Feedback', coach:'AI Intelligence Hub', security:'Security Logs' };
 
 function setPage(p) {
@@ -2056,7 +2056,7 @@ function setPage(p) {
   }, 100);
 }
 
-// ── DASHBOARD ──
+// == DASHBOARD ==
 function renderDash() {
   const paidStudents = allStudents.filter(s => s.payment_status === 'Paid');
   const avgElo = allStudents.length ? Math.round(allStudents.reduce((a,s) => a + (s.current_rating||0), 0) / allStudents.length) : 0;
@@ -2161,7 +2161,7 @@ function buildCharts(studs) {
   });
 }
 
-// ── STUDENTS & FILTERS ──
+// == STUDENTS & FILTERS ==
 function clearFilters() {
     $('f-coach').value = ''; $('f-status').value = ''; $('f-gender').value = '';
     $('f-min-fee').value = ''; $('f-max-fee').value = ''; $('f-date').value = ''; $('f-awards').value = '';
@@ -2209,7 +2209,7 @@ function renderStudents() {
   `).join('');
 }
 
-// ── NEW: STUDENT VIEW ──
+// == NEW: STUDENT VIEW ==
 function viewStudent(id) {
     const s = allStudents.find(x => x.id === id);
     if(!s) return;
@@ -2309,7 +2309,7 @@ function viewStudentFeedback(studentId) {
     .catch(() => toast('Failed to load feedback', 'error'));
 }
 
-// ── COACH MANAGEMENT ──
+// == COACH MANAGEMENT ==
 function renderCoachMgmt() {
   const tbody = $('coach-mgmt-body');
   if (!allCoaches.length) { tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state">No coaches found.</div></td></tr>`; return; }
@@ -2331,7 +2331,7 @@ function renderCoachMgmt() {
   }).join('');
 }
 
-// ── NEW: COACH SCHEDULE ──
+// == NEW: COACH SCHEDULE ==
 function viewCoachSchedule(id) {
     const c = allCoaches.find(x => x.id === id);
     if(!c) return;
@@ -2420,7 +2420,7 @@ function deleteCoach(id) {
 }
 
 
-// ── EDIT/ENROLL STUDENT ──
+// == EDIT/ENROLL STUDENT ==
 function openEdit(id) {
   const s = allStudents.find(x => x.id === id);
   if (!s) return;
@@ -2525,7 +2525,7 @@ function deleteStudent(id, name) {
 }
 
 
-// ── WALL OF FAME ──
+// == WALL OF FAME ==
 function renderFame() {
   $('fame-loading').style.display = 'none'; $('fame-grid').style.display = 'grid';
   if (!achievementsData.length) { $('fame-grid').innerHTML = `<div class="empty-state" style="grid-column:1/-1; padding: 100px 0;"><div class="empty-icon" style="font-size: 60px; margin-bottom: 20px;">🏆</div><p style="font-size:16px;">No achievements yet.</p></div>`; return; }
@@ -2579,7 +2579,7 @@ function deleteAchievement(id) {
 }
 
 
-// ── EVENTS ──
+// == EVENTS ==
 function renderEvents() {
   $('ev-loading').style.display = 'none'; $('ev-grid').style.display = 'grid';
   if (!eventsData.length) { $('ev-grid').innerHTML = `<div class="empty-state"><div class="empty-icon">📅</div><p>No events scheduled. Create one!</p></div>`; return; }
@@ -2639,7 +2639,7 @@ function registerEvent(eventId) {
 }
 
 
-// ── PAYMENTS ──
+// == PAYMENTS ==
 function renderBills() {
   const tbody = $('bill-body'); let studs = role === 'admin' ? allStudents : (currentStudent ? [currentStudent] : []);
   if (!studs.length) { tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">💳</div><p>No payment records.</p></div></td></tr>`; return; }
@@ -2922,7 +2922,7 @@ function deleteMsg(id) {
   .catch(() => toast('Failed to delete', 'error'));
 }
 
-// ── CHILD VIEW ──
+// == CHILD VIEW ==
 function renderChild() {
   if (!currentStudent) return; const s = currentStudent;
   $('c-name').textContent = s.full_name; $('c-elo').textContent = s.current_rating || 800; $('c-level').textContent = s.level || 'Beginner';
@@ -2943,7 +2943,7 @@ function renderChild() {
   $('child-loading').style.display = 'none'; $('child-content').style.display = 'block';
 }
 
-// ── AI ASSISTANT ──
+// == AI ASSISTANT ==
 function generateAIResponse(query) {
   const q = query.toLowerCase();
   const matched = (keywords) => keywords.some(k => q.includes(k));
@@ -3270,7 +3270,7 @@ function toggleTheme() {
   document.body.setAttribute('data-theme', next); if (document.querySelector('.page.active')?.id === 'page-dash') renderDash();
 }
 </script>
-<!-- ── HIDDEN PRINT RECEIPT ── -->
+<!-- == HIDDEN PRINT RECEIPT == -->
 <div id="receipt-print-area">
   <div class="invoice-header">
     <div class="invoice-logo">CHESSKIDOO ACADEMY</div>
