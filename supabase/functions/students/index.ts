@@ -123,11 +123,24 @@ Deno.serve(async (req) => {
       const updateData = { 
         name: body.full_name || body.name,
         phone: body.parent_phone || body.phone,
+        parent_phone: body.parent_phone || body.phone,
+        gender: body.gender,
         grade: body.level || body.grade,
+        level: body.level,
         enrollment_date: body.join_date || body.enrollment_date,
+        join_date: body.join_date || body.enrollment_date,
         rating: body.current_rating || body.rating,
+        current_rating: body.current_rating || body.rating,
         coach_id: body.coaches?.id || body.coach_id,
+        monthly_fee: body.monthly_fee,
+        payment_status: body.payment_status,
         status: body.payment_status === 'Paid' ? 'active' : 'pending',
+        batch_type: body.batch_type,
+        batch_time: body.batch_time,
+        tactics_score: body.tactics_score,
+        endgame_score: body.endgame_score,
+        openings_score: body.openings_score,
+        positional_score: body.positional_score,
         updated_at: new Date().toISOString()
       };
       
