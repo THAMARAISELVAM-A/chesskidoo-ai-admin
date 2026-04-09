@@ -470,13 +470,13 @@ body{background:var(--bg);color:var(--ivory);font-family:var(--font-body);min-he
 .nav-item .ico{font-size:16px;min-width:20px;text-align:center}
 
 /* == MAIN == */
-.main{margin-left:240px;flex:1;display:flex;flex-direction:column;min-height:100vh;transition:margin-left .3s ease; width: calc(100% - 240px);}
+.main{margin-left:240px;flex:1;display:flex;flex-direction:column;min-height:auto;transition:margin-left .3s ease; width: calc(100% - 240px);}
 .main.expanded { margin-left: 0; width: 100%; }
 
-.top-bar{padding:12px 24px;display:flex;justify-content:space-between;align-items:center;background:var(--bg-trans);backdrop-filter:blur(12px);position:sticky;top:0;z-index:90;border-bottom:1px solid var(--border)}
-.page-title{font-family:var(--font-head);font-size:20px;font-weight:700;display:flex;align-items:center;gap:12px;}
-.top-nav-right{display:flex;align-items:center;gap:12px;}
-.content{padding:16px 24px 24px}
+.top-bar{padding:10px 20px;display:flex;justify-content:space-between;align-items:center;background:var(--bg-trans);backdrop-filter:blur(12px);position:sticky;top:0;z-index:90;border-bottom:1px solid var(--border)}
+.page-title{font-family:var(--font-head);font-size:18px;font-weight:700;display:flex;align-items:center;gap:10px;}
+.top-nav-right{display:flex;align-items:center;gap:10px;}
+.content{padding:12px 20px 20px}
 
 /* == 3-STRIPE MENU TOGGLE == */
 .menu-toggle {
@@ -742,8 +742,9 @@ body.parent-mode .admin-only,body.parent-mode .master-only,body.master-mode .par
 @keyframes slideIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
 
 /* == DASHBOARD GRID LAYOUTS == */
-.dash-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:12px; }
-.dash-charts { display:grid; grid-template-columns:1.5fr 1fr; gap:12px; }
+.dash-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:10px; }
+.dash-charts { display:grid; grid-template-columns:1.5fr 1fr; gap:10px; }
+.canvas-container { margin-bottom: 10px; }
 
 /* == LOADING == */
 .spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(212,175,55,.3);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite}
@@ -1004,20 +1005,20 @@ body.parent-mode .admin-only,body.parent-mode .master-only,body.master-mode .par
         <div class="card"><div class="stat-label">Active Coaches</div><div class="stat-value" id="s-coaches">—</div></div>
       </div>
       
-      <div class="dash-grid" style="margin-bottom: 32px;">
+      <div class="dash-grid" style="margin-bottom: 12px;">
         <div class="card"><div class="stat-label">Revenue (Collected)</div><div class="stat-value text-success" id="s-rev">—</div></div>
         <div class="card"><div class="stat-label">Spending (Salaries + Ops)</div><div class="stat-value text-danger" id="s-spend">—</div></div>
         <div class="card"><div class="stat-label">Net Profit</div><div class="stat-value" id="s-profit">—</div></div>
       </div>
 
       <div class="dash-charts">
-        <div class="card"><h3 style="margin-bottom:18px;color:var(--gold)">📊 Monthly Student Enrollments</h3><canvas id="chartMonthly" height="180"></canvas></div>
-        <div class="card"><h3 style="margin-bottom:18px;color:var(--gold)">ELO Distribution</h3><canvas id="chartElo" height="160"></canvas></div>
-        <div class="card"><h3 style="margin-bottom:18px;color:var(--gold)">Coach Load</h3><canvas id="chartCoach" height="260"></canvas></div>
+        <div class="card"><h3 style="margin-bottom:10px;color:var(--gold)">📊 Monthly Student Enrollments</h3><canvas id="chartMonthly" height="120"></canvas></div>
+        <div class="card"><h3 style="margin-bottom:10px;color:var(--gold)">ELO Distribution</h3><canvas id="chartElo" height="100"></canvas></div>
+        <div class="card"><h3 style="margin-bottom:10px;color:var(--gold)">Coach Load</h3><canvas id="chartCoach" height="140"></canvas></div>
       </div>
 
-      <div class="card" style="margin-top: 32px;">
-        <h3 style="margin-bottom:18px;color:var(--gold)">🔐 Recent Login History</h3>
+      <div class="card" style="margin-top: 12px;">
+        <h3 style="margin-bottom:10px;color:var(--gold)">🔐 Recent Login History</h3>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Time</th><th>User</th><th>Type</th><th>Device</th><th>Status</th></tr></thead>
@@ -1028,12 +1029,12 @@ body.parent-mode .admin-only,body.parent-mode .master-only,body.master-mode .par
     </div>
 
     <div id="page-stud" class="page admin-only">
-      <div class="page-hdr" style="margin-bottom: 24px; display:flex; justify-content:space-between; align-items:center;">
+      <div class="page-hdr" style="margin-bottom: 12px; display:flex; justify-content:space-between; align-items:center;">
         <div>
-          <h2 style="font-family:var(--font-head); font-size:24px; color:var(--gold);">Student Registry</h2>
-          <p style="font-size:12px; color:var(--ivory-dim);">Manage your academy's growing talent pool.</p>
+          <h2 style="font-family:var(--font-head); font-size:18px; color:var(--gold);">Student Registry</h2>
+          <p style="font-size:11px; color:var(--ivory-dim);">Manage your academy's growing talent pool.</p>
         </div>
-        <div style="display:flex; gap:10px;">
+        <div style="display:flex; gap:8px;">
           <input type="file" id="import-csv-input" style="display:none" accept=".csv" onchange="importStudents(this)"/>
           <button class="btn btn-outline btn-sm" onclick="$('import-csv-input').click()">Import CSV</button>
           <button class="btn btn-outline btn-sm" onclick="exportData('csv')">Export CSV</button>
@@ -1073,7 +1074,7 @@ body.parent-mode .admin-only,body.parent-mode .master-only,body.master-mode .par
     </div>
 
     <div id="page-coach-mgmt" class="page admin-only">
-      <div style="display:flex; justify-content:flex-end; margin-bottom: 20px;">
+      <div style="display:flex; justify-content:flex-end; margin-bottom: 12px;">
         <button class="btn btn-gold" onclick="openCoachModal()">+ Add New Coach</button>
       </div>
       <div class="table-wrap">
@@ -1139,7 +1140,7 @@ body.parent-mode .admin-only,body.parent-mode .master-only,body.master-mode .par
     </div>
 
     <div id="page-fame" class="page">
-      <p style="color:var(--ivory-dim);margin-bottom:20px;font-size:15px">Celebrating the proudest victories of Chesskidoo cadets.</p>
+      <p style="color:var(--ivory-dim);margin-bottom:10px;font-size:13px">Celebrating the proudest victories of Chesskidoo cadets.</p>
       <div id="fame-loading" class="loading-state"><span class="spinner"></span> Loading achievements…</div>
       <div class="ach-grid" id="fame-grid" style="display:none"></div>
     </div>
@@ -1150,12 +1151,12 @@ body.parent-mode .admin-only,body.parent-mode .master-only,body.master-mode .par
     </div>
 
     <div id="page-bills" class="page">
-      <div class="page-hdr" style="margin-bottom: 24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+      <div class="page-hdr" style="margin-bottom: 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
         <div>
-          <h2 style="font-family:var(--font-head); font-size:24px; color:var(--gold);">Payments & Financials</h2>
-          <p style="font-size:12px; color:var(--ivory-dim);">Track all payment transactions.</p>
+          <h2 style="font-family:var(--font-head); font-size:18px; color:var(--gold);">Payments & Financials</h2>
+          <p style="font-size:11px; color:var(--ivory-dim);">Track all payment transactions.</p>
         </div>
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <button class="btn btn-gold" onclick="printFinancialReport()">Print Report</button>
           <button class="btn btn-outline admin-only" onclick="sendPaymentReminders()">📱 Send Reminders</button>
         </div>
@@ -1169,24 +1170,24 @@ body.parent-mode .admin-only,body.parent-mode .master-only,body.master-mode .par
     </div>
 
     <div id="page-msgs" class="page admin-only">
-      <div class="page-hdr" style="margin-bottom: 24px; display:flex; justify-content:space-between; align-items:center;">
+      <div class="page-hdr" style="margin-bottom: 12px; display:flex; justify-content:space-between; align-items:center;">
         <div>
-          <h2 style="font-family:var(--font-head); font-size:24px; color:var(--gold);">Messages & Feedback</h2>
-          <p style="font-size:12px; color:var(--ivory-dim);">Parent queries and feedback from academy community.</p>
+          <h2 style="font-family:var(--font-head); font-size:18px; color:var(--gold);">Messages & Feedback</h2>
+          <p style="font-size:11px; color:var(--ivory-dim);">Parent queries and feedback from academy community.</p>
         </div>
         <button class="btn btn-outline" onclick="loadMessages()">🔄 Refresh</button>
       </div>
       <div id="msgs-loading" class="loading-state" style="display:none"><span class="spinner"></span> Loading messages…</div>
-      <div class="msgs-list" id="msgs-list" style="display:grid; gap:16px;"></div>
+      <div class="msgs-list" id="msgs-list" style="display:grid; gap:10px;"></div>
     </div>
 
     <div id="page-coach" class="page admin-only">
-      <div class="card" style="height:520px;display:flex;flex-direction:column">
-        <h3 style="margin-bottom:14px;color:var(--gold)">🧠 Intelligence Hub (AI Assistant)</h3>
+      <div class="card" style="height:400px;display:flex;flex-direction:column">
+        <h3 style="margin-bottom:10px;color:var(--gold)">🧠 Intelligence Hub (AI Assistant)</h3>
         <div class="chat-box" id="chat-box">
           <div class="msg-ai">System active. I am your AI Assistant. Ask me about revenue, unpaid fees, top students, average ELO, or upcoming events!</div>
         </div>
-        <div style="display:flex;gap:10px;margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+        <div style="display:flex;gap:8px;margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
           <input type="text" id="ai-input" placeholder="Try: 'Who is the top student?' or 'What is our total revenue?'" style="margin:0;flex:1" onkeydown="if(event.key==='Enter')sendAI()">
           <button type="button" class="btn btn-gold" id="ai-send-btn" onclick="sendAI()">Send</button>
         </div>
