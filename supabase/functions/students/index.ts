@@ -123,28 +123,45 @@ if (req.method === 'POST') {
       console.log('PUT /students body:', JSON.stringify(body));
       console.log('PUT /students id:', id);
       
-      // Build update payload with ONLY the most basic fields
-      // Only use fields that are guaranteed to exist in any database
+      // Build update payload with ONLY explicit type-safe fields
       const updateData: Record<string, unknown> = {};
       
-      // Core fields only - name and phone are most reliable
-      if (body.name !== undefined) updateData.name = body.name;
-      if (body.phone !== undefined) updateData.phone = body.phone;
+      // Name - must be non-empty string
+      if (typeof body.name === 'string' && body.name.trim().length > 0) {
+        updateData.name = body.name.trim();
+      }
       
-      // Rating - might exist
-      if (body.rating !== undefined) updateData.rating = body.rating;
+      // Phone - must be non-empty string (digits only ideally)
+      if (typeof body.phone === 'string' && body.phone.trim().length > 0) {
+        updateData.phone = body.phone.trim();
+      }
       
-      // Status - might exist
-      if (body.status !== undefined) updateData.status = body.status;
+      // Rating - must be a valid number
+      if (body.rating !== undefined && body.rating !== null && body.rating !== '') {
+        const ratingNum = Number(body.rating);
+        if (!isNaN(ratingNum) && isFinite(ratingNum)) {
+          updateData.rating = Math.floor(ratingNum);
+        }
+      }
+      
+      // Status - must be valid string
+      if (typeof body.status === 'string' && (body.status === 'active' || body.status === 'pending')) {
+        updateData.status = body.status;
+      }
       
       updateData.updated_at = new Date().toISOString();
       
       console.log('PUT updateData:', JSON.stringify(updateData));
       
-      // Must have at least one field to update besides updated_at
+      // Must have at least name or phone to update
       const keysToUpdate = Object.keys(updateData).filter(k => k !== 'updated_at');
       if (keysToUpdate.length === 0) {
-        return new Response(JSON.stringify({ message: 'No valid fields to update', id, valid_fields: ['name', 'phone', 'rating', 'status'] }), {
+        return new Response(JSON.stringify({ 
+          message: 'No valid fields to update', 
+          id, 
+          valid_fields: ['name (string)', 'phone (string)', 'rating (number)', 'status (active/pending)'],
+          received_fields: Object.keys(body)
+        }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
@@ -158,7 +175,12 @@ if (req.method === 'POST') {
       
       if (updateError) {
         console.error('Update error:', JSON.stringify(updateError));
-        return new Response(JSON.stringify({ error: updateError.message, code: updateError.code, details: updateError }), {
+        return new Response(JSON.stringify({ 
+          error: updateError.message, 
+          code: updateError.code, 
+          details: updateError,
+          hint: 'Check that all field types match database schema'
+        }), {
           status: 400,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });

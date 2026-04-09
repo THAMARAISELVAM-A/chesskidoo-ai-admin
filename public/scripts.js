@@ -401,7 +401,7 @@
     openModal('edit-modal');
   }
 
-  async function updateStudent() {
+async function updateStudent() {
     const id = $('e-id').value;
     if (!id) return;
     const name = $('e-name').value.trim();
@@ -409,14 +409,15 @@
     if (!name) { toast('Name required', 'error'); return; }
     if (!isValidPhone(phone)) { toast('Phone must be 10 digits', 'error'); return; }
 
-    // Send only the core fields that exist in the database
+    // Send with proper type conversion - ensure numbers are actually numbers
+    const eloValue = $('e-elo').value;
+    const statusValue = $('e-status').value;
+    
     const data = {
       name: name,
       phone: phone,
-      rating: parseInt($('e-elo').value) || 800,
-      grade: $('e-level').value,
-      enrollment_date: $('e-join').value,
-      status: $('e-status').value === 'Paid' ? 'active' : 'pending'
+      rating: eloValue ? parseInt(eloValue, 10) : 800,
+      status: statusValue === 'Paid' ? 'active' : 'pending'
     };
 
     console.log('Sending PUT payload:', JSON.stringify(data));
