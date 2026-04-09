@@ -22,8 +22,8 @@ body[data-role="master"] .nav-item.master-only,
 body[data-role="parent"] .nav-item.parent-only { display: flex !important; }
 
 /* == PAGE VISIBILITY - Hide all pages by default == */
-.page { display: none !important; }
-.page.active { display: block !important; }
+.page { display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; overflow: hidden !important; }
+.page.active { display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important; overflow: visible !important; }
 
 :root {
   --bg: #0b0b0e; --bg2: #14141a; --bg3: #1c1c24; --bg-trans: rgba(20,20,26,0.92);
@@ -1645,6 +1645,12 @@ function stopAutoRefresh() {
 
 // Initial load
 window.addEventListener('DOMContentLoaded', () => {
+  // Force hide all pages initially
+  document.querySelectorAll('.page').forEach(p => {
+    p.style.display = 'none';
+    p.style.visibility = 'hidden';
+    p.style.opacity = '0';
+  });
   loadAllData();
   // Auto-expand all filter/category panels
   document.querySelectorAll('.filter-bar, .filter-section, [class*="filter"], [class*="category"]').forEach(el => {
@@ -2045,9 +2051,24 @@ function openProfile() {
 const PAGE_TITLES = { dash:'Academy Overview', stud:'Student Registry', 'coach-mgmt':'Coach Management', child:'My Child\'s Progress', fame:'Wall of Fame', events:'Upcoming Events', bills:'Financials & Payments', msgs:'Messages & Feedback', coach:'AI Intelligence Hub', security:'Security Logs' };
 
 function setPage(p) {
-  document.querySelectorAll('.page').forEach(pg => pg.classList.remove('active'));
+  // Hide all pages first
+  document.querySelectorAll('.page').forEach(pg => {
+    pg.classList.remove('active');
+    pg.style.display = 'none';
+    pg.style.visibility = 'hidden';
+    pg.style.opacity = '0';
+  });
   document.querySelectorAll('.nav-item').forEach(ni => ni.classList.remove('active'));
-  $('page-' + p)?.classList.add('active'); $('nav-' + p)?.classList.add('active');
+  
+  // Show current page
+  const currentPage = $('page-' + p);
+  if (currentPage) {
+    currentPage.classList.add('active');
+    currentPage.style.display = 'block';
+    currentPage.style.visibility = 'visible';
+    currentPage.style.opacity = '1';
+  }
+  $('nav-' + p)?.classList.add('active');
   $('p-title').textContent = PAGE_TITLES[p] || '';
 
   const btnArea = $('top-btn-area'); btnArea.innerHTML = '';
