@@ -77,27 +77,26 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (req.method === 'POST') {
-      const { full_name, parent_phone, current_rating, coaches, payment_status, ...rest } = body;
+if (req.method === 'POST') {
+      console.log('POST /students body:', JSON.stringify(body));
       
+      // Build insert payload with only known existing columns
       const newStudent: Record<string, unknown> = { 
         id: 's' + Date.now(), 
-        name: full_name || body.name || '',
-        enrollment_date: body.enrollment_date || body.join_date || new Date().toISOString().split('T')[0],
-        status: payment_status === 'Paid' ? 'active' : 'pending',
-        rating: current_rating || body.rating || 800,
+        name: body.name || '',
+        enrollment_date: body.enrollment_date || new Date().toISOString().split('T')[0],
+        status: body.status || 'pending',
+        rating: body.rating || 800,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
       
+      // Only add optional fields if provided and they exist
+      if (body.phone) newStudent.phone = body.phone;
+      if (body.grade) newStudent.grade = body.grade;
       if (body.email) newStudent.email = body.email;
-      if (parent_phone || body.phone) newStudent.phone = parent_phone || body.phone;
-      if (body.age) newStudent.age = body.age;
-      if (body.level || body.grade) newStudent.grade = body.level || body.grade;
-      if (body.coach_id || coaches?.id) newStudent.coach_id = coaches?.id || body.coach_id;
-      if (body.batch_type) newStudent.batch_type = body.batch_type;
-      if (body.batch_time) newStudent.batch_time = body.batch_time;
-      if (body.monthly_fee) newStudent.monthly_fee = body.monthly_fee;
+      
+      console.log('POST newStudent:', JSON.stringify(newStudent));
       
       const { data: insertedStudent, error: insertError } = await supabase
         .from('students')
@@ -105,7 +104,13 @@ Deno.serve(async (req) => {
         .select()
         .single();
       
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('Insert error:', JSON.stringify(insertError));
+        return new Response(JSON.stringify({ error: insertError.message, details: insertError }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
       return new Response(JSON.stringify(insertedStudent ? transformStudent(insertedStudent) : null), {
         status: 201,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -119,23 +124,30 @@ Deno.serve(async (req) => {
       });
       
       console.log('PUT /students body:', JSON.stringify(body));
+      console.log('PUT /students id:', id);
       
+      // Build update payload with only known existing columns
       const updateData: Record<string, unknown> = {};
       
+      // Only update fields that definitely exist in the database
       if (body.name) updateData.name = body.name;
       if (body.phone) updateData.phone = body.phone;
       if (body.grade) updateData.grade = body.grade;
       if (body.enrollment_date) updateData.enrollment_date = body.enrollment_date;
       if (body.rating) updateData.rating = body.rating;
-      if (body.coach_id !== undefined) updateData.coach_id = body.coach_id || null;
-      if (body.monthly_fee) updateData.monthly_fee = body.monthly_fee;
-      if (body.payment_status) updateData.status = body.payment_status === 'Paid' ? 'active' : 'pending';
-      if (body.batch_type) updateData.batch_type = body.batch_type;
-      if (body.batch_time) updateData.batch_time = body.batch_time;
+      if (body.status) updateData.status = body.status;
+      if (body.level) updateData.grade = body.level;
+      
       updateData.updated_at = new Date().toISOString();
       
       console.log('PUT updateData:', JSON.stringify(updateData));
-      console.log('PUT id:', id);
+      
+      // Only proceed if there's something to update
+      if (Object.keys(updateData).length === 1) {
+        return new Response(JSON.stringify({ message: 'No fields to update', id }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
       
       const { data: updatedStudent, error: updateError } = await supabase
         .from('students')
@@ -146,7 +158,10 @@ Deno.serve(async (req) => {
       
       if (updateError) {
         console.error('Update error:', JSON.stringify(updateError));
-        throw updateError;
+        return new Response(JSON.stringify({ error: updateError.message, details: updateError }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
       }
       return new Response(JSON.stringify({ message: 'Updated', data: updatedStudent ? transformStudent(updatedStudent) : null }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }

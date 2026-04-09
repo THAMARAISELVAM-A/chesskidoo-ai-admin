@@ -409,25 +409,24 @@
     if (!name) { toast('Name required', 'error'); return; }
     if (!isValidPhone(phone)) { toast('Phone must be 10 digits', 'error'); return; }
 
+    // Send only the core fields that exist in the database
     const data = {
       name: name,
       phone: phone,
       rating: parseInt($('e-elo').value) || 800,
       grade: $('e-level').value,
       enrollment_date: $('e-join').value,
-      monthly_fee: parseInt($('e-fee').value) || 5000,
-      payment_status: $('e-status').value,
-      batch_type: $('e-batch-type').value,
-      batch_time: $('e-batch-time').value,
-      coach_id: $('e-coach').value || null
+      status: $('e-status').value === 'Paid' ? 'active' : 'pending'
     };
+
+    console.log('Sending PUT payload:', JSON.stringify(data));
 
     try {
       const res = await fetch(`${API_BASE}/students?id=${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      const result = await res.json();
+      console.log('PUT response:', result);
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Unknown error' }));
-        toast('Update failed: ' + err.error, 'error');
-        console.error('Update error:', err);
+        toast('Update failed: ' + (result.error || 'Unknown error'), 'error');
         return;
       }
       toast('Updated!', 'success');
@@ -451,25 +450,30 @@
     if (!name) { toast('Name required', 'error'); return; }
     if (!isValidPhone(phone)) { toast('Phone must be 10 digits', 'error'); return; }
 
+    // Send only the core fields that exist in the database
     const data = {
       name: name,
       phone: phone,
       rating: parseInt($('m-elo').value) || 800,
       grade: $('m-level').value,
       enrollment_date: $('m-join').value,
-      monthly_fee: parseInt($('m-fee').value) || 5000,
-      payment_status: 'Due',
-      batch_type: $('m-batch-type').value,
-      batch_time: $('m-batch-time').value,
-      coach_id: $('m-coach').value || null
+      status: 'pending'
     };
 
+    console.log('Sending POST payload:', JSON.stringify(data));
+
     try {
-      await fetch(`${API_BASE}/students`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      const res = await fetch(`${API_BASE}/students`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      const result = await res.json();
+      console.log('POST response:', result);
+      if (!res.ok) {
+        toast('Enrollment failed: ' + (result.error || 'Unknown error'), 'error');
+        return;
+      }
       toast(`${name} enrolled!`, 'success');
       closeModals();
       loadAllData();
-    } catch (e) { toast('Enrollment failed', 'error'); }
+    } catch (e) { toast('Enrollment failed', 'error'); console.error(e); }
   }
 
   async function deleteStudent(id, name) {
