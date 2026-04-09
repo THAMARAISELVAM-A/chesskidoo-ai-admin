@@ -188,7 +188,10 @@
 
     <!-- Wall of Fame Page -->
     <div id="page-fame" class="page">
-      <p style="color:var(--ivory-dim);margin-bottom:20px;font-size:15px">Celebrating the proudest victories of Chesskidoo cadets.</p>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <p style="color:var(--ivory-dim);font-size:15px">Celebrating the proudest victories of Chesskidoo cadets.</p>
+        <button class="btn btn-gold admin-only" onclick="openAwardModal()">+ Add Achievement</button>
+      </div>
       <div id="fame-loading" class="loading-state"><span class="spinner"></span> Loading achievements…</div>
       <div class="ach-grid" id="fame-grid" style="display:none"></div>
     </div>
@@ -393,7 +396,10 @@
 <div class="modal" id="award-modal">
   <div class="modal-box">
     <div class="modal-title">Grant Achievement</div>
-    <div class="modal-sub" id="award-sub">Awarding: —</div>
+    <div class="modal-sub">Select a student and add their achievement</div>
+    <select id="award-student" onchange="onAwardStudentChange()">
+      <option value="">Select Student</option>
+    </select>
     <input type="hidden" id="award-sid">
     <input type="text" id="award-title" placeholder="Title (e.g. District Champion 2026)">
     <label class="upload-zone" for="award-img-file">🖼️ Upload Achievement Photo

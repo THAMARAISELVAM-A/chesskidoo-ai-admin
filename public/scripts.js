@@ -771,10 +771,34 @@
     `).join('');
   }
 
+  function openAwardModal() {
+    const select = $('award-student');
+    if (select) {
+      select.innerHTML = '<option value="">Select Student</option>' + 
+        allStudents.map(s => `<option value="${s.id}">${getStudentName(s)}</option>`).join('');
+    }
+    if ($('award-sid')) $('award-sid').value = '';
+    if ($('award-title')) $('award-title').value = '';
+    if ($('award-img-url')) $('award-img-url').value = '';
+    const preview = $('award-img-preview');
+    if (preview) { preview.src = ''; preview.style.display = 'none'; }
+    const fileInput = $('award-img-file');
+    if (fileInput) fileInput.value = '';
+    openModal('award-modal');
+  }
+
+  function onAwardStudentChange() {
+    const select = $('award-student');
+    if (select && $('award-sid')) {
+      $('award-sid').value = select.value;
+    }
+  }
+
   async function saveAward() {
     const title = $('award-title')?.value.trim();
     const studentId = $('award-sid')?.value;
     if (!title) { toast('Title required', 'error'); return; }
+    if (!studentId) { toast('Please select a student', 'error'); return; }
 
     let imgUrl = $('award-img-url')?.value.trim() || null;
     const file = $('award-img-file')?.files[0];
@@ -784,7 +808,7 @@
     const awardData = {
       title,
       student_id: studentId,
-      students: { full_name: student?.full_name || '', id: studentId },
+      students: { full_name: getStudentName(student) || '', id: studentId },
       img_url: imgUrl,
       description: $('award-desc')?.value || ''
     };
@@ -1168,6 +1192,8 @@ Status: PAID IN FULL
   window.saveStudent = saveStudent;
   window.deleteStudent = deleteStudent;
   window.saveAward = saveAward;
+  window.openAwardModal = openAwardModal;
+  window.onAwardStudentChange = onAwardStudentChange;
   window.deleteAchievement = deleteAchievement;
   window.renderEvents = renderEvents;
   window.saveEvent = saveEvent;
