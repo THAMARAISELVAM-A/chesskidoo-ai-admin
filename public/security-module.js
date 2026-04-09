@@ -1,7 +1,4 @@
-// ═══════════════════════════════════════════════════════════════════
-// CHESSKIDOO SECURITY MODULE - Brute Force Protection
-// ═══════════════════════════════════════════════════════════════════
-
+// Chesskidoo Security Module - Brute Force Protection
 const SECURITY_CONFIG = {
   MAX_FAILED_ATTEMPTS: 5,
   LOCKOUT_DURATION_MINUTES: 30,

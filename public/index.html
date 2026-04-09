@@ -1590,7 +1590,7 @@ async function updateMsgBadge() {
   } catch (e) {}
 }
 
-function startAutoRefresh(intervalMs = 15000) {
+function startAutoRefresh(intervalMs = 5000) {
   if (autoRefreshInterval) clearInterval(autoRefreshInterval);
   autoRefreshInterval = setInterval(() => {
     if (role) {
@@ -1967,7 +1967,7 @@ function saveLoginSession(userType, userId, userName, device) {
 function finishLogin(page) { 
   $('login-screen').style.display = 'none'; 
   setPage(page);
-  startAutoRefresh(15000);
+  startAutoRefresh(5000);
   
   // Clear failed attempts on successful login
   if (window.SecurityModule) {
