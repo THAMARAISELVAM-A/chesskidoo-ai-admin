@@ -678,10 +678,16 @@ async function updateStudent() {
   async function deleteEvent(id) {
     if (!confirm('Delete event?')) return;
     try {
-      await fetch(`${API_BASE}/events?id=${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/events?id=${id}`, { method: 'DELETE' });
+      const result = await res.json();
+      console.log('Delete event response:', result);
+      if (!res.ok) {
+        toast('Delete failed: ' + (result.error || 'Unknown error'), 'error');
+        return;
+      }
       toast('Deleted.', 'info');
       loadAllData();
-    } catch (e) { toast('Failed', 'error'); }
+    } catch (e) { toast('Delete failed: ' + e.message, 'error'); console.error(e); }
   }
 
   async function registerEvent(id) {

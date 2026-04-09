@@ -143,12 +143,20 @@ Deno.serve(async (req) => {
         headers: { 'Content-Type': 'application/json' }
       });
       
+      console.log('DELETE /events id:', id);
+      
       const { error: deleteError } = await supabase
         .from('events')
         .delete()
         .eq('id', id);
       
-      if (deleteError) throw deleteError;
+      if (deleteError) {
+        console.error('Delete event error:', JSON.stringify(deleteError));
+        return new Response(JSON.stringify({ error: deleteError.message, details: deleteError }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
       return new Response(JSON.stringify({ success: true, message: 'Deleted', id }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
