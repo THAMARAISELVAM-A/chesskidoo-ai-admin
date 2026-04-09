@@ -1,6 +1,23 @@
-import { getSupabaseClient } from './supabase.js';
+import { createClient } from '@supabase/supabase-js';
 
 export default async function handler(request, response) {
+  // Create fresh client for every request to avoid context issues
+  const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      },
+      global: {
+        headers: {
+          'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY,
+          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
+        }
+      }
+    }
+  );
   response.setHeader('Access-Control-Allow-Origin', '*');
   response.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -8,7 +25,6 @@ export default async function handler(request, response) {
   if (request.method === 'OPTIONS') return response.status(200).end();
 
   try {
-    const supabase = getSupabaseClient();
     const { id } = request.query;
 
     switch (request.method) {

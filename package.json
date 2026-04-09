@@ -4,8 +4,8 @@
   "description": "Comprehensive chess academy management system with AI assistant, payment processing, and Supabase cloud database",
   "main": "public/index.html",
   "scripts": {
-    "dev": "vercel dev",
-    "start": "npx serve public/",
+    "dev": "node server.js",
+    "start": "node server.js",
     "build": "echo 'No build step required - static site'",
     "test": "echo 'No tests configured'",
     "lint": "echo 'No linting configured'",
@@ -29,6 +29,11 @@
   "type": "module",
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
+    "better-sqlite3": "^12.8.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.1",
+    "express": "^5.2.1",
+    "openai": "^6.34.0",
     "razorpay": "^2.9.2"
   },
   "devDependencies": {

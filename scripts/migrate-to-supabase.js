@@ -1,7 +1,9 @@
+import 'dotenv/config';
 import Database from 'better-sqlite3';
 import { createClient } from '@supabase/supabase-js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -54,7 +56,7 @@ async function migrateAll() {
   console.log('🚀 Starting migration from SQLite to Supabase...\n');
 
   try {
-    if (!require('fs').existsSync(dbPath)) {
+    if (!fs.existsSync(dbPath)) {
       console.log('❌ SQLite database not found:', dbPath);
       console.log('If you have no existing data, you can skip migration.');
       process.exit(0);

@@ -43,6 +43,10 @@ Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
     const id = url.searchParams.get('id');
+    const senderType = url.searchParams.get('sender_type');
+    const senderId = url.searchParams.get('sender_id');
+    const receiverType = url.searchParams.get('receiver_type');
+    const isRead = url.searchParams.get('is_read');
     const body = req.method !== 'GET' ? await req.json().catch(() => ({})) : {};
 
     if (req.method === 'GET') {
@@ -64,17 +68,17 @@ Deno.serve(async (req) => {
         });
       }
 
-      if (body.sender_type) {
-        query = query.eq('sender_type', body.sender_type);
+      if (senderType) {
+        query = query.eq('sender_type', senderType);
       }
-      if (body.sender_id) {
-        query = query.eq('sender_id', body.sender_id);
+      if (senderId) {
+        query = query.eq('sender_id', senderId);
       }
-      if (body.receiver_type) {
-        query = query.eq('receiver_type', body.receiver_type);
+      if (receiverType) {
+        query = query.eq('receiver_type', receiverType);
       }
-      if (body.is_read !== undefined) {
-        query = query.eq('is_read', body.is_read);
+      if (isRead !== null) {
+        query = query.eq('is_read', isRead === 'true');
       }
 
       const { data: messages, error } = await query;

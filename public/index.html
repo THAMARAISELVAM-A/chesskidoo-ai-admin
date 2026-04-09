@@ -829,6 +829,14 @@ body.admin-mode .parent-only,body.parent-mode .admin-only{display:none!important
         <div style="grid-column: 1 / -1;"><b style="color:var(--ivory)">Parent/Guardian Phone:</b> <span id="sv-phone"></span></div>
     </div>
 
+    <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <h4 style="color:var(--gold);font-size:14px;margin:0;">💬 Feedback & Messages</h4>
+            <button class="btn btn-outline btn-sm" onclick="viewStudentFeedback('${s.id}')" style="font-size:11px;padding:4px 10px;">View All</button>
+        </div>
+        <div id="sv-recent-feedback" style="font-size:12px;color:var(--ivory-dim);">Loading...</div>
+    </div>
+
     <div style="margin-top:24px; display:flex; gap:10px;">
       <button type="button" class="btn btn-outline" style="flex:1" onclick="closeModals()">Close</button>
       <button type="button" class="btn btn-gold" style="flex:1" id="sv-edit-btn">Edit Details</button>
@@ -1050,8 +1058,6 @@ body.admin-mode .parent-only,body.parent-mode .admin-only{display:none!important
       <button type="button" class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
       <button type="button" class="btn btn-gold" style="flex:1" onclick="sendReply()">Send Reply</button>
     </div>
-  </div>
-</div>
   </div>
 </div>
 
@@ -1480,7 +1486,80 @@ function viewStudent(id) {
     
     $('sv-edit-btn').onclick = () => { closeModals(); openEdit(s.id); };
     
+    // Load recent feedback for this student
+    loadStudentFeedback(s.id);
+    
     openModal('student-view-modal');
+}
+
+function loadStudentFeedback(studentId) {
+    const container = $('sv-recent-feedback');
+    container.innerHTML = '<span class="spinner" style="width:14px;height:14px"></span> Loading...';
+    
+    fetch('/api/messages?sender_id=' + studentId)
+    .then(res => res.json())
+    .then(msgs => {
+        if (!msgs.length) {
+            container.innerHTML = '<span style="color:var(--ivory-dim)">No feedback yet.</span>';
+            return;
+        }
+        const recent = msgs.slice(0, 3);
+        container.innerHTML = recent.map(m => `
+            <div style="padding:8px 0;border-bottom:1px solid var(--border);">
+                <div style="color:var(--ivory);font-size:12px;">${m.message.substring(0, 80)}${m.message.length > 80 ? '...' : ''}</div>
+                <div style="color:var(--ivory-dim);font-size:10px;margin-top:4px;">${new Date(m.created_at).toLocaleDateString()}</div>
+            </div>
+        `).join('');
+    })
+    .catch(() => {
+        container.innerHTML = '<span style="color:var(--danger)">Failed to load feedback</span>';
+    });
+}
+
+function viewStudentFeedback(studentId) {
+    const s = allStudents.find(x => x.id === studentId);
+    if (!s) return;
+    
+    fetch('/api/messages?sender_id=' + studentId)
+    .then(res => res.json())
+    .then(msgs => {
+        if (!msgs.length) {
+            toast('No feedback for this student', 'info');
+            return;
+        }
+        const msgList = msgs.map(m => `
+            <div style="padding:16px;background:var(--bg3);border-radius:8px;margin-bottom:12px;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                    <span style="color:var(--gold);font-weight:600">${m.subject || 'Feedback'}</span>
+                    <span style="color:var(--ivory-dim);font-size:11px">${new Date(m.created_at).toLocaleDateString()}</span>
+                </div>
+                <div style="color:var(--ivory);font-size:13px;line-height:1.5">${m.message}</div>
+                <div style="margin-top:10px;">
+                    ${!m.is_read ? `<button class="btn btn-outline-blue btn-sm" onclick="markMsgRead('${m.id}')">Mark Read</button>` : ''}
+                </div>
+            </div>
+        `).join('');
+        
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        modal.id = 'student-feedback-modal';
+        modal.innerHTML = `
+            <div class="modal-box" style="width:500px;max-width:95vw;">
+                <div class="modal-title">📬 Feedback - ${s.full_name}</div>
+                <div class="modal-sub">All parent feedback for this student</div>
+                <div style="max-height:400px;overflow-y:auto;">${msgList}</div>
+                <div style="margin-top:16px;">
+                    <button class="btn btn-outline" style="width:100%" onclick="closeModals()">Close</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) { modal.remove(); }
+        });
+    })
+    .catch(() => toast('Failed to load feedback', 'error'));
 }
 
 // ── COACH MANAGEMENT ──

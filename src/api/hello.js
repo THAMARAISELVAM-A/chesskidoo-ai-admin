@@ -1,32 +1,56 @@
- let allStudents = [];
-let allCoaches = [];
-let achievementsData = [];
-let eventsData = [];
+import { createClient } from '@supabase/supabase-js';
 
-// Fetch all data on page load
-async function loadData() {
+export default async function handler(request, response) {
+  // Create fresh client for every request to avoid context issues
+  const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      },
+      global: {
+        headers: {
+          'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY,
+          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
+        }
+      }
+    }
+  );
+  response.setHeader('Access-Control-Allow-Origin', '*');
+  response.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (request.method === 'OPTIONS') return response.status(200).end();
+
+  if (request.method !== 'GET') {
+    return response.status(405).json({ error: 'Method not allowed' });
+  }
+
   try {
+
     const [studentsRes, coachesRes, achievementsRes, eventsRes] = await Promise.all([
-      fetch('https://project-yj5uk.vercel.app/api/students'),
-      fetch('https://project-yj5uk.vercel.app/api/coaches'),
-      fetch('https://project-yj5uk.vercel.app/api/achievements'),
-      fetch('https://project-yj5uk.vercel.app/api/events')
+      supabase.from('students').select('*').order('created_at', { ascending: false }),
+      supabase.from('coaches').select('*').order('created_at', { ascending: false }),
+      supabase.from('achievements').select('*').order('created_at', { ascending: false }),
+      supabase.from('events').select('*').order('created_at', { ascending: false })
     ]);
 
-    allStudents = await studentsRes.json();
-    allCoaches = await coachesRes.json();
-    achievementsData = await achievementsRes.json();
-    eventsData = await eventsRes.json();
+    if (studentsRes.error) throw studentsRes.error;
+    if (coachesRes.error) throw coachesRes.error;
+    if (achievementsRes.error) throw achievementsRes.error;
+    if (eventsRes.error) throw eventsRes.error;
 
-    // Now, render the UI with fetched data
-    renderStudents();
-    renderCoaches();
-    renderDash();
-    renderAwards();
-    renderEvents();
-    console.log('✅ Data loaded from API');
+    return response.status(200).json({
+      students: studentsRes.data || [],
+      coaches: coachesRes.data || [],
+      achievements: achievementsRes.data || [],
+      events: eventsRes.data || [],
+      message: 'Hello from Chesskidoo API!'
+    });
   } catch (error) {
-    console.error('❌ Error loading data:', error);
+    console.error('API Error:', error);
+    return response.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 }
-window.addEventListener('load', loadData);
