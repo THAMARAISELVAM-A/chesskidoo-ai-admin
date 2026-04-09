@@ -692,82 +692,120 @@ body.admin-mode .master-only { display: none !important; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   3D ANIMATIONS - Simplified & Subtle
+   3D ANIMATIONS - Balanced Effects
    ═══════════════════════════════════════════════════════════════ */
 
-/* ── Card Subtle Hover ── */
+/* ── Card 3D Hover with Tilt ── */
+.card {
+  transform-style: preserve-3d;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
 .card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+  transform: perspective(800px) translateY(-4px) translateZ(5px);
+  box-shadow: 0 15px 30px rgba(0,0,0,0.35);
 }
 
-/* ── Button Press ── */
+/* ── Button 3D Press Effect ── */
+.btn {
+  transform: translateZ(0);
+  transition: all 0.2s ease;
+}
 .btn:active {
-  transform: translateY(1px);
+  transform: translateY(2px);
+}
+.btn-gold {
+  box-shadow: 0 3px 0 #9a7020, 0 4px 10px rgba(0,0,0,0.2);
 }
 .btn-gold:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 0 #9a7020, 0 8px 20px rgba(0,0,0,0.25);
+}
+.btn-gold:active {
+  box-shadow: 0 2px 0 #9a7020;
 }
 
-/* ── Nav Item Hover ── */
+/* ── Nav Item 3D Hover ── */
+.nav-item {
+  transform: translateZ(0);
+  transition: all 0.2s ease;
+}
 .nav-item:hover {
-  transform: translateX(3px);
+  transform: translateX(4px) translateZ(3px);
+  background: var(--bg3);
 }
 
-/* ── Modal Entry ── */
+/* ── Modal 3D Entry ── */
 .modal-box {
-  animation: fadeIn 0.25s ease forwards;
+  transform-style: preserve-3d;
+  animation: modalIn 0.3s ease forwards;
 }
-@keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(-20px) translateZ(-20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) translateZ(0) scale(1); }
 }
 
-/* ── Toast Pop ── */
+/* ── Toast Slide In ── */
 .toast {
-  animation: slideIn 0.3s ease forwards;
+  animation: toastIn 0.3s ease forwards;
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
-/* ── Achievement Card ── */
+/* ── Achievement Card 3D Hover ── */
+.ach-card {
+  transform-style: preserve-3d;
+  transition: all 0.3s ease;
+}
 .ach-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-5px) translateZ(8px);
+  box-shadow: 0 15px 30px rgba(0,0,0,0.35);
+}
+
+/* ── Event Card 3D Hover ── */
+.ev-card {
+  transform-style: preserve-3d;
+  transition: all 0.25s ease;
+}
+.ev-card:hover {
+  transform: translateY(-4px) translateZ(5px);
   box-shadow: 0 12px 25px rgba(0,0,0,0.3);
 }
 
-/* ── Event Card Hover ── */
-.ev-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-}
-
 /* ── Table Row Hover ── */
+table tbody tr {
+  transform: translateZ(0);
+  transition: all 0.2s ease;
+}
 table tbody tr:hover {
   background: var(--bg3);
 }
 
 /* ── Login Box Subtle Float ── */
 .login-box {
-  animation: subtleFloat 4s ease-in-out infinite;
+  animation: float 4s ease-in-out infinite;
+  transform-style: preserve-3d;
 }
-@keyframes subtleFloat {
+@keyframes float {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
+  50% { transform: translateY(-6px); }
 }
 
-/* ── Logo Pulse ── */
+/* ── Logo Glow Pulse ── */
 .logo {
-  animation: subtlePulse 3s ease-in-out infinite;
+  animation: glow 3s ease-in-out infinite;
 }
-@keyframes subtlePulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.85; }
+@keyframes glow {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.1); }
 }
 
 /* ── Page Transition ── */
 .page {
   opacity: 0;
-  transform: translateY(10px);
-  transition: all 0.3s ease;
+  transform: translateY(15px);
+  transition: all 0.35s ease;
 }
 .page.active {
   opacity: 1;
@@ -777,7 +815,8 @@ table tbody tr:hover {
 /* ── Input Focus Glow ── */
 input:focus, select:focus, textarea:focus {
   border-color: var(--gold);
-  box-shadow: 0 0 0 2px var(--gold-glow);
+  box-shadow: 0 0 0 2px var(--gold-glow), 0 2px 8px rgba(0,0,0,0.15);
+  transform: translateZ(0);
 }
 
 /* ── Avatar Hover ── */
@@ -788,8 +827,8 @@ input:focus, select:focus, textarea:focus {
 /* ── Scroll Reveal ── */
 .reveal {
   opacity: 0;
-  transform: translateY(15px);
-  transition: all 0.4s ease;
+  transform: translateY(20px);
+  transition: all 0.5s ease;
 }
 .reveal.visible {
   opacity: 1;
@@ -798,21 +837,26 @@ input:focus, select:focus, textarea:focus {
 
 /* ── Hero Image Hover ── */
 .hero-img:hover {
-  transform: scale(1.01);
+  transform: scale(1.02);
 }
 
 /* ── Chat Message ── */
 .msg-user, .msg-ai {
-  animation: msgIn 0.2s ease forwards;
+  transform: translateZ(0);
+  animation: msgPop 0.25s ease forwards;
 }
-@keyframes msgIn {
-  from { opacity: 0; transform: translateY(5px); }
+@keyframes msgPop {
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 /* ── UPI Item Press ── */
+.upi-item {
+  transform: translateZ(0);
+  transition: all 0.15s ease;
+}
 .upi-item:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
 /* ── Sidebar Toggle ── */
