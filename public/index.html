@@ -1379,8 +1379,8 @@ body.parent-mode .admin-only,body.parent-mode .master-only,body.master-mode .par
     </label>
     <img id="m-avatar-preview" class="upload-preview">
     <div style="display:flex;gap:10px;margin-top:14px">
-      <button type="button" class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
-      <button type="button" class="btn btn-gold" style="flex:1" id="enroll-btn" onclick="saveStudent()">Enroll Cadet</button>
+      <button type="button" class="btn btn-outline" style="flex:1" onclick="closeModals();return false;">Cancel</button>
+      <button type="button" class="btn btn-gold" style="flex:1" id="enroll-btn" onclick="saveStudent();return false;">Enroll Cadet</button>
     </div>
   </div>
 </div>
@@ -1428,8 +1428,8 @@ body.parent-mode .admin-only,body.parent-mode .master-only,body.master-mode .par
         <option value="Due">Due</option>
     </select>
     <div style="display:flex;gap:10px;margin-top:14px">
-      <button type="button" class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
-      <button type="button" class="btn btn-gold" style="flex:1" onclick="updateStudent()">Save Changes</button>
+      <button type="button" class="btn btn-outline" style="flex:1" onclick="closeModals();return false;">Cancel</button>
+      <button type="button" class="btn btn-gold" style="flex:1" onclick="updateStudent();return false;">Save Changes</button>
     </div>
   </div>
 </div>
@@ -1625,7 +1625,7 @@ async function updateMsgBadge() {
 function startAutoRefresh(intervalMs = 5000) {
   if (autoRefreshInterval) clearInterval(autoRefreshInterval);
   autoRefreshInterval = setInterval(() => {
-    if (role) {
+    if (role && !isModalOpen) {
       loadAllData();
       console.log('Auto-refreshed data');
     }
@@ -1865,8 +1865,9 @@ function toast(msg, type = 'info') {
   setTimeout(() => el.remove(), 3800);
 }
 
-function openModal(id)  { $(id).style.display = 'flex'; }
-function closeModals()  { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
+var isModalOpen = false;
+function openModal(id)  { isModalOpen = true; $(id).style.display = 'flex'; }
+function closeModals()  { isModalOpen = false; document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
 document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if(e.target === m) closeModals(); }));
 
 function previewFile(inp, previewId) {
