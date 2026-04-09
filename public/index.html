@@ -1627,7 +1627,8 @@ async function updateMsgBadge() {
 }
 
 function startAutoRefresh(intervalMs = 5000) {
-  if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+  // Don't start if modal is open or already running
+  if (isModalOpen || autoRefreshInterval) return;
   autoRefreshInterval = setInterval(() => {
     if (role && !isModalOpen) {
       loadAllData();
@@ -1877,8 +1878,24 @@ function toast(msg, type = 'info') {
 }
 
 var isModalOpen = false;
-function openModal(id)  { const el = $(id); if (el) { isModalOpen = true; el.style.display = 'flex'; } }
-function closeModals()  { isModalOpen = false; document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
+function openModal(id)  { 
+  const el = $(id); 
+  if (el) { 
+    isModalOpen = true; 
+    el.style.display = 'flex'; 
+    // Stop auto-refresh while modal is open
+    if (autoRefreshInterval) {
+      clearInterval(autoRefreshInterval);
+      autoRefreshInterval = null;
+    }
+  } 
+}
+function closeModals()  { 
+  isModalOpen = false; 
+  document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); 
+  // Restart auto-refresh
+  if (role) startAutoRefresh(5000);
+}
 document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if(e.target === m) closeModals(); }));
 
 function previewFile(inp, previewId) {
@@ -2472,6 +2489,10 @@ function openEdit(id) {
 
 function updateStudent() {
   const id = $('e-id').value; if (!id) return;
+  
+  // Stop auto-refresh while saving
+  const wasModalOpen = isModalOpen;
+  isModalOpen = false;
 
   const newName = $('e-name').value.trim(); const phone = $('e-phone').value.trim();
   const eloVal = parseInt($('e-elo').value); const feeVal = parseInt($('e-fee').value);
@@ -2483,25 +2504,45 @@ function updateStudent() {
   if (isNaN(eloVal) || eloVal < 0) return toast('ELO must be a valid number 0 or greater', 'error');
   if (isNaN(feeVal) || feeVal < 0) return toast('Fee must be a valid positive number', 'error');
 
+  const coachId = $('e-coach').value;
   const studentData = {
-    full_name: newName, parent_phone: phone, gender: $('e-gender').value, join_date: joinDate,
-    current_rating: eloVal, level: $('e-level').value,
-    coaches: allCoaches.find(c => c.id === $('e-coach').value) || null,
-    monthly_fee: feeVal, payment_status: $('e-status').value,
-    batch_type: $('e-batch-type').value, batch_time: $('e-batch-time').value
+    full_name: newName, 
+    parent_phone: phone, 
+    gender: $('e-gender').value, 
+    join_date: joinDate,
+    current_rating: eloVal, 
+    level: $('e-level').value,
+    coach_id: coachId || null,
+    monthly_fee: feeVal, 
+    payment_status: $('e-status').value,
+    batch_type: $('e-batch-type').value, 
+    batch_time: $('e-batch-time').value
   };
+
+  console.log('Updating student:', id, studentData);
 
   fetch(API_BASE + '/students?id=' + id, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(studentData)
   })
-  .then(() => {
+  .then(res => {
+    console.log('Update response:', res.status, res.statusText);
+    if (!res.ok) {
+      return res.json().then(err => { throw new Error(err.error || 'Update failed'); });
+    }
+    return res.json();
+  })
+  .then(data => {
+    console.log('Updated data:', data);
     toast(`Student updated successfully!`, 'success');
     closeModals();
     loadAllData();
   })
-  .catch(() => toast('Update failed', 'error'));
+  .catch(err => {
+    console.error('Update error:', err);
+    toast('Update failed: ' + err.message, 'error');
+  });
 }
 
 
