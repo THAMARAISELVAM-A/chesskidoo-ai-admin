@@ -21,6 +21,10 @@ body[data-role="master"] .nav-item.admin-only,
 body[data-role="master"] .nav-item.master-only,
 body[data-role="parent"] .nav-item.parent-only { display: flex !important; }
 
+/* == PAGE VISIBILITY - Hide all pages by default == */
+.page { display: none !important; }
+.page.active { display: block !important; }
+
 :root {
   --bg: #0b0b0e; --bg2: #14141a; --bg3: #1c1c24; --bg-trans: rgba(20,20,26,0.92);
   --gold: #dca33e; --gold2: #f0c05a; --gold-glow: rgba(220,163,62,0.25);
