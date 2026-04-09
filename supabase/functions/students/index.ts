@@ -118,19 +118,24 @@ Deno.serve(async (req) => {
         headers: { 'Content-Type': 'application/json' }
       });
       
+      console.log('PUT /students body:', JSON.stringify(body));
+      
       const updateData: Record<string, unknown> = {};
       
-      if (body.full_name || body.name) updateData.name = body.full_name || body.name;
-      if (body.parent_phone || body.phone) updateData.phone = body.parent_phone || body.phone;
-      if (body.level || body.grade) updateData.grade = body.level || body.grade;
-      if (body.join_date || body.enrollment_date) updateData.enrollment_date = body.join_date || body.enrollment_date;
-      if (body.current_rating || body.rating) updateData.rating = body.current_rating || body.rating;
-      if (body.coach_id || body.coaches?.id) updateData.coach_id = body.coaches?.id || body.coach_id;
+      if (body.name) updateData.name = body.name;
+      if (body.phone) updateData.phone = body.phone;
+      if (body.grade) updateData.grade = body.grade;
+      if (body.enrollment_date) updateData.enrollment_date = body.enrollment_date;
+      if (body.rating) updateData.rating = body.rating;
+      if (body.coach_id !== undefined) updateData.coach_id = body.coach_id || null;
       if (body.monthly_fee) updateData.monthly_fee = body.monthly_fee;
       if (body.payment_status) updateData.status = body.payment_status === 'Paid' ? 'active' : 'pending';
       if (body.batch_type) updateData.batch_type = body.batch_type;
       if (body.batch_time) updateData.batch_time = body.batch_time;
       updateData.updated_at = new Date().toISOString();
+      
+      console.log('PUT updateData:', JSON.stringify(updateData));
+      console.log('PUT id:', id);
       
       const { data: updatedStudent, error: updateError } = await supabase
         .from('students')
@@ -139,7 +144,10 @@ Deno.serve(async (req) => {
         .select()
         .single();
       
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Update error:', JSON.stringify(updateError));
+        throw updateError;
+      }
       return new Response(JSON.stringify({ message: 'Updated', data: updatedStudent ? transformStudent(updatedStudent) : null }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });

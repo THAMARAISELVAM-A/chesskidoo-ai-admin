@@ -423,11 +423,17 @@
     };
 
     try {
-      await fetch(`${API_BASE}/students?id=${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      const res = await fetch(`${API_BASE}/students?id=${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+        toast('Update failed: ' + err.error, 'error');
+        console.error('Update error:', err);
+        return;
+      }
       toast('Updated!', 'success');
       closeModals();
       loadAllData();
-    } catch (e) { toast('Update failed', 'error'); }
+    } catch (e) { toast('Update failed', 'error'); console.error(e); }
   }
 
   function openEnroll() {
