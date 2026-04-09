@@ -1,16 +1,21 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Chesskidoo — Premium Chess Academy</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
 <style>
-/* == ROLE-BASED VISIBILITY == */
+/* == CRITICAL PAGE VISIBILITY - MUST BE FIRST == */
+.page { display: none !important; }
+.page.active { display: block !important; }
 .admin-only, .parent-only, .master-only { display: none !important; }
 body[data-role="admin"] .admin-only,
 body[data-role="master"] .admin-only,
@@ -20,10 +25,6 @@ body[data-role="admin"] .nav-item.admin-only,
 body[data-role="master"] .nav-item.admin-only,
 body[data-role="master"] .nav-item.master-only,
 body[data-role="parent"] .nav-item.parent-only { display: flex !important; }
-
-/* == PAGE VISIBILITY - Hide all pages by default == */
-.page { display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; overflow: hidden !important; }
-.page.active { display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important; overflow: visible !important; }
 
 :root {
   --bg: #0b0b0e; --bg2: #14141a; --bg3: #1c1c24; --bg-trans: rgba(20,20,26,0.92);
@@ -730,9 +731,8 @@ input[type="time"], input[type="date"] { color-scheme: dark; }
 .filter-bar select, .filter-bar input { margin-bottom: 0; padding: 8px 12px; font-size: 13px; max-width: 140px; }
 
 body.parent-mode .admin-only,body.parent-mode .master-only,body.master-mode .parent-only,body.parent-mode .admin-only{display:none!important}
-/* Page visibility - these use !important to override any other rules */
-.page{display:none !important}
-.page.active{display:block !important;animation:fadeUp .4s ease}
+/* Page visibility - keep animation */
+.page.active{animation:fadeUp .4s ease}
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 #toast-container{position:fixed;bottom:28px;right:28px;z-index:5000;display:flex;flex-direction:column;gap:10px}
 .toast{padding:13px 20px;border-radius:10px;font-size:14px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,.35);animation:slideIn .3s ease;display:flex;align-items:center;gap:10px}
@@ -2567,39 +2567,57 @@ async function saveStudent() {
   let imgUrl = null; const file = $('m-avatar-file').files[0];
   if (file) imgUrl = await uploadFile(file);
   
+  const coachId = $('m-coach').value;
   const newStudent = {
     full_name: name, parent_phone: phone, gender: $('m-gender').value, join_date: joinDate,
     current_rating: eloVal, level: $('m-level').value,
-    coaches: allCoaches.find(c => c.id === $('m-coach').value) || null,
+    coach_id: coachId || null,
     monthly_fee: feeVal, payment_status: 'Due',
     batch_type: $('m-batch-type').value, batch_time: $('m-batch-time').value,
     tactics_score: 50, endgame_score: 50, openings_score: 50, positional_score: 50, custom_avatar: imgUrl
   };
 
-fetch(API_BASE + '/students', {
+  console.log('Enrolling student:', newStudent);
+
+  fetch(API_BASE + '/students', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(newStudent)
   })
-  .then(() => {
+  .then(res => {
+    console.log('Enroll response:', res.status);
+    if (!res.ok) return res.json().then(e => { throw new Error(e.error || 'Failed'); });
+    return res.json();
+  })
+  .then(data => {
+    console.log('Enrolled:', data);
     toast(`${name} enrolled successfully!`, 'success');
     closeModals();
     loadAllData();
     ['m-name','m-phone','m-avatar-file'].forEach(id => $(id).value = '');
     $('m-elo').value = '0'; $('m-fee').value = '5000'; $('m-batch-time').value = '17:00'; $('m-avatar-preview').style.display = 'none';
   })
-  .catch(() => toast('Enrollment failed', 'error'));
+  .catch(err => {
+    console.error('Enroll error:', err);
+    toast('Enrollment failed: ' + err.message, 'error');
+  });
 }
 
 
 function deleteStudent(id, name) {
   if (!confirm(`Remove ${name}?`)) return;
+  console.log('Deleting student:', id);
   fetch(API_BASE + '/students?id=' + id, { method: 'DELETE' })
-  .then(() => {
+  .then(res => {
+    console.log('Delete response:', res.status);
+    if (!res.ok) return res.json().then(e => { throw new Error(e.error || 'Failed'); });
     toast(`${name} removed.`, 'info');
     loadAllData();
   })
-  .catch(() => toast('Delete failed', 'error'));
+  .catch(err => {
+    console.error('Delete error:', err);
+    toast('Delete failed: ' + err.message, 'error');
+  });
 }
 
 
@@ -2629,20 +2647,38 @@ async function saveAward() {
   let imgUrl = $('award-img-url').value.trim() || null; const file = $('award-img-file').files[0];
   if (file) imgUrl = await uploadFile(file);
   
-  const awardData = { title, students: { full_name: student.full_name }, img_url: imgUrl };
+  // Send correct format with student_id
+  const awardData = { 
+    title, 
+    student_id: studentId,
+    students: { full_name: student?.full_name || '', id: studentId }, 
+    img_url: imgUrl,
+    description: $('award-desc')?.value || ''
+  };
 
+  console.log('Saving achievement:', awardData);
+  
   fetch(API_BASE + '/achievements', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(awardData)
   })
-  .then(() => {
+  .then(res => {
+    console.log('Achievement response:', res.status);
+    if (!res.ok) return res.json().then(e => { throw new Error(e.error || 'Failed'); });
+    return res.json();
+  })
+  .then(data => {
+    console.log('Achievement saved:', data);
     toast('Achievement published!', 'success');
     closeModals();
     loadAllData();
     ['award-title','award-img-file','award-img-url'].forEach(id => $(id).value = ''); $('award-img-preview').style.display = 'none';
   })
-  .catch(() => toast('Failed to publish', 'error'));
+  .catch(err => {
+    console.error('Achievement error:', err);
+    toast('Failed to publish: ' + err.message, 'error');
+  });
 }
 
 
