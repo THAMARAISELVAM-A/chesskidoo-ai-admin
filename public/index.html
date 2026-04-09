@@ -1750,42 +1750,6 @@ function sendAI() {
   }, 600);
 }
 
-  // Fallback to OpenAI API for complex queries
-  const context = {
-    totalStudents: allStudents.length,
-    activeCoaches: allCoaches.length,
-    upcomingEvents: eventsData.slice(0, 3).map(e => e.title),
-    topStudent: [...allStudents].sort((a,b) => b.current_rating - a.current_rating)[0]?.full_name,
-    unpaidCount: allStudents.filter(s => s.payment_status === 'Due').length,
-    revenueCollected: allStudents.filter(s => s.payment_status === 'Paid').reduce((sum, s) => sum + (s.monthly_fee || 0), 0)
-  };
-
-  fetch('/api/ai', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, context, history: aiHistory })
-  })
-  .then(res => res.json())
-  .then(data => {
-    thinking.textContent = data.answer || "I'm sorry, I couldn't process that request.";
-    thinking.classList.remove('msg-thinking');
-    btn.textContent = originalText;
-    btn.disabled = false;
-    box.scrollTop = box.scrollHeight;
-    
-    // Store in history
-    aiHistory.push({ role: 'user', content: query });
-    aiHistory.push({ role: 'assistant', content: data.answer });
-    if (aiHistory.length > 10) { aiHistory.shift(); aiHistory.shift(); } // Keep last 5 exchanges
-  })
-  .catch(() => {
-    thinking.textContent = "I'm having trouble connecting to my brain right now. Please try again later!";
-    thinking.classList.remove('msg-thinking');
-    btn.textContent = originalText;
-    btn.disabled = false;
-  });
-}
-
 function toggleTheme() {
   const next = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
   document.body.setAttribute('data-theme', next); if (document.querySelector('.page.active')?.id === 'page-dash') renderDash();
