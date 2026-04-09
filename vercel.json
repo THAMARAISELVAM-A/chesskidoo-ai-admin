@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "buildCommand": null,
+  "outputDirectory": "public",
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/api/students", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/students" },
+    { "source": "/api/coaches", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/coaches" },
+    { "source": "/api/events", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/events" },
+    { "source": "/api/achievements", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/achievements" },
+    { "source": "/api/payments", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/payments" },
+    { "source": "/api/messages", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/messages" },
+    { "source": "/api/sessions", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/sessions" },
+    { "source": "/api/security", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/security" }
+  ]
+}
