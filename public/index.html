@@ -109,6 +109,42 @@ input:focus, select:focus, textarea:focus { animation: borderGlow 2s infinite; b
 @media (max-width: 768px) {
   .stat-card:hover { transform: none; }
   .nav-item::before { display: none; }
+  .page-hdr { flex-direction: column; align-items: flex-start !important; }
+  .page-hdr .btn { width: 100%; margin-top: 10px; }
+  .filter-bar { flex-direction: column; align-items: stretch; }
+  .filter-bar select, .filter-bar input { width: 100%; max-width: 100% !important; }
+}
+
+/* Landscape phones */
+@media screen and (max-width: 667px) and (orientation: landscape) {
+  .sidebar { width: 200px; }
+  .content { padding: 12px 8px; }
+  .card { padding: 12px; }
+}
+
+/* Large tablets / Small laptops */
+@media screen and (min-width: 769px) and (max-width: 1024px) {
+  .dash-grid { grid-template-columns: repeat(2, 1fr); }
+  .sidebar { width: 200px; }
+  .main { margin-left: 200px; width: calc(100% - 200px); }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .btn { min-height: 48px; padding: 14px 24px; }
+  .nav-item { padding: 16px 20px; }
+  input, select, textarea { min-height: 48px; }
+  .modal-box { max-height: 95vh; overflow-y: auto; }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .logo-icon, .empty-icon { -webkit-transform: translateZ(0); }
+}
+
+/* Dark mode auto support */
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0b0b0e; --bg2: #14141a; --bg3: #1c1c24; }
 }
 
 #receipt-print-area {
@@ -805,12 +841,15 @@ body.admin-mode .parent-only,body.parent-mode .admin-only,body.parent-mode .mast
     </div>
 
     <div id="page-bills" class="page">
-      <div class="page-hdr" style="margin-bottom: 24px; display:flex; justify-content:space-between; align-items:center;">
+      <div class="page-hdr" style="margin-bottom: 24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
         <div>
           <h2 style="font-family:var(--font-head); font-size:24px; color:var(--gold);">Payments & Financials</h2>
           <p style="font-size:12px; color:var(--ivory-dim);">Track all payment transactions.</p>
         </div>
-        <button class="btn btn-gold" onclick="printFinancialReport()">Print Report</button>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn btn-gold" onclick="printFinancialReport()">Print Report</button>
+          <button class="btn btn-outline" onclick="sendPaymentReminders()">📱 Send Reminders</button>
+        </div>
       </div>
       <div class="table-wrap">
         <table>
@@ -2270,6 +2309,42 @@ function markPaid(id) {
     console.error('Mark paid error:', err);
     toast('Update failed', 'error');
   });
+}
+
+function sendPaymentReminders() {
+  const dueStudents = allStudents.filter(s => s.payment_status === 'Due');
+  if (dueStudents.length === 0) {
+    toast('All students have paid! 🎉', 'success');
+    return;
+  }
+  
+  let sent = 0;
+  dueStudents.forEach(s => {
+    const phone = s.parent_phone || s.phone;
+    if (phone) {
+      // Create a message for each due student
+      fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sender_type: 'admin',
+          receiver_type: 'parent',
+          receiver_id: s.id,
+          subject: 'Payment Reminder - Chesskidoo Academy',
+          message: `Dear Parent,\n\nThis is a friendly reminder that the tuition fee of ₹${s.monthly_fee || 0} for ${s.full_name} is pending.\n\nPlease make the payment at your earliest convenience to avoid interruption in training.\n\nThank you,\nChesskidoo Academy`,
+          priority: 'high'
+        })
+      }).then(() => sent++).catch(() => {});
+    }
+  });
+  
+  setTimeout(() => {
+    if (sent > 0) {
+      toast(`Payment reminders sent to ${sent} parents! 📱`, 'success');
+    } else {
+      toast('No phone numbers found for due students', 'error');
+    }
+  }, 500);
 }
 
 
