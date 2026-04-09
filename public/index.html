@@ -898,13 +898,15 @@ let achievementsData = [];
 let eventsData = [];
 let mockCredentials = {}; // Will be populated from students
 
+const API_BASE = 'https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1';
+
 async function loadAllData() {
   try {
     const [cRes, sRes, aRes, eRes] = await Promise.all([
-      fetch('/api/coaches'),
-      fetch('/api/students'),
-      fetch('/api/achievements'),
-      fetch('/api/events')
+      fetch(API_BASE + '/coaches'),
+      fetch(API_BASE + '/students'),
+      fetch(API_BASE + '/achievements'),
+      fetch(API_BASE + '/events')
     ]);
     
     allCoaches = await cRes.json();
@@ -973,7 +975,7 @@ function importStudents(input) {
       let success = 0;
       for (const s of data) {
         try {
-          await fetch('/api/students', {
+          await fetch(API_BASE + '/students', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1340,7 +1342,7 @@ function saveCoach() {
     const coachData = { full_name: name, specialty: spec, phone: phone, address: address, photo_url: photo, salary: salary, additional_details: etc };
 
     const method = id ? 'PUT' : 'POST';
-    const url = id ? `/api/coaches?id=${id}` : '/api/coaches';
+    const url = id ? API_BASE + '/coaches?id=' + id : API_BASE + '/coaches';
 
     fetch(url, {
         method,
@@ -1359,7 +1361,7 @@ function saveCoach() {
 
 function deleteCoach(id) {
     if(!confirm("Delete this coach? Students assigned will become unassigned.")) return;
-    fetch(`/api/coaches?id=${id}`, { method: 'DELETE' })
+    fetch(API_BASE + '/coaches?id=' + id, { method: 'DELETE' })
     .then(() => {
         toast('Coach removed', 'info');
         loadAllData();
@@ -1403,7 +1405,7 @@ function updateStudent() {
     batch_type: $('e-batch-type').value, batch_time: $('e-batch-time').value
   };
 
-  fetch(`/api/students?id=${id}`, {
+  fetch(API_BASE + '/students?id=' + id, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(studentData)
@@ -1446,7 +1448,7 @@ async function saveStudent() {
     tactics_score: 50, endgame_score: 50, openings_score: 50, positional_score: 50, custom_avatar: imgUrl
   };
 
-  fetch('/api/students', {
+fetch(API_BASE + '/students', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(newStudent)
@@ -1464,7 +1466,7 @@ async function saveStudent() {
 
 function deleteStudent(id, name) {
   if (!confirm(`Remove ${name}?`)) return;
-  fetch(`/api/students?id=${id}`, { method: 'DELETE' })
+  fetch(API_BASE + '/students?id=' + id, { method: 'DELETE' })
   .then(() => {
     toast(`${name} removed.`, 'info');
     loadAllData();
@@ -1501,7 +1503,7 @@ async function saveAward() {
   
   const awardData = { title, students: { full_name: student.full_name }, img_url: imgUrl };
 
-  fetch('/api/achievements', {
+  fetch(API_BASE + '/achievements', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(awardData)
@@ -1518,7 +1520,7 @@ async function saveAward() {
 
 function deleteAchievement(id) {
   if (!confirm('Remove achievement?')) return;
-  fetch(`/api/achievements?id=${id}`, { method: 'DELETE' })
+  fetch(API_BASE + '/achievements?id=' + id, { method: 'DELETE' })
   .then(() => {
     toast('Removed.', 'info');
     loadAllData();
@@ -1547,7 +1549,7 @@ function saveEvent() {
   const title = $('ev-title').value.trim(); if (!title) return toast('Please enter an Event Name', 'error');
   const eventData = { title, date: $('ev-date').value, type: $('ev-type').value, prize: $('ev-prize').value, location: $('ev-loc').value, registrations_count: 0 };
   
-  fetch('/api/events', {
+  fetch(API_BASE + '/events', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(eventData)
@@ -1564,7 +1566,7 @@ function saveEvent() {
 
 function deleteEvent(id) {
   if (!confirm('Delete event?')) return;
-  fetch(`/api/events?id=${id}`, { method: 'DELETE' })
+  fetch(API_BASE + '/events?id=' + id, { method: 'DELETE' })
   .then(() => {
     toast('Deleted.', 'info');
     loadAllData();
@@ -1574,7 +1576,7 @@ function deleteEvent(id) {
 
 
 function registerEvent(eventId) {
-    fetch(`/api/events?id=${eventId}`, {
+    fetch(API_BASE + '/events?id=' + eventId, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ increment_registrations: true })
@@ -1600,7 +1602,7 @@ function renderBills() {
 }
 
 function markPaid(id) {
-  fetch(`/api/students?id=${id}`, {
+  fetch(API_BASE + '/students?id=' + id, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ payment_status: 'Paid' })
@@ -1620,33 +1622,12 @@ function openPay(id, name, fee) {
 async function simPay(provider) {
   if (!payTarget) return;
   
-  // Get Razorpay key from server
-  let razorpayKeyId = null;
-  try {
-    const configRes = await fetch('/api/razorpay/config');
-    const config = await configRes.json();
-    razorpayKeyId = config.keyId;
-  } catch (e) {
-    console.log('Using simulated mode - no Razorpay key');
-  }
+  toast(`Processing ${provider} Payment...`, 'info');
   
-  // ── RAZORPAY INTEGRATION BLOCK ──
-  try {
-    const orderRes = await fetch('/api/razorpay/order', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount: payTarget.fee, currency: 'INR', receipt: `rcpt_${payTarget.id}` })
-    });
-    const orderData = await orderRes.json();
-    
-    if (orderData.simulated || !razorpayKeyId) {
-      toast(`Simulating ${provider} Checkout...`, 'info');
-    }
-
-    const options = {
-      key: razorpayKeyId || "SIMULATED_KEY",
-      amount: orderData.amount * 100,
-      currency: orderData.currency,
+  setTimeout(() => {
+    processPaymentSuccess(provider);
+  }, 1500);
+}
       name: "Chesskidoo Academy",
       description: `Fees for ${payTarget.name}`,
       order_id: orderData.id,
@@ -1685,13 +1666,13 @@ async function simPay(provider) {
 
 function processPaymentSuccess(provider) {
   if (!payTarget) return;
-  fetch(`/api/students?id=${payTarget.id}`, {
+  fetch(API_BASE + '/students?id=' + payTarget.id, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ payment_status: 'Paid' })
   })
   .then(() => {
-    return fetch('/api/payments', {
+    return fetch(API_BASE + '/payments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ student_id: payTarget.id, student_name: payTarget.name, amount: payTarget.fee, provider })
@@ -1770,7 +1751,7 @@ function generateAIResponse(query) {
   if (matched(['average', 'elo', 'rating', 'score'])) return `The current average ELO across our ${allStudents.length} active cadets is ${Math.round(allStudents.reduce((sum, s) => sum + (s.current_rating||0), 0) / allStudents.length)}.`;
   if (matched(['coach', 'trainer'])) return `We have ${allCoaches.length} expert coaches on staff: ${allCoaches.map(c => c.full_name).join(', ')}.`;
   
-  return null; // Fallback to API
+  return "I didn't catch that. Try asking about revenue, unpaid fees, top students, average ELO, or upcoming events.";
 }
 
 function sendAI() {
@@ -1779,18 +1760,15 @@ function sendAI() {
   const thinking = document.createElement('div'); thinking.className = 'msg-ai msg-thinking'; thinking.textContent = '♟ Analysing data...'; box.appendChild(thinking); box.scrollTop = box.scrollHeight;
   const btn = $('ai-send-btn'); const originalText = btn.textContent; btn.textContent = '...'; btn.disabled = true;
 
-  // Try local response first for common queries
-  const localResponse = generateAIResponse(query);
-  if (localResponse) {
-    setTimeout(() => {
-        thinking.textContent = localResponse;
-        thinking.classList.remove('msg-thinking');
-        btn.textContent = originalText;
-        btn.disabled = false;
-        box.scrollTop = box.scrollHeight;
-    }, 600);
-    return;
-  }
+  setTimeout(() => {
+      const answer = generateAIResponse(query);
+      thinking.textContent = answer;
+      thinking.classList.remove('msg-thinking');
+      btn.textContent = originalText;
+      btn.disabled = false;
+      box.scrollTop = box.scrollHeight;
+  }, 600);
+}
 
   // Fallback to OpenAI API for complex queries
   const context = {

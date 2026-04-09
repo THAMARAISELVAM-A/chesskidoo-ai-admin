@@ -1,29 +1,14 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "src/api/**/*.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "public/**/*",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/src/api/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/public/$1"
-    }
-  ],
-  "functions": {
-    "src/api/**/*.js": {
-      "memory": 1024,
-      "maxDuration": 10
-    }
-  }
+  "buildCommand": null,
+  "outputDirectory": "public",
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "redirects": [
+    { "source": "/api/students", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/students" },
+    { "source": "/api/coaches", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/coaches" },
+    { "source": "/api/events", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/events" },
+    { "source": "/api/achievements", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/achievements" },
+    { "source": "/api/payments", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/payments" }
+  ]
 }
