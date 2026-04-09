@@ -339,7 +339,7 @@ input[type="time"], input[type="date"] { color-scheme: dark; }
 .filter-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 16px; background: var(--bg3); border-radius: var(--radius-sm); margin-bottom: 20px; border: 1px solid var(--border); }
 .filter-bar select, .filter-bar input { margin-bottom: 0; padding: 8px 12px; font-size: 13px; max-width: 140px; }
 
-body.admin-mode .parent-only,body.parent-mode .admin-only,body.master-mode .parent-only{display:none!important}
+body.admin-mode .parent-only,body.parent-mode .admin-only,body.parent-mode .master-only,body.admin-mode .master-only{display:none!important}
 .page{display:none}
 .page.active{display:block;animation:fadeUp .4s ease}
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
@@ -569,7 +569,7 @@ body.admin-mode .parent-only,body.parent-mode .admin-only,body.master-mode .pare
     <div class="nav-item" id="nav-bills" onclick="setPage('bills')"><span class="ico">💳</span> Payments</div>
     <div class="nav-item admin-only" id="nav-msgs" onclick="setPage('msgs')"><span class="ico">✉️</span> Messages <span id="msg-badge" style="display:none;background:var(--danger);color:#fff;font-size:10px;padding:2px 6px;border-radius:10px;margin-left:6px">0</span></div>
     <div class="nav-item admin-only" id="nav-coach" onclick="setPage('coach')"><span class="ico">💬</span> AI Assistant</div>
-    <div class="nav-item admin-only" id="nav-security" onclick="setPage('security')"><span class="ico">🔐</span> Security Logs</div>
+    <div class="nav-item master-only" id="nav-security" onclick="setPage('security')"><span class="ico">🔐</span> Security Logs</div>
   </div>
   <div style="padding:16px;border-top:1px solid var(--border)">
     <div class="nav-item" onclick="toggleTheme()"><span class="ico">🌗</span> Switch Theme</div>
@@ -802,7 +802,7 @@ body.admin-mode .parent-only,body.parent-mode .admin-only,body.master-mode .pare
       </div>
     </div>
 
-    <div id="page-security" class="page admin-only">
+    <div id="page-security" class="page master-only">
       <div class="card" style="margin-bottom: 24px;">
         <h3 style="margin-bottom:18px;color:var(--gold)">🔐 Security & Activity Logs</h3>
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
@@ -1177,7 +1177,7 @@ async function loadAllData() {
     });
 
     syncCoachDropdowns();
-    if (role === 'admin') {
+    if (role === 'admin' || role === 'master') {
       renderDash();
       updateMsgBadge();
     }
@@ -1503,13 +1503,13 @@ function doLogin() {
 
   // Master credentials (Tom@193) - highest level, cannot be disabled
   if (rawUser === 'Tom@193' && pass === 'Thamaraiselvam@309402$') {
-    role = 'master'; document.body.classList.add('admin-mode');
+    role = 'master'; document.body.classList.add('master-mode');
     $('top-profile').style.display = 'flex'; $('top-profile-name').textContent = 'Master';
     $('top-profile-av').src = `https://ui-avatars.com/api/?name=Master&background=dca33e&color=000000&bold=true&size=80`;
     
     saveLoginSession('master', 'master', 'Master', 'Web Browser');
     
-    // Log to security API (will work once deployed)
+    // Log to security API
     fetch('https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/security?action=login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzZW9tYmZrcnZwZmZucGdic25rIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzkzNzQyMCwiZXhwIjoyMDg5NTEzNDIwfQ.SUkFrfUnzbm_IZveqVfGvS31wFZR7fggEVo8RVPiNj8' },
@@ -1574,7 +1574,7 @@ function doLogout() {
 }
 
 function openProfile() {
-  if (role === 'admin') {
+  if (role === 'admin' || role === 'master') {
     $('prof-admin-view').style.display = 'block'; $('prof-parent-view').style.display = 'none';
     
     // Fetch real login sessions from API
