@@ -80,21 +80,18 @@ Deno.serve(async (req) => {
 if (req.method === 'POST') {
       console.log('POST /students body:', JSON.stringify(body));
       
-      // Build insert payload with only known existing columns
+      // Build insert payload with ONLY the most basic fields
       const newStudent: Record<string, unknown> = { 
         id: 's' + Date.now(), 
         name: body.name || '',
-        enrollment_date: body.enrollment_date || new Date().toISOString().split('T')[0],
         status: body.status || 'pending',
         rating: body.rating || 800,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
       
-      // Only add optional fields if provided and they exist
-      if (body.phone) newStudent.phone = body.phone;
-      if (body.grade) newStudent.grade = body.grade;
-      if (body.email) newStudent.email = body.email;
+      // Only add phone if provided
+      if (body.phone !== undefined && body.phone) newStudent.phone = body.phone;
       
       console.log('POST newStudent:', JSON.stringify(newStudent));
       
@@ -106,7 +103,7 @@ if (req.method === 'POST') {
       
       if (insertError) {
         console.error('Insert error:', JSON.stringify(insertError));
-        return new Response(JSON.stringify({ error: insertError.message, details: insertError }), {
+        return new Response(JSON.stringify({ error: insertError.message, code: insertError.code, details: insertError }), {
           status: 400,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
@@ -126,25 +123,28 @@ if (req.method === 'POST') {
       console.log('PUT /students body:', JSON.stringify(body));
       console.log('PUT /students id:', id);
       
-      // Build update payload with only known existing columns
+      // Build update payload with ONLY the most basic fields
+      // Only use fields that are guaranteed to exist in any database
       const updateData: Record<string, unknown> = {};
       
-      // Only update fields that definitely exist in the database
-      if (body.name) updateData.name = body.name;
-      if (body.phone) updateData.phone = body.phone;
-      if (body.grade) updateData.grade = body.grade;
-      if (body.enrollment_date) updateData.enrollment_date = body.enrollment_date;
-      if (body.rating) updateData.rating = body.rating;
-      if (body.status) updateData.status = body.status;
-      if (body.level) updateData.grade = body.level;
+      // Core fields only - name and phone are most reliable
+      if (body.name !== undefined) updateData.name = body.name;
+      if (body.phone !== undefined) updateData.phone = body.phone;
+      
+      // Rating - might exist
+      if (body.rating !== undefined) updateData.rating = body.rating;
+      
+      // Status - might exist
+      if (body.status !== undefined) updateData.status = body.status;
       
       updateData.updated_at = new Date().toISOString();
       
       console.log('PUT updateData:', JSON.stringify(updateData));
       
-      // Only proceed if there's something to update
-      if (Object.keys(updateData).length === 1) {
-        return new Response(JSON.stringify({ message: 'No fields to update', id }), {
+      // Must have at least one field to update besides updated_at
+      const keysToUpdate = Object.keys(updateData).filter(k => k !== 'updated_at');
+      if (keysToUpdate.length === 0) {
+        return new Response(JSON.stringify({ message: 'No valid fields to update', id, valid_fields: ['name', 'phone', 'rating', 'status'] }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
@@ -158,7 +158,7 @@ if (req.method === 'POST') {
       
       if (updateError) {
         console.error('Update error:', JSON.stringify(updateError));
-        return new Response(JSON.stringify({ error: updateError.message, details: updateError }), {
+        return new Response(JSON.stringify({ error: updateError.message, code: updateError.code, details: updateError }), {
           status: 400,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
