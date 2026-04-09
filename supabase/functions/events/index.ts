@@ -116,6 +116,8 @@ Deno.serve(async (req) => {
       
       updateData.updated_at = new Date().toISOString();
       
+      console.log('PUT /events updateData:', JSON.stringify(updateData));
+      
       const { data: updatedEvent, error: updateError } = await supabase
         .from('events')
         .update(updateData)
@@ -123,7 +125,13 @@ Deno.serve(async (req) => {
         .select()
         .single();
       
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Update error:', JSON.stringify(updateError));
+        return new Response(JSON.stringify({ error: updateError.message, details: updateError }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
       return new Response(JSON.stringify({ message: 'Updated', data: updatedEvent ? transformEvent(updatedEvent) : null }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });

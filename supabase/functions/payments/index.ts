@@ -71,6 +71,8 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === 'POST') {
+      console.log('POST /payments body:', JSON.stringify(body));
+      
       const { student_id, amount, provider, ...rest } = body;
       const newPayment = { 
         id: 'p' + Date.now(), 
@@ -85,13 +87,21 @@ Deno.serve(async (req) => {
         created_at: new Date().toISOString()
       };
       
+      console.log('POST newPayment:', JSON.stringify(newPayment));
+      
       const { data: insertedPayment, error: insertError } = await supabase
         .from('payments')
         .insert(newPayment)
         .select()
         .single();
       
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('Insert error:', JSON.stringify(insertError));
+        return new Response(JSON.stringify({ error: insertError.message, details: insertError }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
       const transformed = await transformPayment(insertedPayment);
       return new Response(JSON.stringify(transformed), {
         status: 201,

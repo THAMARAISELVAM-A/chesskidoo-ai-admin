@@ -70,22 +70,27 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === 'POST') {
-      const { full_name, specialty, phone, address, photo_url, salary, additional_details, ...rest } = body;
+      console.log('POST /coaches body:', JSON.stringify(body));
+      
       const newCoach = { 
         id: 'c' + Date.now(), 
-        name: full_name || body.name || '',
+        name: body.name || '',
         email: body.email || null,
-        phone: phone || body.phone || '',
-        specialization: specialty || body.specialization || '',
+        phone: body.phone || '',
+        specialization: body.specialization || '',
         experience: body.experience || null,
         rating: body.rating || 0,
-        bio: body.bio || additional_details || '',
+        bio: body.bio || '',
         status: 'active',
-        hourly_rate: salary || body.hourly_rate || 0,
+        hourly_rate: body.salary || 0,
         availability: body.availability || '',
+        photo_url: body.photo_url || '',
+        address: body.address || '',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
+      
+      console.log('POST newCoach:', JSON.stringify(newCoach));
       
       const { data: insertedCoach, error: insertError } = await supabase
         .from('coaches')
@@ -93,7 +98,13 @@ Deno.serve(async (req) => {
         .select()
         .single();
       
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('Insert error:', JSON.stringify(insertError));
+        return new Response(JSON.stringify({ error: insertError.message, details: insertError }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
       return new Response(JSON.stringify(insertedCoach ? transformCoach(insertedCoach) : null), {
         status: 201,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -106,21 +117,27 @@ Deno.serve(async (req) => {
         headers: { 'Content-Type': 'application/json' }
       });
       
-      // Only update columns that exist in database
+      console.log('PUT /coaches body:', JSON.stringify(body));
+      
+      // Build update payload with only known existing columns
       const updateData: Record<string, unknown> = {};
       
-      if (body.full_name || body.name) updateData.name = body.full_name || body.name;
+      if (body.name) updateData.name = body.name;
       if (body.phone) updateData.phone = body.phone;
       if (body.email) updateData.email = body.email;
-      if (body.specialization || body.specialty) updateData.specialization = body.specialization || body.specialty;
+      if (body.specialization) updateData.specialization = body.specialization;
       if (body.experience) updateData.experience = body.experience;
       if (body.rating) updateData.rating = body.rating;
-      if (body.bio || body.additional_details) updateData.bio = body.bio || body.additional_details;
+      if (body.bio) updateData.bio = body.bio;
       if (body.status) updateData.status = body.status;
-      if (body.hourly_rate || body.salary) updateData.hourly_rate = body.hourly_rate || body.salary;
+      if (body.salary) updateData.hourly_rate = body.salary;
       if (body.availability) updateData.availability = body.availability;
       if (body.address) updateData.address = body.address;
+      if (body.photo_url) updateData.photo_url = body.photo_url;
+      
       updateData.updated_at = new Date().toISOString();
+      
+      console.log('PUT updateData:', JSON.stringify(updateData));
       
       const { data: updatedCoach, error: updateError } = await supabase
         .from('coaches')
@@ -129,7 +146,13 @@ Deno.serve(async (req) => {
         .select()
         .single();
       
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Update error:', JSON.stringify(updateError));
+        return new Response(JSON.stringify({ error: updateError.message, details: updateError }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
       return new Response(JSON.stringify({ message: 'Updated', data: updatedCoach ? transformCoach(updatedCoach) : null }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
@@ -146,7 +169,13 @@ Deno.serve(async (req) => {
         .delete()
         .eq('id', id);
       
-      if (deleteError) throw deleteError;
+      if (deleteError) {
+        console.error('Delete error:', JSON.stringify(deleteError));
+        return new Response(JSON.stringify({ error: deleteError.message }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
       return new Response(JSON.stringify({ success: true, message: 'Deleted', id }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });

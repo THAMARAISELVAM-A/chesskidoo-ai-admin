@@ -708,7 +708,7 @@
 
   async function markPaid(id) {
     try {
-      await fetch(`${API_BASE}/students?id=${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ payment_status: 'Paid' }) });
+      await fetch(`${API_BASE}/students?id=${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'active' }) });
       toast('Marked as paid!', 'success');
       loadAllData();
     } catch (e) { toast('Failed', 'error'); }

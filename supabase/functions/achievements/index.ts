@@ -70,6 +70,8 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === 'POST') {
+      console.log('POST /achievements body:', JSON.stringify(body));
+      
       let studentId = body.student_id;
       if (!studentId && body.students?.full_name) {
         const { data: student } = await supabase
@@ -88,8 +90,11 @@ Deno.serve(async (req) => {
         date_achieved: body.date_achieved || new Date().toISOString().split('T')[0],
         category: body.category || '',
         level: body.level || '',
+        img_url: body.img_url || '',
         created_at: new Date().toISOString()
       };
+      
+      console.log('POST newAchievement:', JSON.stringify(newAchievement));
       
       const { data: insertedAchievement, error: insertError } = await supabase
         .from('achievements')
@@ -97,7 +102,13 @@ Deno.serve(async (req) => {
         .select()
         .single();
       
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('Insert error:', JSON.stringify(insertError));
+        return new Response(JSON.stringify({ error: insertError.message, details: insertError }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
       const transformed = await transformAchievement(insertedAchievement);
       return new Response(JSON.stringify(transformed), {
         status: 201,
