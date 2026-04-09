@@ -357,19 +357,173 @@ body.admin-mode .parent-only,body.parent-mode .admin-only{display:none!important
 .empty-state .empty-icon{font-size:48px;margin-bottom:14px}
 
 /* ── RESPONSIVE ── */
-@media(max-width:768px){
-  .sidebar { transform: translateX(-100%); width: 260px; box-shadow: var(--shadow); }
+/* Mobile Phones (320px - 480px) */
+@media screen and (max-width: 480px) {
+  .sidebar { transform: translateX(-100%); width: 280px; box-shadow: var(--shadow); }
   .sidebar.open { transform: translateX(0); }
   .main { margin-left: 0; width: 100%; }
-  .top-bar { padding: 16px 20px; }
-  .content { padding: 20px; }
+  .top-bar { padding: 12px 16px; flex-wrap: wrap; gap: 10px; }
+  .page-title { font-size: 18px; }
+  .content { padding: 16px 12px; }
   
-  .profile-hdr { flex-direction: column; align-items: flex-start; padding: 24px; }
+  .profile-hdr { flex-direction: column; align-items: flex-start; padding: 16px; gap: 16px; }
+  .profile-info { flex-direction: column; align-items: center; text-align: center; }
+  .profile-details h1 { font-size: 24px; }
   .profile-actions { width: 100%; flex-direction: column; }
-  .profile-actions .btn { width: 100%; }
+  .profile-actions .btn { width: 100%; font-size: 14px; padding: 12px; }
+  .profile-meta { flex-wrap: wrap; justify-content: center; }
 
-  .dash-grid, .dash-charts, #page-child > div:nth-child(3) { grid-template-columns: 1fr; }
-  .filter-bar select, .filter-bar input { max-width: 100%; width: 100%; }
+  .dash-grid, .dash-charts { grid-template-columns: 1fr; gap: 16px; }
+  .stat-value { font-size: 24px; }
+  .card { padding: 16px; }
+  
+  .filter-bar { flex-direction: column; padding: 12px; }
+  .filter-bar select, .filter-bar input { max-width: 100%; width: 100%; font-size: 14px; }
+  .filter-bar .btn { width: 100%; }
+  
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { min-width: 500px; font-size: 12px; }
+  th, td { padding: 10px 8px; }
+  
+  .nav-group { padding: 8px; }
+  .nav-item { padding: 12px 14px; font-size: 14px; }
+  
+  .modal-box { width: 95vw; max-height: 90vh; overflow-y: auto; padding: 20px; }
+  .modal-title { font-size: 18px; }
+  .modal-sub { font-size: 13px; margin-bottom: 16px; }
+  
+  input, select, textarea { padding: 12px; font-size: 14px; }
+  
+  .ach-grid, .ev-grid { grid-template-columns: 1fr; }
+  .ach-img, .ach-img-placeholder { height: 180px; }
+  
+  .chat-box { max-height: 300px; }
+  
+  .top-btn-area { flex-wrap: wrap; gap: 8px; }
+  .top-btn-area .btn { font-size: 12px; padding: 8px 12px; }
+  
+  .login-box { padding: 24px 20px; width: 95vw; }
+  .login-title { font-size: 22px; }
+  .login-box input { padding: 14px; font-size: 14px; }
+  
+  .btn { padding: 10px 16px; font-size: 13px; }
+  .btn-sm { padding: 6px 10px; font-size: 11px; }
+}
+
+/* Tablets (481px - 768px) */
+@media screen and (min-width: 481px) and (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); width: 270px; box-shadow: var(--shadow); }
+  .sidebar.open { transform: translateX(0); }
+  .main { margin-left: 0; width: 100%; }
+  .top-bar { padding: 14px 20px; }
+  .content { padding: 20px 16px; }
+  
+  .profile-hdr { flex-wrap: wrap; gap: 20px; }
+  .profile-actions { flex-wrap: wrap; }
+  
+  .dash-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .dash-charts { grid-template-columns: 1fr; }
+  .stat-value { font-size: 26px; }
+  .card { padding: 20px; }
+  
+  .table-wrap { overflow-x: auto; }
+  
+  .modal-box { width: 90vw; max-height: 85vh; overflow-y: auto; padding: 24px; }
+  
+  .ach-grid, .ev-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+}
+
+/* Laptops (769px - 1024px) */
+@media screen and (min-width: 769px) and (max-width: 1024px) {
+  .sidebar { width: 220px; }
+  .main { margin-left: 220px; width: calc(100% - 220px); }
+  .top-bar { padding: 18px 24px; }
+  .content { padding: 24px; }
+  
+  .dash-grid { grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .dash-charts { grid-template-columns: 1fr 1fr; }
+  
+  .ach-grid { grid-template-columns: repeat(3, 1fr); }
+  .ev-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Desktops (1025px - 1440px) */
+@media screen and (min-width: 1025px) and (max-width: 1440px) {
+  .sidebar { width: 240px; }
+  .main { margin-left: 240px; width: calc(100% - 240px); }
+  .top-bar { padding: 20px 30px; }
+  .content { padding: 28px 32px; }
+  
+  .dash-grid { grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .dash-charts { grid-template-columns: 1.5fr 1fr; }
+  
+  .ach-grid { grid-template-columns: repeat(4, 1fr); }
+  .ev-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Large Monitors (1441px and above) */
+@media screen and (min-width: 1441px) {
+  .sidebar { width: 280px; }
+  .main { margin-left: 280px; width: calc(100% - 280px); }
+  .top-bar { padding: 24px 40px; }
+  .content { padding: 32px 48px; max-width: 1600px; margin: 0 auto; }
+  
+  .dash-grid { grid-template-columns: repeat(3, 1fr); gap: 24px; max-width: 1500px; margin: 0 auto; }
+  .dash-charts { grid-template-columns: 1.5fr 1fr; max-width: 1500px; margin: 0 auto; }
+  
+  .stat-value { font-size: 36px; }
+  .stat-label { font-size: 12px; }
+  .card { padding: 28px; }
+  
+  .ach-grid { grid-template-columns: repeat(5, 1fr); gap: 24px; max-width: 1500px; margin: 0 auto; }
+  .ev-grid { grid-template-columns: repeat(4, 1fr); gap: 24px; max-width: 1500px; margin: 0 auto; }
+  
+  .profile-hdr { padding: 40px; max-width: 1500px; margin: 0 auto 28px; }
+  .profile-details h1 { font-size: 42px; }
+}
+
+/* Extra fixes for specific elements */
+@media screen and (max-width: 768px) {
+  .hero-img { height: 150px; }
+  .page-title { font-size: 20px; }
+  .top-profile { padding: 4px 8px; }
+  .top-profile-info { display: none; }
+  .menu-toggle { display: flex; }
+  
+  .filter-bar { gap: 8px; }
+  .filter-bar > * { flex: 1 1 45%; }
+  
+  .table-wrap { border-radius: 8px; }
+  .badge { padding: 2px 8px; font-size: 10px; }
+  
+  .coach-mgmt-body td, .stud-body td { font-size: 12px; }
+  .av-sm { width: 28px; height: 28px; }
+  
+  .chat-box { max-height: 350px; }
+  .msg-ai, .msg-user { max-width: 90%; padding: 10px 12px; font-size: 13px; }
+  
+  #ai-input { font-size: 14px; }
+  
+  .schedule-day { flex-direction: column; gap: 8px; padding: 10px 12px; }
+}
+
+/* Touch improvements */
+@media (hover: none) and (pointer: coarse) {
+  .btn, .nav-item, .upi-item { min-height: 44px; }
+  .btn:active { transform: scale(0.98); }
+  .nav-item:active { background: var(--glass); }
+  input, select, textarea { min-height: 44px; }
+  
+  .modal { -webkit-overflow-scrolling: touch; }
+  .modal-box { -webkit-overflow-scrolling: touch; }
+}
+
+/* Print styles */
+@media print {
+  .sidebar, .top-bar, .btn, .modal, #toast-container { display: none !important; }
+  .main { margin: 0; width: 100%; }
+  .content { padding: 20px; }
+  body { background: white; color: black; }
 }
 </style>
 </head>
@@ -902,7 +1056,6 @@ const API_BASE = 'https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1';
 
 async function loadAllData() {
   try {
-    console.log('Starting to load data...');
     const [cRes, sRes, aRes, eRes] = await Promise.all([
       fetch('/api/coaches'),
       fetch('/api/students'),
@@ -910,21 +1063,25 @@ async function loadAllData() {
       fetch('/api/events')
     ]);
     
-    console.log('API responses:', cRes.status, sRes.status, aRes.status, eRes.status);
-    
     allCoaches = await cRes.json();
     allStudents = await sRes.json();
     achievementsData = await aRes.json();
     eventsData = await eRes.json();
 
-    console.log('Data loaded - Coaches:', allCoaches.length, 'Students:', allStudents.length);
-
-    // Populate mock credentials from student phone numbers
     mockCredentials = {};
     allStudents.forEach(s => {
       if (s.full_name) {
         mockCredentials[s.full_name.toLowerCase()] = s.parent_phone || s.phone || '9876543210';
       }
+    });
+
+    syncCoachDropdowns();
+    if (role === 'admin') renderDash();
+    else if (role === 'parent') renderChild();
+  } catch (err) {
+    toast('Failed to load data from server', 'error');
+  }
+}
     });
 
     console.log('✅ Data loaded from API');
@@ -1073,14 +1230,9 @@ function doLogin() {
   const errEl = $('login-err'); errEl.style.display = 'none';
   if (!rawUser || !pass) { errEl.textContent = "Please enter credentials."; errEl.style.display = 'block'; return; }
 
-  console.log('Login attempt:', rawUser, 'pass:', pass, 'mockCredentials:', mockCredentials);
-  console.log('allStudents count:', allStudents.length);
-  console.log('allCoaches count:', allCoaches.length);
-
   const lowerUser = rawUser.toLowerCase(); const now = new Date().toLocaleString();
 
   if (lowerUser === 'admin' && pass === 'admin123') {
-    console.log('Admin login success');
     role = 'admin'; document.body.classList.add('admin-mode');
     $('top-profile').style.display = 'flex'; $('top-profile-name').textContent = 'Admin';
     $('top-profile-av').src = `https://ui-avatars.com/api/?name=Admin&background=dca33e&color=000000&bold=true&size=80`;
@@ -1089,7 +1241,6 @@ function doLogin() {
   }
 
   if (mockCredentials[lowerUser] && mockCredentials[lowerUser] === pass) {
-    console.log('Parent login success for:', lowerUser);
     role = 'parent'; document.body.classList.add('parent-mode');
     currentStudent = allStudents.find(s => s.full_name.toLowerCase() === lowerUser);
     if (!currentStudent) {
@@ -1101,7 +1252,6 @@ function doLogin() {
     loginHistory.parents[lowerUser].unshift({ time: now, device: 'Current Session (Web)' });
     finishLogin('child'); return;
   }
-  console.log('Login failed - no match found');
   errEl.textContent = "Invalid username or password."; errEl.style.display = 'block';
 }
 
@@ -1617,16 +1767,23 @@ function renderBills() {
 }
 
 function markPaid(id) {
-  fetch(API_BASE + '/students?id=' + id, {
+  fetch('/api/students?id=' + id, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ payment_status: 'Paid' })
+  })
+  .then(res => {
+    if (!res.ok) throw new Error('Update failed');
+    return res.json();
   })
   .then(() => {
     toast('Marked as paid ✓', 'success');
     loadAllData();
   })
-  .catch(() => toast('Update failed', 'error'));
+  .catch((err) => {
+    console.error('Mark paid error:', err);
+    toast('Update failed', 'error');
+  });
 }
 
 
