@@ -700,7 +700,7 @@ input[type="time"], input[type="date"] { color-scheme: dark; }
 .filter-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 16px; background: var(--bg3); border-radius: var(--radius-sm); margin-bottom: 20px; border: 1px solid var(--border); }
 .filter-bar select, .filter-bar input { margin-bottom: 0; padding: 8px 12px; font-size: 13px; max-width: 140px; }
 
-body.admin-mode .parent-only,body.parent-mode .admin-only,body.parent-mode .master-only,body.master-mode .parent-only{display:none!important}
+body.parent-mode .admin-only,body.parent-mode .master-only,body.master-mode .parent-only,body.parent-mode .admin-only{display:none!important}
 .page{display:none}
 .page.active{display:block;animation:fadeUp .4s ease}
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
@@ -1907,7 +1907,7 @@ function doLogin() {
 
   // Master credentials (Tom@193) - highest level, cannot be disabled
   if (rawUser === 'Tom@193' && pass === 'Thamaraiselvam@309402$') {
-    role = 'master'; document.body.classList.add('master-mode');
+    role = 'master'; document.body.classList.add('master-mode', 'admin-mode');
     $('top-profile').style.display = 'flex'; $('top-profile-name').innerHTML = 'Master <span style="background:var(--gold);color:#000;padding:2px 8px;border-radius:10px;font-size:10px;margin-left:8px">👑</span>';
     $('top-profile-av').src = `https://ui-avatars.com/api/?name=Master&background=dca33e&color=000000&bold=true&size=80`;
     
