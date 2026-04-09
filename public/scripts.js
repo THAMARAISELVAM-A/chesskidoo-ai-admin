@@ -92,6 +92,10 @@
     return s.parent_phone || s.phone || '';
   }
 
+  function getCoachName(c) {
+    return c.full_name || c.name || '';
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // DATA LOADING
   // ═══════════════════════════════════════════════════════════════
@@ -473,23 +477,23 @@
 
     tbody.innerHTML = allCoaches.map(c => {
       const assignedCount = allStudents.filter(s => s.coaches && s.coaches.id === c.id).length;
-      const imgSrc = c.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.full_name)}&background=dca33e&color=000&bold=true`;
+      const imgSrc = c.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(getCoachName(c))}&background=dca33e&color=000&bold=true`;
       return `
         <tr>
           <td>
             <div class="av-cell">
               <img src="${imgSrc}" class="av-sm" alt="Photo">
               <div>
-                <span style="font-weight:600; color:var(--gold)">${c.full_name}</span><br>
-                <span style="font-size:11px; color:var(--ivory-dim)">${c.specialty || 'General'}</span>
+                <span style="font-weight:600; color:var(--gold)">${getCoachName(c)}</span><br>
+                <span style="font-size:11px; color:var(--ivory-dim)">${c.specialty || c.specialization || 'General'}</span>
               </div>
             </div>
           </td>
           <td style="font-size:12px; line-height:1.6">
             📞 <span style="color:var(--ivory)">+91 ${c.phone || 'N/A'}</span><br>
             📍 <span style="color:var(--ivory)">${c.address || 'N/A'}</span><br>
-            💰 <span style="color:var(--ivory)">₹${Number(c.salary || 0).toLocaleString()}</span><br>
-            <span style="color:var(--ivory-dim); font-style:italic">${c.additional_details || ''}</span>
+            💰 <span style="color:var(--ivory)">₹${Number(c.salary || c.hourly_rate || 0).toLocaleString()}</span><br>
+            <span style="color:var(--ivory-dim); font-style:italic">${c.additional_details || c.bio || ''}</span>
           </td>
           <td>${assignedCount} Students</td>
           <td>
@@ -540,13 +544,13 @@
       const c = allCoaches.find(x => x.id === id);
       if (c) {
         if ($('cm-id')) $('cm-id').value = c.id;
-        if ($('cm-name')) $('cm-name').value = c.full_name;
-        if ($('cm-spec')) $('cm-spec').value = c.specialty || '';
+        if ($('cm-name')) $('cm-name').value = getCoachName(c);
+        if ($('cm-spec')) $('cm-spec').value = c.specialty || c.specialization || '';
         if ($('cm-phone')) $('cm-phone').value = c.phone || '';
         if ($('cm-address')) $('cm-address').value = c.address || '';
         if ($('cm-photo')) $('cm-photo').value = c.photo_url || '';
-        if ($('cm-salary')) $('cm-salary').value = c.salary || '';
-        if ($('cm-etc')) $('cm-etc').value = c.additional_details || '';
+        if ($('cm-salary')) $('cm-salary').value = c.salary || c.hourly_rate || '';
+        if ($('cm-etc')) $('cm-etc').value = c.additional_details || c.bio || '';
       }
     } else {
       ['cm-id', 'cm-name', 'cm-spec', 'cm-phone', 'cm-address', 'cm-photo', 'cm-salary', 'cm-etc'].forEach(id => {
@@ -571,7 +575,7 @@
     if (!name) { toast('Coach name required', 'error'); return; }
     if (phone && !isValidPhone(phone)) { toast('Phone must be 10 digits', 'error'); return; }
 
-    const coachData = { full_name: name, specialty: spec, phone, address, photo_url: photo, salary, additional_details: etc };
+    const coachData = { name: name, specialization: spec, phone, address, photo_url: photo, salary: salary, bio: etc };
     const method = id ? 'PUT' : 'POST';
     const url = id ? `${API_BASE}/coaches?id=${id}` : `${API_BASE}/coaches`;
 
@@ -1070,21 +1074,21 @@ Status: PAID IN FULL
     if (q.includes('due') || q.includes('unpaid') || q.includes('pending') || q.includes('owe')) {
       const dueStudents = allStudents.filter(s => s.payment_status === 'Due');
       if (dueStudents.length === 0) return "Great news! All student accounts are fully paid up for this month.";
-      return `We currently have ₹${dueStudents.reduce((sum, s) => sum + Number(s.monthly_fee || 0), 0).toLocaleString()} in outstanding fees.\n\nStudents with pending payments: ${dueStudents.map(s => s.full_name).join(', ')}.`;
+      return `We currently have ₹${dueStudents.reduce((sum, s) => sum + Number(s.monthly_fee || 0), 0).toLocaleString()} in outstanding fees.\n\nStudents with pending payments: ${dueStudents.map(s => getStudentName(s)).join(', ')}.`;
     }
     if (q.includes('top') || q.includes('best') || q.includes('highest')) {
       if (allStudents.length === 0) return "There are no students currently enrolled in the academy.";
-      const top = [...allStudents].sort((a, b) => (b.current_rating || 0) - (a.current_rating || 0))[0];
-      return `Our highest-rated cadet is ${top.full_name} with an ELO of ${top.current_rating}. They are currently training in the ${top.level} tier.`;
+      const top = [...allStudents].sort((a, b) => (getStudentRating(b) || 0) - (getStudentRating(a) || 0))[0];
+      return `Our highest-rated cadet is ${getStudentName(top)} with an ELO of ${getStudentRating(top)}. They are currently training in the ${getStudentLevel(top)} tier.`;
     }
     if (q.includes('average') || q.includes('elo') || q.includes('rating') || q.includes('score')) {
-      return `The current average ELO across our ${allStudents.length} active cadets is ${Math.round(allStudents.reduce((sum, s) => sum + (s.current_rating || 0), 0) / allStudents.length)}.`;
+      return `The current average ELO across our ${allStudents.length} active cadets is ${Math.round(allStudents.reduce((sum, s) => sum + (getStudentRating(s) || 0), 0) / allStudents.length)}.`;
     }
     if (q.includes('student') || q.includes('cadet') || q.includes('enroll') || q.includes('how many')) {
       return `We currently have ${allStudents.length} active cadets enrolled in the Chesskidoo academy.`;
     }
     if (q.includes('coach') || q.includes('trainer')) {
-      return `We have ${allCoaches.length} expert coaches on staff: ${allCoaches.map(c => c.full_name).join(', ')}.`;
+      return `We have ${allCoaches.length} expert coaches on staff: ${allCoaches.map(c => getCoachName(c)).join(', ')}.`;
     }
     if (q.includes('event') || q.includes('tournament') || q.includes('workshop')) {
       if (eventsData.length === 0) return "There are no upcoming events currently scheduled in the calendar.";
