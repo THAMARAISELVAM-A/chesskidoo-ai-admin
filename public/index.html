@@ -5,8 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Chesskidoo — Premium Chess Academy</title>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
-  <meta http-equiv="Pragma" content="no-cache"/>
-  <meta http-equiv="Expires" content="0"/>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <link rel="stylesheet" href="styles.css"/>
@@ -19,28 +17,23 @@
 <!-- Login Screen -->
 <div id="login-screen">
   <div class="login-box">
-    <svg class="login-crown" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-      <path d="M458 139.7a32 32 0 10-53 30.6l-50.6 84.4L275.6 96.3a32 32 0 10-39.2 0L157.6 254.7l-50.6-84.4a32 32 0 10-53-30.6L102 384h308zM64 432h384v48H64z"/>
-    </svg>
+    <svg class="login-crown" viewBox="0 0 512 512"><path d="M458 139.7a32 32 0 10-53 30.6l-50.6 84.4L275.6 96.3a32 32 0 10-39.2 0L157.6 254.7l-50.6-84.4a32 32 0 10-53-30.6L102 384h308zM64 432h384v48H64z"/></svg>
     <h1 class="login-title">Chesskidoo Login</h1>
     <input type="text" id="li-user" placeholder="Admin or Student Name" autocomplete="off">
     <div class="pass-wrap">
       <input type="password" id="li-pass" placeholder="Password or Phone Number" onkeydown="if(event.key==='Enter')doLogin()">
-      <button class="eye-btn" type="button" onclick="toggleEye()" id="eye-btn">
-        <svg id="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      <button class="eye-btn" type="button" onclick="toggleEye()">
+        <svg id="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
       </button>
     </div>
-    <button type="button" class="btn btn-gold" id="login-btn" onclick="doLogin()">Sign In</button>
+    <button type="button" class="btn btn-gold" onclick="doLogin()">Sign In</button>
     <div id="login-err" style="color:var(--danger);font-size:13px;margin-top:16px;display:none;font-weight:500"></div>
   </div>
 </div>
 
-<!-- Sidebar Navigation -->
+<!-- Sidebar -->
 <nav class="sidebar" id="sidebar">
-  <div class="logo">
-    <span class="logo-icon">♚</span>
-    <span class="logo-text">CHESSKIDOO</span>
-  </div>
+  <div class="logo"><span class="logo-icon">♚</span><span class="logo-text">CHESSKIDOO</span></div>
   <div class="nav-group">
     <div class="nav-item admin-only" id="nav-dash" onclick="setPage('dash')"><span class="ico">📊</span> Dashboard</div>
     <div class="nav-item admin-only" id="nav-stud" onclick="setPage('stud')"><span class="ico">👥</span> Students</div>
@@ -49,7 +42,8 @@
     <div class="nav-item" id="nav-fame" onclick="setPage('fame')"><span class="ico">🏆</span> Wall of Fame</div>
     <div class="nav-item" id="nav-events" onclick="setPage('events')"><span class="ico">📅</span> Events</div>
     <div class="nav-item" id="nav-bills" onclick="setPage('bills')"><span class="ico">💳</span> Payments</div>
-    <div class="nav-item admin-only" id="nav-coach" onclick="setPage('coach')"><span class="ico">💬</span> AI Assistant</div>
+    <div class="nav-item admin-only" id="nav-msgs" onclick="setPage('msgs')"><span class="ico">💬</span> Messages <span id="msg-badge" class="badge badge-level" style="display:none;margin-left:8px">0</span></div>
+    <div class="nav-item admin-only" id="nav-coach" onclick="setPage('coach')"><span class="ico">🤖</span> AI Assistant</div>
   </div>
   <div style="padding:16px;border-top:1px solid var(--border)">
     <div class="nav-item" onclick="toggleTheme()"><span class="ico">🌗</span> Switch Theme</div>
@@ -58,170 +52,143 @@
 
 <!-- Main Content -->
 <div class="main">
-  <!-- Top Bar -->
   <div class="top-bar">
     <div class="page-title">
-      <button type="button" class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle Menu" title="Toggle Sidebar">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="4" y1="6" x2="20" y2="6"></line>
-          <line x1="4" y1="12" x2="20" y2="12"></line>
-          <line x1="4" y1="18" x2="20" y2="18"></line>
-        </svg>
+      <button type="button" class="menu-toggle" onclick="toggleSidebar()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
       </button>
       <span id="p-title">Overview</span>
     </div>
     <div class="top-nav-right">
       <div id="top-btn-area" style="display:flex;gap:10px;align-items:center"></div>
-      <div class="top-profile" id="top-profile" onclick="openProfile()" style="display:none;" title="Account Profile">
+      <div class="top-profile" id="top-profile" onclick="openProfile()" style="display:none;">
         <img id="top-profile-av" class="top-profile-av" src="" alt="Profile">
         <div class="top-profile-info">
           <span class="top-profile-hello">Hello,</span>
           <span class="top-profile-name" id="top-profile-name">Sign in</span>
         </div>
-        <span style="color:var(--gold); font-size:10px; margin-left:4px;">▼</span>
       </div>
     </div>
   </div>
 
-  <!-- Content Area -->
   <div class="content">
 
-    <!-- Dashboard Page -->
+    <!-- Dashboard -->
     <div id="page-dash" class="page admin-only">
-      <img src="https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&w=2000&q=80" class="hero-img" alt="Chess Academy">
-      
+      <img src="https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&w=2000&q=80" class="hero-img" alt="Chess">
       <div class="dash-grid">
         <div class="card"><div class="stat-label">Total Cadets</div><div class="stat-value" id="s-total">—</div></div>
         <div class="card"><div class="stat-label">Avg Academy ELO</div><div class="stat-value" id="s-elo">—</div></div>
         <div class="card"><div class="stat-label">Active Coaches</div><div class="stat-value" id="s-coaches">—</div></div>
       </div>
-      
-      <div class="dash-grid" style="margin-bottom: 32px;">
+      <div class="dash-grid" style="margin-bottom:32px">
         <div class="card"><div class="stat-label">Revenue (Collected)</div><div class="stat-value text-success" id="s-rev">—</div></div>
         <div class="card"><div class="stat-label">Spending (Salaries + Ops)</div><div class="stat-value text-danger" id="s-spend">—</div></div>
         <div class="card"><div class="stat-label">Net Profit</div><div class="stat-value" id="s-profit">—</div></div>
       </div>
-
       <div class="dash-charts">
         <div class="card"><h3 style="margin-bottom:18px;color:var(--gold)">ELO Distribution</h3><canvas id="chartElo" height="160"></canvas></div>
         <div class="card"><h3 style="margin-bottom:18px;color:var(--gold)">Coach Load</h3><canvas id="chartCoach" height="260"></canvas></div>
       </div>
     </div>
 
-    <!-- Students Page -->
+    <!-- Students -->
     <div id="page-stud" class="page admin-only">
-      <div class="filter-bar" id="student-filters">
+      <div class="filter-bar">
         <select id="f-coach" onchange="renderStudents()"><option value="">All Coaches</option></select>
-        <select id="f-status" onchange="renderStudents()">
-          <option value="">All Payment Status</option>
-          <option value="Paid">Paid</option>
-          <option value="Due">Due</option>
-        </select>
+        <select id="f-status" onchange="renderStudents()"><option value="">All Payment Status</option><option value="Paid">Paid</option><option value="Due">Due</option></select>
         <input type="number" id="f-min-fee" placeholder="Min Fee ₹" oninput="renderStudents()">
         <input type="number" id="f-max-fee" placeholder="Max Fee ₹" oninput="renderStudents()">
-        <input type="date" id="f-date" onchange="renderStudents()" title="Join Date">
-        <button class="btn btn-outline-grey btn-sm" onclick="clearFilters()" style="padding: 9px 12px; margin-bottom: 0;">Clear Filters</button>
+        <button class="btn btn-outline-grey btn-sm" onclick="clearFilters()">Clear</button>
       </div>
-
       <div class="table-wrap">
         <table>
           <thead><tr><th>Student</th><th>Level / ELO</th><th>Join Date</th><th>Coach</th><th>Fee Status</th><th>Actions</th></tr></thead>
-          <tbody id="stud-body"><tr><td colspan="6"><div class="loading-state"><span class="spinner"></span> Loading students…</div></td></tr></tbody>
+          <tbody id="stud-body"><tr><td colspan="6"><div class="loading-state"><span class="spinner"></span> Loading…</div></td></tr></tbody>
         </table>
       </div>
     </div>
 
-    <!-- Coach Management Page -->
+    <!-- Coaches -->
     <div id="page-coach-mgmt" class="page admin-only">
-      <div style="display:flex; justify-content:flex-end; margin-bottom: 20px;">
-        <button class="btn btn-gold" onclick="openCoachModal()">+ Add New Coach</button>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:20px">
+        <button class="btn btn-gold" onclick="openCoachModal()">+ Add Coach</button>
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Coach</th><th>Contact & Details</th><th>Assigned Students</th><th>Actions</th></tr></thead>
-          <tbody id="coach-mgmt-body"><tr><td colspan="4"><div class="loading-state"><span class="spinner"></span> Loading coaches…</div></td></tr></tbody>
+          <thead><tr><th>Coach</th><th>Contact & Details</th><th>Students</th><th>Actions</th></tr></thead>
+          <tbody id="coach-mgmt-body"><tr><td colspan="4"><div class="loading-state"><span class="spinner"></span> Loading…</div></td></tr></tbody>
         </table>
       </div>
     </div>
 
-    <!-- My Child Page (Parent Mode) -->
+    <!-- My Child -->
     <div id="page-child" class="page parent-only">
-      <div id="child-loading" class="loading-state"><span class="spinner"></span> Loading profile…</div>
+      <div id="child-loading" class="loading-state"><span class="spinner"></span> Loading…</div>
       <div id="child-content" style="display:none">
         <div class="profile-hdr">
           <div class="profile-info">
             <div id="p-av-wrap"></div>
-            <div class="profile-details">
-              <h1 id="c-name">—</h1>
-              <div class="profile-meta">
-                <span><b>Level:</b> <span id="c-level" class="text-gold">—</span></span>
-                <span><b>Coach:</b> <span id="c-coach">—</span></span>
-              </div>
-            </div>
+            <div class="profile-details"><h1 id="c-name">—</h1><div class="profile-meta"><span><b>Level:</b> <span id="c-level" class="text-gold">—</span></span><span><b>Coach:</b> <span id="c-coach">—</span></span></div></div>
           </div>
           <div class="profile-actions">
-            <button type="button" class="btn btn-gold" onclick="openContactModal()">✉️ Message Coach</button>
-            <button type="button" class="btn btn-outline" onclick="openModal('fb-modal')">📝 Give Feedback</button>
+            <button class="btn btn-gold" onclick="openContactModal()">✉️ Message Coach</button>
+            <button class="btn btn-outline" onclick="openModal('fb-modal')">📝 Feedback</button>
           </div>
         </div>
-
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-bottom:26px">
           <div class="card">
             <h3 style="margin-bottom:18px;color:var(--gold)">Coach Review</h3>
-            <div style="padding:18px;background:var(--glass);border:1px solid rgba(255,255,255,0.05);border-radius:10px;line-height:1.8;margin-bottom:24px;font-size:14px">
-              <span style="color:var(--success);font-weight:700">★ LATEST:</span><br>
-              <span id="c-notes" style="color:var(--ivory);">Student is showing great tactical progress. Focus on endgame patterns is recommended.</span>
-            </div>
-            <div class="stat-label">Current ELO Rating</div>
-            <div class="stat-value" id="c-elo" style="font-size:42px">—</div>
+            <div style="padding:18px;background:var(--glass);border-radius:10px;line-height:1.8;margin-bottom:24px;font-size:14px"><span style="color:var(--success);font-weight:700">★ LATEST:</span><br><span id="c-notes">—</span></div>
+            <div class="stat-label">Current ELO</div><div class="stat-value" id="c-elo" style="font-size:42px">—</div>
           </div>
-          <div class="card">
-            <h3 style="margin-bottom:20px;color:var(--gold)">Skill Breakdown</h3>
-            <div id="skill-bars"></div>
-          </div>
+          <div class="card"><h3 style="margin-bottom:20px;color:var(--gold)">Skill Breakdown</h3><div id="skill-bars"></div></div>
         </div>
-
-        <h2 style="font-family:var(--font-head);margin-bottom:12px; font-size:22px;">My Achievements</h2>
+        <h2 style="font-family:var(--font-head);margin-bottom:12px;font-size:22px">My Achievements</h2>
         <div class="ach-grid" id="parent-ach"></div>
       </div>
     </div>
 
-    <!-- Wall of Fame Page -->
+    <!-- Wall of Fame -->
     <div id="page-fame" class="page">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
         <p style="color:var(--ivory-dim);font-size:15px">Celebrating the proudest victories of Chesskidoo cadets.</p>
         <button class="btn btn-gold admin-only" onclick="openAwardModal()">+ Add Achievement</button>
       </div>
-      <div id="fame-loading" class="loading-state"><span class="spinner"></span> Loading achievements…</div>
+      <div id="fame-loading" class="loading-state"><span class="spinner"></span> Loading…</div>
       <div class="ach-grid" id="fame-grid" style="display:none"></div>
     </div>
 
-    <!-- Events Page -->
+    <!-- Events -->
     <div id="page-events" class="page">
-      <div id="ev-loading" class="loading-state"><span class="spinner"></span> Loading events…</div>
+      <div id="ev-loading" class="loading-state"><span class="spinner"></span> Loading…</div>
       <div class="ev-grid" id="ev-grid" style="display:none"></div>
     </div>
 
-    <!-- Payments Page -->
+    <!-- Payments -->
     <div id="page-bills" class="page">
       <div class="table-wrap">
         <table>
           <thead><tr><th>Invoice</th><th>Student</th><th>Fee</th><th>Status</th><th>Action</th></tr></thead>
-          <tbody id="bill-body"><tr><td colspan="5"><div class="loading-state"><span class="spinner"></span> Loading payments…</div></td></tr></tbody>
+          <tbody id="bill-body"><tr><td colspan="5"><div class="loading-state"><span class="spinner"></span> Loading…</div></td></tr></tbody>
         </table>
       </div>
     </div>
 
-    <!-- AI Assistant Page -->
+    <!-- Messages -->
+    <div id="page-msgs" class="page admin-only">
+      <div id="msgs-loading" class="loading-state"><span class="spinner"></span> Loading…</div>
+      <div class="msgs-list" id="msgs-list" style="display:none;grid-template-columns:1fr;gap:16px"></div>
+    </div>
+
+    <!-- AI Assistant -->
     <div id="page-coach" class="page admin-only">
       <div class="card" style="height:520px;display:flex;flex-direction:column">
-        <h3 style="margin-bottom:14px;color:var(--gold)">🧠 Intelligence Hub (AI Assistant)</h3>
-        <div class="chat-box" id="chat-box">
-          <div class="msg-ai">System active. I am your AI Assistant. Ask me about revenue, unpaid fees, top students, average ELO, or upcoming events!</div>
-        </div>
+        <h3 style="margin-bottom:14px;color:var(--gold)">🤖 AI Assistant</h3>
+        <div class="chat-box" id="chat-box"><div class="msg-ai">System active. Ask me about revenue, unpaid fees, top students, or events!</div></div>
         <div style="display:flex;gap:10px;margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
-          <input type="text" id="ai-input" placeholder="Try: 'Who is the top student?' or 'What is our total revenue?'" style="margin:0;flex:1" onkeydown="if(event.key==='Enter')sendAI()">
-          <button type="button" class="btn btn-gold" id="ai-send-btn" onclick="sendAI()">Send</button>
+          <input type="text" id="ai-input" placeholder="Ask: 'What is our total revenue?'" style="margin:0;flex:1" onkeydown="if(event.key==='Enter')sendAI()">
+          <button class="btn btn-gold" onclick="sendAI()">Send</button>
         </div>
       </div>
     </div>
@@ -229,7 +196,7 @@
   </div>
 </div>
 
-<!-- Toast Container -->
+<!-- Toast -->
 <div id="toast-container"></div>
 
 <!-- Coach Schedule Modal -->
@@ -238,35 +205,29 @@
     <div class="modal-title">Coach Schedule</div>
     <div class="modal-sub">Weekly timetable for <strong id="sched-coach-name" style="color:var(--ivory)">—</strong></div>
     <div id="schedule-container"></div>
-    <div style="margin-top:22px;">
-      <button type="button" class="btn btn-outline-grey" style="width:100%" onclick="closeModals()">Close Schedule</button>
-    </div>
+    <div style="margin-top:22px"><button class="btn btn-outline-grey" style="width:100%" onclick="closeModals()">Close</button></div>
   </div>
 </div>
 
 <!-- Student View Modal -->
 <div class="modal" id="student-view-modal">
   <div class="modal-box">
-    <div style="display:flex; align-items:center; gap:16px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 16px;">
-      <img id="sv-av" src="" style="width:70px; height:70px; border-radius:50%; border:2px solid var(--gold); object-fit:cover;" alt="Student">
-      <div>
-        <h2 id="sv-name" style="font-family:var(--font-head); color:var(--gold); font-size:24px; margin-bottom:4px;">—</h2>
-        <span id="sv-level" class="badge badge-level">—</span>
-      </div>
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;border-bottom:1px solid var(--border);padding-bottom:16px">
+      <img id="sv-av" src="" style="width:70px;height:70px;border-radius:50%;border:2px solid var(--gold);object-fit:cover">
+      <div><h2 id="sv-name" style="font-family:var(--font-head);color:var(--gold);font-size:24px">—</h2><span id="sv-level" class="badge badge-level">—</span></div>
     </div>
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 13px; line-height: 1.6; color: var(--ivory-dim);">
-      <div><b style="color:var(--ivory)">ELO Rating:</b> <span id="sv-elo"></span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:13px;line-height:1.6;color:var(--ivory-dim)">
+      <div><b style="color:var(--ivory)">ELO:</b> <span id="sv-elo"></span></div>
       <div><b style="color:var(--ivory)">Join Date:</b> <span id="sv-join"></span></div>
       <div><b style="color:var(--ivory)">Coach:</b> <span id="sv-coach"></span></div>
       <div><b style="color:var(--ivory)">Batch:</b> <span id="sv-batch"></span></div>
-      <div><b style="color:var(--ivory)">Timing:</b> <span id="sv-time"></span></div>
-      <div><b style="color:var(--ivory)">Monthly Fee:</b> ₹<span id="sv-fee"></span></div>
+      <div><b style="color:var(--ivory)">Fee:</b> ₹<span id="sv-fee"></span></div>
       <div><b style="color:var(--ivory)">Status:</b> <span id="sv-status"></span></div>
-      <div><b style="color:var(--ivory)">Phone:</b> <span id="sv-phone"></span></div>
+      <div style="grid-column:1/-1"><b style="color:var(--ivory)">Phone:</b> <span id="sv-phone"></span></div>
     </div>
-    <div style="margin-top:24px; display:flex; gap:10px;">
-      <button type="button" class="btn btn-outline" style="flex:1" onclick="closeModals()">Close</button>
-      <button type="button" class="btn btn-gold" style="flex:1" id="sv-edit-btn">Edit Details</button>
+    <div style="margin-top:24px;display:flex;gap:10px">
+      <button class="btn btn-outline" style="flex:1" onclick="closeModals()">Close</button>
+      <button class="btn btn-gold" style="flex:1" id="sv-edit-btn">Edit</button>
     </div>
   </div>
 </div>
@@ -275,20 +236,20 @@
 <div class="modal" id="profile-modal">
   <div class="modal-box">
     <div class="modal-title">Account Activity</div>
-    <div class="modal-sub">View recent sessions and system access</div>
-    <div id="prof-admin-view" style="display:none;">
-      <h4 style="color:var(--gold); margin-bottom:8px; font-size: 13px;">Currently Online</h4>
-      <div id="active-users-list" style="background:var(--bg3); padding:12px; border-radius:8px; border:1px solid var(--glass); margin-bottom:18px; font-size:13px; color:var(--ivory);"></div>
-      <h4 style="color:var(--gold); margin-bottom:8px; font-size: 13px;">Your Login History</h4>
-      <div id="admin-history-list" style="background:var(--bg3); padding:12px; border-radius:8px; border:1px solid var(--glass); margin-bottom:16px; max-height:140px; overflow-y:auto;"></div>
+    <div class="modal-sub">View sessions and system access</div>
+    <div id="prof-admin-view" style="display:none">
+      <h4 style="color:var(--gold);margin-bottom:8px;font-size:13px">Currently Online</h4>
+      <div id="active-users-list" style="background:var(--bg3);padding:12px;border-radius:8px;margin-bottom:18px;font-size:13px"></div>
+      <h4 style="color:var(--gold);margin-bottom:8px;font-size:13px">Login History</h4>
+      <div id="admin-history-list" style="background:var(--bg3);padding:12px;border-radius:8px;max-height:140px;overflow-y:auto"></div>
     </div>
-    <div id="prof-parent-view" style="display:none;">
-      <h4 style="color:var(--gold); margin-bottom:8px; font-size: 13px;">Your Login History</h4>
-      <div id="parent-history-list" style="background:var(--bg3); padding:12px; border-radius:8px; border:1px solid var(--glass); margin-bottom:16px; max-height:160px; overflow-y:auto;"></div>
+    <div id="prof-parent-view" style="display:none">
+      <h4 style="color:var(--gold);margin-bottom:8px;font-size:13px">Login History</h4>
+      <div id="parent-history-list" style="background:var(--bg3);padding:12px;border-radius:8px;max-height:160px;overflow-y:auto"></div>
     </div>
-    <div style="display:flex;gap:10px;margin-top:22px; border-top: 1px solid var(--border); padding-top: 18px;">
-      <button type="button" class="btn btn-outline-grey" style="flex:1" onclick="closeModals()">Close</button>
-      <button type="button" class="btn btn-danger" style="flex:1" onclick="doLogout()">Sign Out securely</button>
+    <div style="display:flex;gap:10px;margin-top:22px;border-top:1px solid var(--border);padding-top:18px">
+      <button class="btn btn-outline-grey" style="flex:1" onclick="closeModals()">Close</button>
+      <button class="btn btn-danger" style="flex:1" onclick="doLogout()">Sign Out</button>
     </div>
   </div>
 </div>
@@ -299,35 +260,23 @@
     <div class="modal-title">Enroll New Cadet</div>
     <div class="modal-sub">Student info & parent credentials</div>
     <input type="text" id="m-name" placeholder="Full Name">
-    <input type="text" id="m-phone" placeholder="Parent Phone (10 digits)" maxlength="10">
-    <input type="date" id="m-join" title="Joining Date">
-    <div style="height:13px"></div>
+    <input type="tel" id="m-phone" placeholder="Parent Phone (10 digits)" maxlength="10">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <input type="number" id="m-elo" placeholder="Initial ELO" value="0" style="margin-bottom:0">
-      <select id="m-level" style="margin-bottom:0"><option>Beginner</option><option>Intermediate</option><option>Advanced</option><option>Elite</option></select>
+      <select id="m-level"><option>Beginner</option><option>Intermediate</option><option>Advanced</option><option>Elite</option></select>
+      <input type="date" id="m-join">
     </div>
-    <div style="height:13px"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <input type="number" id="m-elo" placeholder="Initial ELO" value="800">
       <select id="m-coach"></select>
-      <input type="number" id="m-fee" placeholder="Monthly Fee ₹" value="5000" style="margin-bottom:0">
     </div>
-    <div style="height:13px"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <select id="m-batch-type" style="margin-bottom:0">
-        <option value="Morning">Morning Batch</option>
-        <option value="Evening">Evening Batch</option>
-        <option value="Weekend">Weekend Batch</option>
-      </select>
-      <input type="time" id="m-batch-time" style="margin-bottom:0" value="17:00">
+      <input type="number" id="m-fee" placeholder="Monthly Fee ₹" value="5000">
+      <select id="m-batch-type"><option value="Morning">Morning</option><option value="Evening">Evening</option><option value="Weekend">Weekend</option></select>
     </div>
-    <div style="height:13px"></div>
-    <label class="upload-zone" for="m-avatar-file">📷 Upload Photo (optional) <br><small>JPG, PNG, WEBP — max 5MB</small>
-      <input type="file" id="m-avatar-file" accept="image/*" onchange="previewFile(this,'m-avatar-preview')">
-    </label>
-    <img id="m-avatar-preview" class="upload-preview" alt="Preview">
+    <input type="time" id="m-batch-time" value="17:00">
     <div style="display:flex;gap:10px;margin-top:14px">
-      <button type="button" class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
-      <button type="button" class="btn btn-gold" style="flex:1" id="enroll-btn" onclick="saveStudent()">Enroll Cadet</button>
+      <button class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
+      <button class="btn btn-gold" style="flex:1" onclick="saveStudent()">Enroll</button>
     </div>
   </div>
 </div>
@@ -336,80 +285,64 @@
 <div class="modal" id="edit-modal">
   <div class="modal-box">
     <div class="modal-title">Edit Cadet</div>
-    <div class="modal-sub">Update student details</div>
     <input type="hidden" id="e-id">
     <input type="text" id="e-name" placeholder="Full Name">
-    <input type="text" id="e-phone" placeholder="Parent Phone (10 digits)" maxlength="10">
-    <input type="date" id="e-join">
-    <div style="height:13px"></div>
+    <input type="tel" id="e-phone" placeholder="Parent Phone" maxlength="10">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <input type="number" id="e-elo" placeholder="ELO" style="margin-bottom:0">
-      <select id="e-level" style="margin-bottom:0"><option>BEGINNER</option><option>INTERMEDIATE</option><option>ADVANCED</option><option>ELITE</option></select>
+      <select id="e-level"><option>BEGINNER</option><option>INTERMEDIATE</option><option>ADVANCED</option><option>ELITE</option></select>
+      <input type="date" id="e-join">
     </div>
-    <div style="height:13px"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <select id="e-coach" style="margin-bottom:0"></select>
-      <input type="number" id="e-fee" placeholder="Monthly Fee ₹" style="margin-bottom:0">
+      <input type="number" id="e-elo" placeholder="ELO">
+      <select id="e-coach"></select>
     </div>
-    <div style="height:13px"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <select id="e-batch-type" style="margin-bottom:0">
-        <option value="Morning">Morning Batch</option>
-        <option value="Evening">Evening Batch</option>
-        <option value="Weekend">Weekend Batch</option>
-      </select>
-      <input type="time" id="e-batch-time" style="margin-bottom:0">
+      <input type="number" id="e-fee" placeholder="Fee ₹">
+      <select id="e-status"><option value="Paid">Paid</option><option value="Due">Due</option></select>
     </div>
-    <div style="height:13px"></div>
-    <select id="e-status">
-      <option value="Paid">Paid</option>
-      <option value="Due">Due</option>
-    </select>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <select id="e-batch-type"><option value="Morning">Morning</option><option value="Evening">Evening</option><option value="Weekend">Weekend</option></select>
+      <input type="time" id="e-batch-time">
+    </div>
     <div style="display:flex;gap:10px;margin-top:14px">
-      <button type="button" class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
-      <button type="button" class="btn btn-gold" style="flex:1" onclick="updateStudent()">Save Changes</button>
+      <button class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
+      <button class="btn btn-gold" style="flex:1" onclick="updateStudent()">Save</button>
     </div>
   </div>
 </div>
 
-<!-- Coach CRUD Modal -->
+<!-- Coach Modal -->
 <div class="modal" id="coach-crud-modal">
   <div class="modal-box">
     <div class="modal-title" id="coach-modal-title">Add Coach</div>
-    <div class="modal-sub">Manage instructor details</div>
     <input type="hidden" id="cm-id">
-    <input type="text" id="cm-name" placeholder="Coach Full Name">
-    <input type="text" id="cm-spec" placeholder="Specialty (e.g. Grandmaster, Openings)">
-    <input type="tel" id="cm-phone" placeholder="Phone Number (10 digits)" maxlength="10">
-    <textarea id="cm-address" rows="2" placeholder="Full Address"></textarea>
-    <input type="url" id="cm-photo" placeholder="Photo URL (Optional)">
-    <input type="number" id="cm-salary" placeholder="Salary Details (₹)">
-    <textarea id="cm-etc" rows="2" placeholder="Additional Details (Etc.)"></textarea>
+    <input type="text" id="cm-name" placeholder="Coach Name">
+    <input type="text" id="cm-spec" placeholder="Specialty">
+    <input type="tel" id="cm-phone" placeholder="Phone (10 digits)" maxlength="10">
+    <textarea id="cm-address" rows="2" placeholder="Address"></textarea>
+    <input type="url" id="cm-photo" placeholder="Photo URL">
+    <input type="number" id="cm-salary" placeholder="Salary ₹">
+    <textarea id="cm-etc" rows="2" placeholder="Additional Details"></textarea>
     <div style="display:flex;gap:10px;margin-top:14px">
-      <button type="button" class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
-      <button type="button" class="btn btn-gold" style="flex:1" onclick="saveCoach()">Save Coach</button>
+      <button class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
+      <button class="btn btn-gold" style="flex:1" onclick="saveCoach()">Save</button>
     </div>
   </div>
 </div>
 
-<!-- Award Modal -->
+<!-- Achievement Modal -->
 <div class="modal" id="award-modal">
   <div class="modal-box">
     <div class="modal-title">Grant Achievement</div>
-    <div class="modal-sub">Select a student and add their achievement</div>
-    <select id="award-student" onchange="onAwardStudentChange()">
-      <option value="">Select Student</option>
-    </select>
+    <select id="award-student"><option value="">Select Student</option></select>
     <input type="hidden" id="award-sid">
     <input type="text" id="award-title" placeholder="Title (e.g. District Champion 2026)">
-    <label class="upload-zone" for="award-img-file">🖼️ Upload Achievement Photo
-      <input type="file" id="award-img-file" accept="image/*" onchange="previewFile(this,'award-img-preview')">
-    </label>
-    <img id="award-img-preview" class="upload-preview" alt="Preview">
-    <input type="url" id="award-img-url" placeholder="— OR paste image URL —" style="margin-top:0">
+    <label class="upload-zone" for="award-img-file">🖼️ Upload Photo<input type="file" id="award-img-file" accept="image/*" onchange="previewFile(this,'award-img-preview')"></label>
+    <img id="award-img-preview" class="upload-preview">
+    <input type="url" id="award-img-url" placeholder="OR paste image URL">
     <div style="display:flex;gap:10px;margin-top:14px">
-      <button type="button" class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
-      <button type="button" class="btn btn-gold" style="flex:1" id="award-btn" onclick="saveAward()">Publish to Wall of Fame</button>
+      <button class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
+      <button class="btn btn-gold" style="flex:1" onclick="saveAward()">Publish</button>
     </div>
   </div>
 </div>
@@ -418,18 +351,16 @@
 <div class="modal" id="ev-modal">
   <div class="modal-box">
     <div class="modal-title">Create Event</div>
-    <div class="modal-sub">Publish a new tournament or workshop</div>
     <input type="text" id="ev-title" placeholder="Event Name">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <input type="text" id="ev-date" placeholder="Date (e.g. Oct 20)" style="margin-bottom:0">
-      <select id="ev-type" style="margin-bottom:0"><option>Tournament</option><option>Rapid</option><option>Blitz</option><option>Workshop</option></select>
+      <input type="text" id="ev-date" placeholder="Date (e.g. Oct 20)">
+      <select id="ev-type"><option>Tournament</option><option>Rapid</option><option>Blitz</option><option>Workshop</option></select>
     </div>
-    <div style="height:13px"></div>
-    <input type="text" id="ev-prize" placeholder="Prize Pool (e.g. ₹50,000)">
+    <input type="text" id="ev-prize" placeholder="Prize Pool">
     <input type="text" id="ev-loc" placeholder="Location">
     <div style="display:flex;gap:10px;margin-top:14px">
-      <button type="button" class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
-      <button type="button" class="btn btn-gold" style="flex:1" id="ev-btn" onclick="saveEvent()">Publish Event</button>
+      <button class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
+      <button class="btn btn-gold" style="flex:1" onclick="saveEvent()">Publish</button>
     </div>
   </div>
 </div>
@@ -438,11 +369,11 @@
 <div class="modal" id="contact-modal">
   <div class="modal-box">
     <div class="modal-title">Message Coach</div>
-    <div class="modal-sub">Sending to: <strong id="contact-coach" style="color:var(--ivory)">—</strong></div>
-    <textarea id="contact-msg" rows="5" placeholder="Type your message…"></textarea>
+    <div class="modal-sub">To: <strong id="contact-coach">—</strong></div>
+    <textarea id="contact-msg" rows="5" placeholder="Your message…"></textarea>
     <div style="display:flex;gap:10px">
-      <button type="button" class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
-      <button type="button" class="btn btn-gold" style="flex:1" onclick="sendMsg()">Send Message</button>
+      <button class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
+      <button class="btn btn-gold" style="flex:1" onclick="sendMsg()">Send</button>
     </div>
   </div>
 </div>
@@ -451,11 +382,10 @@
 <div class="modal" id="fb-modal">
   <div class="modal-box">
     <div class="modal-title">Academy Feedback</div>
-    <div class="modal-sub">Help us improve Chesskidoo.</div>
-    <textarea id="fb-msg" rows="5" placeholder="How was your experience this month?"></textarea>
+    <textarea id="fb-msg" rows="5" placeholder="Your feedback…"></textarea>
     <div style="display:flex;gap:10px">
-      <button type="button" class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
-      <button type="button" class="btn btn-gold" style="flex:1" onclick="sendFeedback()">Submit</button>
+      <button class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
+      <button class="btn btn-gold" style="flex:1" onclick="sendFeedback()">Submit</button>
     </div>
   </div>
 </div>
@@ -466,18 +396,17 @@
     <div style="font-size:42px;margin-bottom:10px">🛡️</div>
     <div class="modal-title">Secure Checkout</div>
     <p style="color:var(--ivory-dim);font-size:14px;margin-bottom:6px">Academy Tuition</p>
-    <div id="pay-amt" style="font-size:36px;font-weight:700;color:var(--gold);font-family:'DM Mono';margin-bottom:6px">₹0</div>
-    <p style="color:var(--ivory-dim);font-size:12px;margin-bottom:4px">Student: <span id="pay-name" style="color:var(--ivory)">—</span></p>
+    <div id="pay-amt" style="font-size:36px;font-weight:700;color:var(--gold);font-family:'DM Mono'">₹0</div>
+    <p style="color:var(--ivory-dim);font-size:12px">Student: <span id="pay-name" style="color:var(--ivory)">—</span></p>
     <div class="upi-list">
-      <div class="upi-item" onclick="simPay('Google Pay')"><img src="https://cdn-icons-png.flaticon.com/512/300/300221.png" class="upi-logo" alt="Google Pay"><b>Google Pay</b></div>
-      <div class="upi-item" onclick="simPay('PhonePe')"><img src="https://cdn-icons-png.flaticon.com/512/5968/5968310.png" class="upi-logo" alt="PhonePe"><b>PhonePe</b></div>
-      <div class="upi-item" onclick="simPay('Paytm')"><img src="https://cdn-icons-png.flaticon.com/512/825/825508.png" class="upi-logo" alt="Paytm"><b>Paytm / BHIM</b></div>
+      <div class="upi-item" onclick="simPay('Google Pay')"><b>Google Pay</b></div>
+      <div class="upi-item" onclick="simPay('PhonePe')"><b>PhonePe</b></div>
+      <div class="upi-item" onclick="simPay('Paytm')"><b>Paytm</b></div>
     </div>
-    <button type="button" class="btn btn-outline" style="width:100%" onclick="closeModals()">Cancel</button>
+    <button class="btn btn-outline" style="width:100%" onclick="closeModals()">Cancel</button>
   </div>
 </div>
 
-<!-- Scripts -->
 <script src="scripts.js"></script>
 </body>
 </html>
