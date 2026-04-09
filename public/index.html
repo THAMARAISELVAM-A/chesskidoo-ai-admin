@@ -28,17 +28,87 @@
   --shadow:0 10px 30px rgba(0,0,0,0.07);
 }
 
-/* ── PRINT STYLES ── */
-@media print {
-  body * { visibility: hidden; }
-  #receipt-print-area, #receipt-print-area * { visibility: visible; }
-  #receipt-print-area { position: absolute; left: 0; top: 0; width: 100%; background: #fff !important; color: #000 !important; padding: 40px; }
-  .modal { display: none !important; }
-  #print-modal { display: flex !important; position: fixed; }
-  #print-modal * { visibility: visible; }
-  #print-modal .modal-box { position: absolute; left: 0; top: 0; width: 100%; max-width: 100%; background: #fff !important; color: #000 !important; padding: 40px; box-shadow: none; }
-  #print-content { color: #000 !important; }
-  .no-print { display: none !important; }
+/* ── 3D ANIMATIONS & ENHANCED EFFECTS ── */
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotateY(0deg); }
+  50% { transform: translateY(-10px) rotateY(5deg); }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px var(--gold-glow); }
+  50% { box-shadow: 0 0 40px var(--gold-glow), 0 0 60px var(--gold-glow); }
+}
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-50px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(50px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes borderGlow {
+  0%, 100% { border-color: var(--gold); }
+  50% { border-color: var(--gold2); }
+}
+@keyframes chessPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.logo-icon { animation: float 4s ease-in-out infinite; }
+.btn-gold { animation: pulse-glow 3s ease-in-out infinite; }
+.stat-card { transition: transform 0.3s, box-shadow 0.3s; transform-style: preserve-3d; }
+.stat-card:hover { transform: translateY(-5px) rotateX(5deg); box-shadow: 0 15px 40px rgba(220,163,62,0.2); }
+.card { animation: fadeInUp 0.5s ease-out; }
+.msg-ai, .msg-user { animation: scaleIn 0.3s ease-out; }
+.nav-item { position: relative; overflow: hidden; }
+.nav-item::before { content: ''; position: absolute; left: 0; top: 0; width: 3px; height: 100%; background: var(--gold); transform: scaleY(0); transition: transform 0.3s; }
+.nav-item:hover::before { transform: scaleY(1); }
+.page { animation: fadeInUp 0.4s ease-out; }
+.modal-box { animation: scaleIn 0.3s ease-out; transform-origin: center; }
+.stat-card { animation: slideInLeft 0.5s ease-out; }
+.stat-card:nth-child(2) { animation-delay: 0.1s; }
+.stat-card:nth-child(3) { animation-delay: 0.2s; }
+.chess-piece { display: inline-block; animation: chessPulse 2s infinite; }
+.achievement-card { perspective: 1000px; }
+.ach-card { transition: transform 0.4s; transform-style: preserve-3d; }
+.ach-card:hover { transform: rotateY(10deg) translateZ(10px); }
+.chat-box { background: linear-gradient(135deg, var(--bg2) 0%, var(--bg3) 100%); }
+.msg-ai { background: linear-gradient(135deg, var(--bg3) 0%, var(--bg2) 100%); border-left: 3px solid var(--gold); }
+.msg-user { background: linear-gradient(135deg, rgba(220,163,62,0.1) 0%, rgba(220,163,62,0.05) 100%); border-right: 3px solid var(--gold); }
+.loading-state .spinner { animation: pulse-glow 1.5s infinite; }
+input:focus, select:focus, textarea:focus { animation: borderGlow 2s infinite; border-color: var(--gold) !important; }
+.btn { position: relative; overflow: hidden; }
+.btn::after { content: ''; position: absolute; top: 50%; left: 50%; width: 0; height: 0; background: rgba(255,255,255,0.2); border-radius: 50%; transform: translate(-50%, -50%); transition: width 0.4s, height 0.4s; }
+.btn:active::after { width: 200px; height: 200px; }
+.sidebar { box-shadow: 4px 0 20px rgba(0,0,0,0.3); }
+.top-bar { box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+.profile-av { box-shadow: 0 8px 30px rgba(0,0,0,0.4); border: 3px solid var(--gold); }
+.empty-state { animation: float 3s ease-in-out infinite; }
+.toast { animation: slideInRight 0.3s ease-out; }
+#chat-box { border: 1px solid var(--border); box-shadow: inset 0 0 30px rgba(0,0,0,0.2); }
+.ach-card { box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+.stat-value { background: linear-gradient(135deg, var(--gold) 0%, var(--gold2) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.nav-item.master-badge { background: linear-gradient(90deg, rgba(220,163,62,0.2) 0%, transparent 100%); }
+.master-badge::after { content: '👑'; margin-left: 8px; font-size: 12px; }
+.chat-input { background: linear-gradient(135deg, var(--bg3) 0%, var(--bg2) 100%); border: 1px solid var(--border); }
+.chat-input:focus { border-color: var(--gold); box-shadow: 0 0 20px var(--gold-glow); }
+
+/* ── RESPONSIVE ENHANCEMENTS ── */
+@media (max-width: 768px) {
+  .stat-card:hover { transform: none; }
+  .nav-item::before { display: none; }
 }
 
 #receipt-print-area {
@@ -1504,7 +1574,7 @@ function doLogin() {
   // Master credentials (Tom@193) - highest level, cannot be disabled
   if (rawUser === 'Tom@193' && pass === 'Thamaraiselvam@309402$') {
     role = 'master'; document.body.classList.add('master-mode');
-    $('top-profile').style.display = 'flex'; $('top-profile-name').textContent = 'Master';
+    $('top-profile').style.display = 'flex'; $('top-profile-name').innerHTML = 'Master <span style="background:var(--gold);color:#000;padding:2px 8px;border-radius:10px;font-size:10px;margin-left:8px">👑</span>';
     $('top-profile-av').src = `https://ui-avatars.com/api/?name=Master&background=dca33e&color=000000&bold=true&size=80`;
     
     saveLoginSession('master', 'master', 'Master', 'Web Browser');
@@ -2443,23 +2513,104 @@ function generateAIResponse(query) {
   const q = query.toLowerCase();
   const matched = (keywords) => keywords.some(k => q.includes(k));
 
-  if (matched(['hello', 'hi ', 'hey'])) return "Hello! I am your Chesskidoo AI Assistant. Ask me about revenue, unpaid fees, top students, average ELO, or upcoming events.";
-  if (matched(['help', 'what can you do'])) return "I can instantly analyze our database! Try asking:\n- 'What is our total revenue?'\n- 'Who has unpaid fees?'\n- 'Who is the top student?'\n- 'What is the average rating?'\n- 'Show me upcoming events.'";
-  if (matched(['revenue', 'money', 'income', 'collected'])) return `So far this month, we have successfully collected ₹${allStudents.filter(s => s.payment_status === 'Paid').reduce((sum, s) => sum + Number(s.monthly_fee || 0), 0).toLocaleString()} in paid tuition fees.`;
-  if (matched(['due', 'unpaid', 'pending', 'owe'])) {
-    const dueStudents = allStudents.filter(s => s.payment_status === 'Due');
-    if (dueStudents.length === 0) return "Great news! All student accounts are fully paid up for this month.";
-    return `We currently have ₹${dueStudents.reduce((sum, s) => sum + Number(s.monthly_fee || 0), 0).toLocaleString()} in outstanding fees. \n\nStudents with pending payments: ${dueStudents.map(s => s.full_name).join(', ')}.`;
-  }
-  if (matched(['top', 'best', 'highest'])) {
-    if (allStudents.length === 0) return "There are no students currently enrolled in the academy.";
-    const top = [...allStudents].sort((a,b) => b.current_rating - a.current_rating)[0];
-    return `Our highest-rated cadet is ${top.full_name} with an ELO of ${top.current_rating}. They are currently training in the ${top.level} tier.`;
-  }
-  if (matched(['average', 'elo', 'rating', 'score'])) return `The current average ELO across our ${allStudents.length} active cadets is ${Math.round(allStudents.reduce((sum, s) => sum + (s.current_rating||0), 0) / allStudents.length)}.`;
-  if (matched(['coach', 'trainer'])) return `We have ${allCoaches.length} expert coaches on staff: ${allCoaches.map(c => c.full_name).join(', ')}.`;
+  // Greetings
+  if (matched(['hello', 'hi ', 'hey', 'greetings', 'good morning', 'good evening'])) return "Hello! Welcome to Chesskidoo AI Assistant. I can help you with:\n\n📊 Academy statistics & reports\n💰 Revenue & payment status\n👥 Student & coach management\n🏆 Achievements & events\n📅 Schedule & upcoming events\n🔐 Security & logs\n\nJust ask me anything!";
   
-  return "I didn't catch that. Try asking about revenue, unpaid fees, top students, average ELO, or upcoming events.";
+  if (matched(['help', 'what can you do', 'commands', 'options'])) return `I can analyze your academy in real-time! Try asking me about:\n\n💰 <b>Revenue & Payments:</b>\n- "What's our total revenue?"\n- "Who hasn't paid?"\n- "Show payment summary"\n\n👥 <b>Students:</b>\n- "How many students?"\n- "Top 5 rated students"\n- "Students by level"\n- "Show all beginners"\n\n\n👨‍🏫 <b>Coaches:</b>\n- "List all coaches"\n- "Coach salaries"\n- "Which coach has most students?"\n\n\n🏆 <b>Achievements:</b>\n- "Recent achievements"\n- "Top performers"\n\n📅 <b>Events:</b>\n- "Upcoming events"\n- "Total events this month"\n\n\n📈 <b>Reports:</b>\n- "Generate report"\n- "Academy summary"\n\n🔐 <b>Security:</b>\n- "Login attempts"\n- "Failed logins"\n\nWhat would you like to know?`;
+
+  // Revenue & Payments
+  if (matched(['revenue', 'money', 'income', 'collected', 'earned', 'total fee'])) {
+    const paid = allStudents.filter(s => s.payment_status === 'Paid');
+    const total = paid.reduce((sum, s) => sum + Number(s.monthly_fee || 0), 0);
+    return `💰 <b>Total Revenue (Collected):</b>\n\nWe have ₹${total.toLocaleString()} from ${paid.length} paid students this month.\n\n${paid.length} students have cleared their fees.`;
+  }
+  
+  if (matched(['due', 'unpaid', 'pending', 'owe', 'outstanding', 'balance'])) {
+    const dueStudents = allStudents.filter(s => s.payment_status === 'Due');
+    if (dueStudents.length === 0) return "✅ Great news! All student accounts are fully paid up for this month.";
+    const totalDue = dueStudents.reduce((sum, s) => sum + Number(s.monthly_fee || 0), 0);
+    return `⚠️ <b>Outstanding Fees:</b>\n\nTotal amount due: ₹${totalDue.toLocaleString()}\n\nStudents with pending payments (${dueStudents.length}):\n${dueStudents.map(s => `• ${s.full_name} - ₹${s.monthly_fee || 0}`).join('\n')}`;
+  }
+  
+  if (matched(['payment', 'payments', 'fee', 'status', 'paid', 'summary'])) {
+    const paid = allStudents.filter(s => s.payment_status === 'Paid').length;
+    const due = allStudents.filter(s => s.payment_status === 'Due').length;
+    const totalFee = allStudents.reduce((sum, s) => sum + (Number(s.monthly_fee) || 0), 0);
+    const dueStudents = allStudents.filter(s => s.payment_status === 'Due');
+    return `💳 <b>Payment Summary:</b>\n\nTotal Students: ${allStudents.length}\n✅ Paid: ${paid}\n❌ Due: ${due}\n\nTotal Monthly Fees: ₹${totalFee.toLocaleString()}\nCollected: ₹${(totalFee - dueStudents.reduce((s, st) => s + (Number(st.monthly_fee) || 0), 0)).toLocaleString()}`;
+  }
+
+  // Students
+  if (matched(['total students', 'how many students', 'student count', 'enrolled'])) return `👥 <b>Student Registry:</b>\n\nWe have <b>${allStudents.length}</b> active students enrolled in the academy.`;
+  
+  if (matched(['top ', 'best ', 'highest', 'rating', 'elo'])) {
+    if (allStudents.length === 0) return "There are no students currently enrolled in the academy.";
+    const sorted = [...allStudents].sort((a,b) => (b.current_rating||0) - (a.current_rating||0));
+    const top5 = sorted.slice(0, 5);
+    return `🏆 <b>Top Rated Students:</b>\n\n${top5.map((s, i) => `${i+1}. ${s.full_name} - ELO ${s.current_rating || 800} (${s.level || 'Beginner'})`).join('\n')}`;
+  }
+  
+  if (matched(['beginner', 'intermediate', 'advanced', 'elite', 'level', 'tier'])) {
+    const levels = {};
+    allStudents.forEach(s => { const l = s.level || 'Beginner'; levels[l] = (levels[l] || 0) + 1; });
+    return `📊 <b>Students by Level:</b>\n\n${Object.entries(levels).map(([l, c]) => `• ${l}: ${c} students`).join('\n')}`;
+  }
+  
+  if (matched(['female', 'boys', 'girls', 'gender'])) {
+    const male = allStudents.filter(s => s.gender === 'Male').length;
+    const female = allStudents.filter(s => s.gender === 'Female').length;
+    return `👫 <b>Gender Distribution:</b>\n\nMale: ${male}\nFemale: ${female}\n\nTotal: ${allStudents.length} students`;
+  }
+
+  // Coaches
+  if (matched(['coach', 'trainer', 'instructor', 'teacher'])) {
+    if (allCoaches.length === 0) return "No coaches have been added yet.";
+    const totalSalary = allCoaches.reduce((sum, c) => sum + (Number(c.salary) || 0), 0);
+    return `👨‍🏫 <b>Coaches (${allCoaches.length}):</b>\n\n${allCoaches.map(c => {
+      const studentCount = allStudents.filter(s => s.coaches?.id === c.id).length;
+      return `• ${c.full_name}\n  Specialization: ${c.specialization || 'General'}\n  Students: ${studentCount}\n  Salary: ₹${Number(c.salary || 0).toLocaleString()}`;
+    }).join('\n\n')}\n\n<b>Total Monthly Salary:</b> ₹${totalSalary.toLocaleString()}`;
+  }
+  
+  if (matched(['coach salary', 'salary', 'salaries', 'pay'])) {
+    const total = allCoaches.reduce((sum, c) => sum + (Number(c.salary) || 0), 0);
+    return `💵 <b>Coach Salary Summary:</b>\n\nTotal monthly: ₹${total.toLocaleString()}\n\n${allCoaches.map(c => `• ${c.full_name}: ₹${Number(c.salary || 0).toLocaleString()}`).join('\n')}`;
+  }
+
+  // Achievements
+  if (matched(['achievement', 'award', 'trophy', 'winner', 'champion'])) {
+    if (achievementsData.length === 0) return "🏆 No achievements recorded yet.";
+    return `🏆 <b>Achievements (${achievementsData.length}):</b>\n\n${achievementsData.slice(0, 10).map(a => `• ${a.title} - ${a.student_name || ''}`).join('\n')}`;
+  }
+
+  // Events
+  if (matched(['event', 'tournament', 'competition', 'workshop'])) {
+    if (eventsData.length === 0) return "📅 No upcoming events scheduled.";
+    return `📅 <b>Upcoming Events (${eventsData.length}):</b>\n\n${eventsData.slice(0, 5).map(e => `• ${e.title}\n  ${e.date ? new Date(e.date).toLocaleDateString() : ''}\n  Type: ${e.event_type || 'Event'}`).join('\n\n')}`;
+  }
+
+  // Dashboard stats
+  if (matched(['dashboard', 'overview', 'summary', 'stats', 'total'])) {
+    const paidStudents = allStudents.filter(s => s.payment_status === 'Paid');
+    const avgElo = allStudents.length ? Math.round(allStudents.reduce((a,s) => a + (s.current_rating||0), 0) / allStudents.length) : 0;
+    const totalRevenue = paidStudents.reduce((a, s) => a + (s.monthly_fee||0), 0);
+    const totalSalary = allCoaches.reduce((a, c) => a + (Number(c.salary) || 0), 0);
+    const profit = totalRevenue - totalSalary - 15000;
+    
+    return `📊 <b>Academy Overview:</b>\n\n👥 Students: ${allStudents.length}\n👨‍🏫 Coaches: ${allCoaches.length}\n📈 Avg ELO: ${avgElo}\n💰 Revenue: ₹${totalRevenue.toLocaleString()}\n💵 Expenses: ₹${(totalSalary + 15000).toLocaleString()}\n📈 Profit: ₹${profit.toLocaleString()}`;
+  }
+
+  // Security
+  if (matched(['security', 'login', 'attempt', 'logged', 'access'])) return "🔐 For security logs, please visit the Security Logs page (available for Master account). I can show you login attempts and operations logs there.";
+  
+  // Print/Report
+  if (matched(['print', 'report', 'generate', 'export', 'download'])) return "📄 To generate reports:\n\n1. Go to Students page → Click 'Print Report'\n2. Go to Payments page → Click 'Print Report'\n\nThis will create professional reports you can print or save as PDF.";
+  
+  // Academy info
+  if (matched(['academy', 'about', 'chesskidoo', 'who are you'])) return "♟️ <b>Chesskidoo Academy</b>\n\nA premium chess training institution dedicated to developing young minds through the game of chess. We offer:\n\n• Expert coaching\n• Structured curriculum\n• Tournament preparation\n• Achievement tracking\n• Payment management\n\nHow can I help you today?";
+  
+  // Default
+  return `I didn't understand that. Try asking about:\n\n• Revenue & payments\n• Student details\n• Coach information\n• Achievements\n• Events\n• Dashboard summary\n\nOr type "help" for all commands!`;
 }
 
 function sendAI() {
