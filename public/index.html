@@ -11,16 +11,22 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
     <!-- Security Hardening -->
-    <!-- CSP: allows cdnjs for jsPDF, ui-avatars/unsplash/imgbb for images, jsdelivr for sourcemaps -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://*.supabase.co https://i.ibb.co https://*.ibb.co https://ui-avatars.com https://images.unsplash.com https://api.imgbb.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://cdn.jsdelivr.net https://api.imgbb.com;"/>
+    <!-- CSP: allows cdnjs for jsPDF, ui-avatars/unsplash/imgbb for images, jsdelivr for sourcemaps, vercel-scripts for Speed Insights -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://*.supabase.co https://i.ibb.co https://*.ibb.co https://ui-avatars.com https://images.unsplash.com https://api.imgbb.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://cdn.jsdelivr.net https://api.imgbb.com https://vitals.vercel-insights.com;"/>
     <meta name="referrer" content="strict-origin-when-cross-origin"/>
     <!-- X-Frame-Options must be an HTTP header, not a meta tag — set in vercel.json -->
+    
+    <!-- Vercel Speed Insights -->
+    <script>
+      window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/speed-insights/script.js"></script>
 
     <!-- App Configuration (set via environment variables at build/deploy time) -->
             <script>
       window.APP_CONFIG = {
-        SUPABASE_URL: '%VITE_SUPABASE_URL%',
-        SUPABASE_ANON_KEY: '%VITE_SUPABASE_ANON_KEY%'
+        SUPABASE_URL: 'https://vseombfkrvpffnpgbsnk.supabase.co',
+        SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzZW9tYmZrcnZwZmZucGdic25rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5Mzc0MjAsImV4cCI6MjA4OTUxMzQyMH0.wg0Azavs8Gfdbh6vbdjvM6juu45OwpCn4J5XN55tsc8'
       };
     </script>
 
@@ -517,7 +523,7 @@
       <div><b style="color:var(--ivory)">Join Date:</b> <span id="sv-join"></span></div>
       <div><b style="color:var(--ivory)">Coach:</b> <span id="sv-coach"></span></div>
       <div><b style="color:var(--ivory)">Schedule:</b> <span id="sv-batch"></span></div>
-      <div><b style="color:var(--ivory)">Fee:</b> ₹<span id="sv-fee"></span></div>
+      <div><b style="color:var(--ivory)">Fee:</b> ��<span id="sv-fee"></span></div>
       <div><b style="color:var(--ivory)">Status:</b> <span id="sv-status"></span></div>
       <div style="grid-column:1/-1"><b style="color:var(--ivory)">Phone:</b> <span id="sv-phone"></span></div>
     </div>
