@@ -104,108 +104,123 @@ window.openMasterSchedule = function() {
   const container = document.getElementById('master-schedule-container');
   if (!container) return;
 
-  // Always use LIVE data from the dynamic schedule builder.
-  let scheduleData = (typeof window.buildDynamicSchedule === 'function') ? window.buildDynamicSchedule() : [];
-  const isAdmin = window.currentUser && window.currentUser.role === 'admin';
-
-  let html = `
+  const html = `
     <style>
+        #master-schedule-container {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+            background-color: #141722;
+            color: #ffffff;
+            font-size: 11px;
+            padding: 10px;
+        }
+
+        #master-schedule-container .header {
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        #master-schedule-container h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            color: #ffffff;
+        }
+
+        #master-schedule-container .subtitle {
+            margin-top: 4px;
+            font-size: 12px;
+            color: #8a90a6;
+        }
+
         #master-schedule-container table {
             width: 100%;
             border-collapse: separate;
             border-spacing: 3px;
             table-layout: fixed;
-            background-color: transparent;
         }
 
         #master-schedule-container th {
             background-color: #1c2030;
             color: #a4b0cb;
             font-weight: 600;
-            padding: 5px;
+            padding: 8px;
             text-align: center;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             border-radius: 2px;
-            font-size: 10px;
+            font-size: 11px;
             border: none;
         }
 
         #master-schedule-container th.coach-header {
-            width: 12%;
+            width: 11%;
         }
 
         #master-schedule-container td {
-            padding: 2px;
+            padding: 4px;
             vertical-align: middle;
             text-align: center;
             background-color: #1a1e2e;
             border-radius: 2px;
-            height: 52px;
+            height: 60px;
             border: none;
         }
 
         #master-schedule-container td.coach-cell {
             font-weight: bold;
-            font-size: 11px;
+            font-size: 12px;
             text-align: center;
             padding: 4px;
-            line-height: 1.2;
-            color: #fff;
+            line-height: 1.3;
         }
 
         /* Border highlights per coach */
-        .row-rohith { border-left: 3.5px solid #3b5998 !important; }
-        .row-ranjith { border-left: 3.5px solid #27ae60 !important; }
-        .row-gyana { border-left: 3.5px solid #8e44ad !important; }
-        .row-arivu { border-left: 3.5px solid #d35400 !important; }
-        .row-yogesh { border-left: 3.5px solid #2ecc71 !important; }
-        .row-sudhin { border-left: 3.5px solid #f39c12 !important; }
-        .row-vasanth { border-left: 3.5px solid #16a085 !important; }
-        .row-vishnu { border-left: 3.5px solid #7f8c8d !important; }
-        .row-default { border-left: 3.5px solid #4f5d75 !important; }
+        #master-schedule-container .row-rohith { border-left: 3.5px solid #3b5998; }
+        #master-schedule-container .row-ranjith { border-left: 3.5px solid #27ae60; }
+        #master-schedule-container .row-gyana { border-left: 3.5px solid #8e44ad; }
+        #master-schedule-container .row-arivu { border-left: 3.5px solid #d35400; }
+        #master-schedule-container .row-yogesh { border-left: 3.5px solid #2ecc71; }
+        #master-schedule-container .row-sudhin { border-left: 3.5px solid #f39c12; }
+        #master-schedule-container .row-vasanth { border-left: 3.5px solid #16a085; }
+        #master-schedule-container .row-vishnu { border-left: 3.5px solid #7f8c8d; }
 
-        .empty-cell {
+        #master-schedule-container .empty-cell {
             color: #2c3242;
             font-size: 12px;
         }
 
-        .mat-block {
+        #master-schedule-container .block {
             display: block;
             padding: 4px;
             margin: 2px 0;
             border-radius: 3px;
             color: #ffffff;
             font-weight: 600;
-            line-height: 1.1;
+            line-height: 1.2;
             text-align: left;
-            cursor: pointer;
-            position: relative;
-            transition: opacity 0.15s;
         }
-        .mat-block:hover { opacity: 0.85; }
 
-        .bg-rohith { background-color: #3b5998; }
-        .bg-ranjith { background-color: #27ae60; }
-        .bg-gyana { background-color: #8e44ad; }
-        .bg-arivu { background-color: #d35400; }
-        .bg-yogesh { background-color: #2ecc71; }
-        .bg-sudhin { background-color: #f39c12; }
-        .bg-vasanth { background-color: #16a085; }
-        .bg-vishnu { background-color: #7f8c8d; }
-        .bg-default { background-color: #4f5d75; }
+        #master-schedule-container .bg-rohith { background-color: #3b5998; }
+        #master-schedule-container .bg-ranjith { background-color: #27ae60; }
+        #master-schedule-container .bg-gyana { background-color: #8e44ad; }
+        #master-schedule-container .bg-arivu { background-color: #d35400; }
+        #master-schedule-container .bg-yogesh { background-color: #2ecc71; }
+        #master-schedule-container .bg-sudhin { background-color: #f39c12; }
+        #master-schedule-container .bg-vasanth { background-color: #16a085; }
+        #master-schedule-container .bg-vishnu { background-color: #7f8c8d; }
 
-        .time-text {
+        #master-schedule-container .time-text {
             display: block;
-            font-size: 9px;
+            font-size: 10px;
             opacity: 0.85;
             margin-top: 2px;
             font-weight: normal;
         }
         
-        .student-text {
+        #master-schedule-container .student-text {
             display: block;
-            font-size: 9.5px;
+            font-size: 10px;
             font-style: italic;
             opacity: 0.95;
             font-weight: normal;
@@ -217,111 +232,20 @@ window.openMasterSchedule = function() {
             text-overflow: ellipsis;
         }
 
-        .mat-edit-btn {
-            position: absolute;
-            top: 2px;
-            right: 2px;
-            background: rgba(0,0,0,0.4);
-            border: none;
-            color: #fff;
-            font-size: 9px;
-            cursor: pointer;
-            border-radius: 3px;
-            padding: 1px 3px;
-            opacity: 0;
-            transition: opacity 0.15s;
-        }
-        .mat-block:hover .mat-edit-btn { opacity: 1; }
-
-        /* Inline Edit Popover */
-        .mat-edit-popover {
-            position: fixed;
-            z-index: 9999;
-            background: #1a1e2e;
-            border: 1px solid #3c4256;
-            border-radius: 10px;
-            padding: 16px;
-            box-shadow: 0 12px 40px rgba(0,0,0,0.6);
-            min-width: 300px;
-            max-width: 380px;
-            color: #fff;
-            font-family: 'Segoe UI', sans-serif;
-        }
-        .mat-edit-popover h4 {
-            margin: 0 0 12px 0;
-            font-size: 13px;
-            color: #daa33e;
-        }
-        .mat-edit-popover label {
-            display: block;
+        #master-schedule-container .footer {
+            text-align: center;
+            margin-top: 12px;
             font-size: 11px;
-            color: #a4b0cb;
-            font-weight: 600;
-            margin-bottom: 4px;
-            margin-top: 10px;
+            color: #4f5d75;
         }
-        .mat-edit-popover input, .mat-edit-popover select {
-            width: 100%;
-            padding: 7px 10px;
-            background: #141722;
-            border: 1px solid #2c3242;
-            color: #fff;
-            border-radius: 6px;
-            font-size: 12px;
-            box-sizing: border-box;
-        }
-        .mat-edit-popover .day-pills {
-            display: flex;
-            gap: 4px;
-            flex-wrap: wrap;
-            margin-top: 4px;
-        }
-        .mat-edit-popover .day-pill {
-            padding: 4px 8px;
-            border-radius: 4px;
-            border: 1px solid #2c3242;
-            background: #141722;
-            color: #a4b0cb;
-            font-size: 10px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.15s;
-        }
-        .mat-edit-popover .day-pill.active {
-            background: #daa33e;
-            color: #000;
-            border-color: #daa33e;
-        }
-        .mat-edit-actions {
-            display: flex;
-            gap: 8px;
-            margin-top: 14px;
-            justify-content: flex-end;
-        }
-        .mat-edit-actions button {
-            padding: 6px 14px;
-            border-radius: 6px;
-            border: none;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-        .mat-btn-save { background: #daa33e; color: #000; }
-        .mat-btn-cancel { background: #2c3242; color: #fff; }
     </style>
-  `;
 
-  if (scheduleData.length === 0) {
-    html += `<div style="text-align:center; padding:40px; color:#8a90a6;">
-        <span style="font-size:36px; display:block; margin-bottom:12px;">📅</span>
-        No schedule data available. Assign coaches and set schedule days for students in the Schedule Manager.
-    </div>`;
-    container.innerHTML = html;
-    openModal('master-schedule-modal');
-    return;
-  }
+    <div class="header">
+        <h1>Chess Academy &mdash; Coach Master Schedule Matrix</h1>
+        <div class="subtitle">Complete Unified Rosters with Strict Chronological Sequencing</div>
+    </div>
 
-  html += `<table>
+    <table>
         <thead>
             <tr>
                 <th class="coach-header">Coach</th>
@@ -335,68 +259,181 @@ window.openMasterSchedule = function() {
             </tr>
         </thead>
         <tbody>
+            <!-- Rohith -->
+            <tr>
+                <td class="coach-cell row-rohith">Rohith<br><span style="font-size:10px; font-weight:normal; color:#8a90a6;">Beginner</span></td>
+                <td class="empty-cell">&mdash;</td>
+                <td>
+                    <div class="block bg-rohith">Batch 1<span class="time-text">5:00 AM - 5:40 AM</span><span class="student-text">Sreelaxmi</span></div>
+                </td>
+                <td>
+                    <div class="block bg-rohith">Batch 1<span class="time-text">5:00 AM - 5:40 AM</span><span class="student-text">Sreelaxmi</span></div>
+                    <div class="block bg-rohith">Batch 2<span class="time-text">8:00 PM - 9:00 PM</span><span class="student-text">Samiksha</span></div>
+                </td>
+                <td>
+                    <div class="block bg-rohith">Batch 2<span class="time-text">8:00 PM - 9:00 PM</span><span class="student-text">Samiksha</span></div>
+                </td>
+                <td class="empty-cell">&mdash;</td>
+                <td>
+                    <div class="block bg-rohith">Batch 1<span class="time-text">5:00 AM - 5:40 AM</span><span class="student-text">Sreelaxmi</span></div>
+                </td>
+                <td class="empty-cell">&mdash;</td>
+            </tr>
+
+            <!-- Ranjith -->
+            <tr>
+                <td class="coach-cell row-ranjith">Ranjith<br><span style="font-size:10px; font-weight:normal; color:#8a90a6;">Advanced</span></td>
+                <td class="empty-cell">&mdash;</td>
+                <td class="empty-cell">&mdash;</td>
+                <td>
+                    <div class="block bg-ranjith">Batch 1<span class="time-text">2:45 PM - 3:45 PM</span><span class="student-text">Sakthi, Sathya</span></div>
+                </td>
+                <td class="empty-cell">&mdash;</td>
+                <td>
+                    <div class="block bg-ranjith">Batch 1<span class="time-text">2:45 PM - 3:45 PM</span><span class="student-text">Sakthi, Sathya</span></div>
+                </td>
+                <td>
+                    <div class="block bg-ranjith">Batch 2<span class="time-text">7:00 PM - 8:00 PM</span><span class="student-text">Riyas, Susil, Varun</span></div>
+                </td>
+                <td>
+                    <div class="block bg-ranjith">Batch 2<span class="time-text">7:00 PM - 8:00 PM</span><span class="student-text">Riyas, Susil, Varun</span></div>
+                </td>
+            </tr>
+
+            <!-- Gyana Suriya -->
+            <tr>
+                <td class="coach-cell row-gyana">Gyana Suriya<br><span style="font-size:10px; font-weight:normal; color:#8a90a6;">Beginner</span></td>
+                <td class="empty-cell">&mdash;</td>
+                <td class="empty-cell">&mdash;</td>
+                <td>
+                    <div class="block bg-gyana">Batch 1<span class="time-text">5:40 AM - 6:20 AM</span><span class="student-text">Ekash</span></div>
+                    <div class="block bg-gyana">Batch 2<span class="time-text">7:00 AM - 8:00 AM</span><span class="student-text">Nigunan, Praneev</span></div>
+                </td>
+                <td class="empty-cell">&mdash;</td>
+                <td>
+                    <div class="block bg-gyana">Batch 1<span class="time-text">5:40 AM - 6:20 AM</span><span class="student-text">Ekash</span></div>
+                    <div class="block bg-gyana">Batch 2<span class="time-text">7:00 AM - 8:00 AM</span><span class="student-text">Nigunan, Praneev</span></div>
+                </td>
+                <td>
+                    <div class="block bg-gyana">Batch 3<span class="time-text">7:00 PM - 8:00 PM</span><span class="student-text">Aara, Anush, Rakshitha, Shervin</span></div>
+                </td>
+                <td>
+                    <div class="block bg-gyana">Batch 3<span class="time-text">7:00 PM - 8:00 PM</span><span class="student-text">Aara, Anush, Rakshitha, Shervin</span></div>
+                </td>
+            </tr>
+
+            <!-- Arivuselvam -->
+            <tr>
+                <td class="coach-cell row-arivu">Arivuselvam<br><span style="font-size:10px; font-weight:normal; color:#8a90a6;">Advanced</span></td>
+                <td>
+                    <div class="block bg-arivu">Batch 1<span class="time-text">7:00 PM - 8:00 PM</span><span class="student-text">Eduveer, Yugan</span></div>
+                    <div class="block bg-arivu">Batch 2<span class="time-text">8:00 PM - 9:00 PM</span><span class="student-text">Aarunya, Magathi, Pranav</span></div>
+                    <div class="block bg-arivu">Batch 3<span class="time-text">8:00 PM - 9:00 PM</span><span class="student-text">Aatish, Uttsan</span></div>
+                </td>
+                <td>
+                    <div class="block bg-arivu">Batch 4<span class="time-text">7:00 PM - 8:00 PM</span><span class="student-text">Mukilan, Sashwin</span></div>
+                </td>
+                <td>
+                    <div class="block bg-arivu">Batch 1<span class="time-text">7:00 PM - 8:00 PM</span><span class="student-text">Eduveer, Yugan</span></div>
+                    <div class="block bg-arivu">Batch 2<span class="time-text">8:00 PM - 9:00 PM</span><span class="student-text">Aarunya, Magathi, Pranav</span></div>
+                    <div class="block bg-arivu">Batch 3<span class="time-text">8:00 PM - 9:00 PM</span><span class="student-text">Aatish, Uttsan</span></div>
+                </td>
+                <td>
+                    <div class="block bg-arivu">Batch 4<span class="time-text">7:00 PM - 8:00 PM</span><span class="student-text">Mukilan, Sashwin</span></div>
+                </td>
+                <td class="empty-cell">&mdash;</td>
+                <td class="empty-cell">&mdash;</td>
+                <td class="empty-cell">&mdash;</td>
+            </tr>
+
+            <!-- Yogesh -->
+            <tr>
+                <td class="coach-cell row-yogesh">Yogesh<br><span style="font-size:10px; font-weight:normal; color:#8a90a6;">Beginner</span></td>
+                <td>
+                    <!-- MOVED HERE: Batch 4 Monday -->
+                    <div class="block bg-yogesh">Batch 4<span class="time-text">7:30 PM - 8:30 PM</span><span class="student-text">Poornima, Praveen, Magathi, Anush</span></div>
+                </td>
+                <td class="empty-cell">&mdash;</td>
+                <td>
+                    <!-- MOVED HERE: Batch 4 Wednesday -->
+                    <div class="block bg-yogesh">Batch 4<span class="time-text">7:30 PM - 8:30 PM</span><span class="student-text">Poornima, Praveen, Magathi, Anush</span></div>
+                </td>
+                <td>
+                    <div class="block bg-yogesh">Batch 1<span class="time-text">6:00 AM - 7:00 AM</span><span class="student-text">Jeevan</span></div>
+                </td>
+                <td>
+                    <div class="block bg-yogesh">Batch 1<span class="time-text">6:00 AM - 7:00 AM</span><span class="student-text">Jeevan</span></div>
+                </td>
+                <td>
+                    <div class="block bg-yogesh">Batch 2<span class="time-text">6:00 PM - 7:00 PM</span><span class="student-text">Banu Priya, Dinesh, Sai, Venkatesh Son</span></div>
+                    <div class="block bg-yogesh">Batch 3<span class="time-text">7:30 PM - 8:30 PM</span><span class="student-text">Athvik, Mohammad Rayan, Pranesh</span></div>
+                </td>
+                <td>
+                    <div class="block bg-yogesh">Batch 2<span class="time-text">6:00 PM - 7:00 PM</span><span class="student-text">Banu Priya, Dinesh, Sai, Venkatesh Son</span></div>
+                    <div class="block bg-yogesh">Batch 3<span class="time-text">7:30 PM - 8:30 PM</span><span class="student-text">Athvik, Mohammad Rayan, Pranesh</span></div>
+                </td>
+            </tr>
+
+            <!-- Sudhin -->
+            <tr>
+                <td class="coach-cell row-sudhin">Sudhin<br><span style="font-size:10px; font-weight:normal; color:#8a90a6;">Beginner</span></td>
+                <td class="empty-cell">&mdash;</td>
+                <td class="empty-cell">&mdash;</td>
+                <td class="empty-cell">&mdash;</td>
+                <td class="empty-cell">&mdash;</td>
+                <td class="empty-cell">&mdash;</td>
+                <td>
+                    <div class="block bg-sudhin">Batch 1<span class="time-text">7:00 PM - 8:00 PM</span><span class="student-text">Aakif, Pranish, Venkatesh Daughter</span></div>
+                </td>
+                <td>
+                    <div class="block bg-sudhin">Batch 1<span class="time-text">7:00 PM - 8:00 PM</span><span class="student-text">Aakif, Pranish, Venkatesh Daughter</span></div>
+                </td>
+            </tr>
+
+            <!-- Vasanth Kumar -->
+            <tr>
+                <td class="coach-cell row-vasanth">Vasanth Kumar<br><span style="font-size:10px; font-weight:normal; color:#8a90a6;">Beginner</span></td>
+                <td class="empty-cell">&mdash;</td>
+                <td class="empty-cell">&mdash;</td>
+                <td class="empty-cell">&mdash;</td>
+                <td class="empty-cell">&mdash;</td>
+                <td>
+                    <div class="block bg-vasanth">Batch 1<span class="time-text">6:00 PM - 7:00 PM</span><span class="student-text">Harsha (Venkatesh Son)</span></div>
+                </td>
+                <td>
+                    <div class="block bg-vasanth">Batch 1<span class="time-text">8:00 AM - 9:00 AM</span><span class="student-text">Harsha (Venkatesh Son)</span></div>
+                </td>
+                <td class="empty-cell">&mdash;</td>
+            </tr>
+
+            <!-- Vishnu -->
+            <tr>
+                <td class="coach-cell row-vishnu">Vishnu<br><span style="font-size:10px; font-weight:normal; color:#8a90a6;">Intermediate</span></td>
+                <td class="empty-cell">&mdash;</td>
+                <td class="empty-cell">&mdash;</td>
+                <td>
+                    <div class="block bg-vishnu">Batch 1<span class="time-text">6:00 PM - 7:00 PM</span><span class="student-text">Abinitha</span></div>
+                    <div class="block bg-vishnu">Batch 2<span class="time-text">7:00 PM - 8:00 PM</span><span class="student-text">Yogesh</span></div>
+                </td>
+                <td>
+                    <div class="block bg-vishnu">Batch 1<span class="time-text">6:00 PM - 7:00 PM</span><span class="student-text">Abinitha</span></div>
+                    <div class="block bg-vishnu">Batch 2<span class="time-text">7:00 PM - 8:00 PM</span><span class="student-text">Yogesh</span></div>
+                </td>
+                <td>
+                    <div class="block bg-vishnu">Batch 3<span class="time-text">7:00 PM - 8:00 PM</span><span class="student-text">Akmal, Anfal, Buvargan...</span></div>
+                </td>
+                <td>
+                    <div class="block bg-vishnu">Batch 3<span class="time-text">7:00 PM - 8:00 PM</span><span class="student-text">Akmal, Anfal, Buvargan...</span></div>
+                </td>
+                <td class="empty-cell">&mdash;</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="footer">
+        Chess Academy Master Matrix &bull; Sync Status: Verified Secure
+    </div>
   `;
-
-  const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  
-  function getCoachThemeClass(name) {
-      const n = (name || '').toLowerCase();
-      if (n.includes('rohith')) return 'rohith';
-      if (n.includes('ranjith')) return 'ranjith';
-      if (n.includes('gyana')) return 'gyana';
-      if (n.includes('arivu')) return 'arivu';
-      if (n.includes('yogesh')) return 'yogesh';
-      if (n.includes('sudhin')) return 'sudhin';
-      if (n.includes('vasanth')) return 'vasanth';
-      if (n.includes('vishnu')) return 'vishnu';
-      return 'default';
-  }
-
-  scheduleData.forEach(c => {
-    const theme = getCoachThemeClass(c.coach);
-    const coachId = c.coachId || '';
-    html += `<tr>`;
-    html += `<td class="coach-cell row-${theme}">${c.coach}<br><span style="font-size:9px; font-weight:normal; color:#8a90a6;">${c.tier || 'Coach'}</span></td>`;
-    
-    // Group batches by day
-    const dayBatches = { 'Monday': [], 'Tuesday': [], 'Wednesday': [], 'Thursday': [], 'Friday': [], 'Saturday': [], 'Sunday': [] };
-    
-    c.batches.forEach((b, batchIndex) => {
-        let timeStr = '';
-        let daysStr = (b.schedule || '').toLowerCase();
-        
-        if (b.schedule && b.schedule.includes('|')) {
-            const parts = b.schedule.split('|');
-            daysStr = parts[0].toLowerCase();
-            timeStr = parts[1].trim();
-        }
-        
-        daysOfWeek.forEach(day => {
-            if (daysStr.includes(day.toLowerCase()) || daysStr.includes(day.substring(0,3).toLowerCase())) {
-                dayBatches[day].push({ name: b.name, time: timeStr, students: b.students, schedule: b.schedule, batchIndex, coachId });
-            }
-        });
-    });
-
-    daysOfWeek.forEach(day => {
-        const batches = dayBatches[day];
-        if (batches.length === 0) {
-            html += `<td class="empty-cell">&mdash;</td>`;
-        } else {
-            html += `<td>`;
-            batches.forEach(b => {
-                const stdStr = b.students && b.students.length > 0 ? b.students.join(', ') : 'No students';
-                const editBtn = isAdmin ? `<button class="mat-edit-btn" onclick="event.stopPropagation(); window.openBatchInlineEdit('${b.coachId}', ${b.batchIndex}, this)" title="Edit batch">✏️</button>` : '';
-                html += `<div class="mat-block bg-${theme}">${b.name}${editBtn}<span class="time-text">${b.time}</span><span class="student-text" title="${stdStr}">${stdStr}</span></div>`;
-            });
-            html += `</td>`;
-        }
-    });
-
-    html += `</tr>`;
-  });
-  
-  html += `</tbody></table>`;
   
   container.innerHTML = html;
   openModal('master-schedule-modal');
