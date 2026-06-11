@@ -12738,19 +12738,8 @@ Best regards,
   let sessionTimer = null;
 
   function resetSessionTimer() {
-    if (sessionTimer) clearTimeout(sessionTimer);
-    if (!role) return;
-
-    // Master has no timeout
-    if (role === "master") return;
-
-    const timeout = SESSION_TIMEOUTS[role];
-    if (timeout) {
-      sessionTimer = setTimeout(() => {
-        toast("Session expired. Please login again.", "error");
-        doLogout();
-      }, timeout);
-    }
+    // Session timeout disabled per request
+    return;
   }
 
   ["click", "keypress", "mousemove", "scroll"].forEach((event) => {
