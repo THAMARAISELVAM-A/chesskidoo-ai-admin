@@ -578,15 +578,32 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- ─── 7. Recount Cron Schedules ───────────────────────────────────────
+-- ─── 7. Recount Cron Schedules Safely ─────────────────────────────────
+DO $$
+BEGIN
+  -- Only execute if pg_cron is active and its schema exists
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    -- Unschedule existing jobs if they exist
+    IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'monthly-payment-rollover') THEN
+      PERFORM cron.unschedule('monthly-payment-rollover');
+    END IF;
+    IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'daily-payment-sync') THEN
+      PERFORM cron.unschedule('daily-payment-sync');
+    END IF;
+    IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'monthly-payment-rollover-v4') THEN
+      PERFORM cron.unschedule('monthly-payment-rollover-v4');
+    END IF;
+    IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'daily-payment-sync-v4') THEN
+      PERFORM cron.unschedule('daily-payment-sync-v4');
+    END IF;
 
-SELECT cron.unschedule('monthly-payment-rollover') WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'monthly-payment-rollover');
-SELECT cron.unschedule('daily-payment-sync') WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'daily-payment-sync');
-SELECT cron.unschedule('monthly-payment-rollover-v4') WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'monthly-payment-rollover-v4');
-SELECT cron.unschedule('daily-payment-sync-v4') WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'daily-payment-sync-v4');
-
-SELECT cron.schedule('monthly-payment-rollover-v4', '1 0 1 * *', $$ SELECT public.monthly_rollover_job_v4(); $$);
-SELECT cron.schedule('daily-payment-sync-v4', '5 0 * * *', $$ SELECT public.update_payment_status(EXTRACT(YEAR FROM CURRENT_DATE)::INT, EXTRACT(MONTH FROM CURRENT_DATE)::INT); $$);
+    -- Schedule new v4 jobs
+    PERFORM cron.schedule('monthly-payment-rollover-v4', '1 0 1 * *', 'SELECT public.monthly_rollover_job_v4();');
+    PERFORM cron.schedule('daily-payment-sync-v4', '5 0 * * *', 'SELECT public.update_payment_status(EXTRACT(YEAR FROM CURRENT_DATE)::INT, EXTRACT(MONTH FROM CURRENT_DATE)::INT);');
+  ELSE
+    RAISE NOTICE 'pg_cron extension not found, skipping cron schedule setup';
+  END IF;
+END $$;
 
 -- ─── 8. Synchronize Statuses immediately for June 2026 ──────────────
 
