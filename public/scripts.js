@@ -2432,6 +2432,11 @@
       Date.UTC(targetYear, targetMonth + 1, 0, 23, 59, 59),
     );
     const baselineDate = new Date(Date.UTC(2026, 3, 1, 0, 0, 0)); // April 1st, 2026 baseline (UTC)
+    const _anchor = getBillingAnchor(s, baselineDate);
+    const targetMonthStr = String(targetMonth + 1).padStart(2, "0");
+    const targetMonthKey = `${targetYear}-${targetMonthStr}`;
+    const anchorMonthStr = String(_anchor.month + 1).padStart(2, "0");
+    const anchorMonthKey = `${_anchor.year}-${anchorMonthStr}`;
 
     // 0. Cumulative Audit (All-Time Payment Count)
     const s_id_key = String(s.id || "")
@@ -2447,15 +2452,13 @@
         .toLowerCase();
       if (psid === s_id_key && p.status === "paid") {
         const pDate = new Date(p.payment_date || p.created_at);
-        // Only count payments that occurred in or after the enrollment month
-        if (pDate <= targetMonthEnd) {
-          const monthKey = `${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`;
-          paidMonths.add(monthKey);
+        const pMonthKey = p.applied_month || `${pDate.getUTCFullYear()}-${String(pDate.getUTCMonth() + 1).padStart(2, '0')}`;
+        
+        // Only count payments that occurred in or before the target month and are at or after the billing anchor month
+        if (pDate <= targetMonthEnd && pMonthKey >= anchorMonthKey) {
+          paidMonths.add(pMonthKey);
         }
-        if (
-          pDate.getUTCMonth() === targetMonth &&
-          pDate.getUTCFullYear() === targetYear
-        ) {
+        if (pMonthKey === targetMonthKey) {
           hasPaymentThisMonth = true;
         }
       }
@@ -2481,9 +2484,6 @@
     const enrollDate = enrollDateStr ? new Date(enrollDateStr) : null;
     if (!enrollDate || enrollDate > targetMonthEnd) return "Not Enrolled";
 
-    // Billing anchor applies the late-join grace rule (see getBillingAnchor):
-    // late-month joins start billing the following month.
-    const _anchor = getBillingAnchor(s, baselineDate);
     const monthsRequired =
       (targetYear - _anchor.year) * 12 + (targetMonth - _anchor.month) + 1;
     // Target period precedes the first billed month (the free grace month) →
@@ -2530,7 +2530,10 @@
 
       // We omit isFirstMonth || here because dueDateObj is correctly set to their enrollment date for their first month.
       // They will automatically transition from 'Pending' to 'Due' precisely on their join date.
-      return currentDate >= dueDateObj ? "Due" : "Pending";
+      if (currentDate < dueDateObj) return "Pending";
+      const diffTime = currentDate - dueDateObj;
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays > 5 ? "Overdue" : "Due";
     }
 
     // C2. FUTURE PERIODS: If target month is in the future

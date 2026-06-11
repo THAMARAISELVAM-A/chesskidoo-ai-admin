@@ -194,6 +194,11 @@ Deno.serve(async (req) => {
        lichess_username: s.lichess_username || '',
        chesscom_username: s.chesscom_username || '',
        chessable_username: s.chessable_username || '',
+       credit_balance: s.credit_balance !== undefined ? Number(s.credit_balance) : 0,
+       outstanding_balance: s.outstanding_balance !== undefined ? Number(s.outstanding_balance) : 0,
+       billing_anchor_year: s.billing_anchor_year !== undefined ? Number(s.billing_anchor_year) : null,
+       billing_anchor_month: s.billing_anchor_month !== undefined ? Number(s.billing_anchor_month) : null,
+       last_payment_applied_month: s.last_payment_applied_month || null,
        created_at: s.created_at,
        updated_at: s.updated_at
      }
