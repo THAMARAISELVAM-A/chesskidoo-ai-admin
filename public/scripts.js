@@ -2438,6 +2438,11 @@
     const anchorMonthStr = String(_anchor.month + 1).padStart(2, "0");
     const anchorMonthKey = `${_anchor.year}-${anchorMonthStr}`;
 
+    // TRUST THE DATABASE FOR CURRENT MONTH (v4 billing engine)
+    if (isCurrentMonth && s.payment_status) {
+      return s.payment_status;
+    }
+
     // 0. Cumulative Audit (All-Time Payment Count)
     const s_id_key = String(s.id || "")
       .trim()
@@ -14170,3 +14175,17 @@ Best regards,
     document.getElementById("ui-version").textContent =
       "Portal v5.8 (Clean Messages & Excel)";
 })();
+
+window.toggleAcademyManager = function() {
+  const group = document.getElementById('academy-manager-group');
+  const icon = document.getElementById('academy-mgr-icon');
+  if (group && icon) {
+    if (group.style.display === 'none') {
+      group.style.display = 'block';
+      icon.textContent = '▲';
+    } else {
+      group.style.display = 'none';
+      icon.textContent = '▼';
+    }
+  }
+}

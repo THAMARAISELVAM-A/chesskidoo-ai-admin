@@ -201,6 +201,8 @@ END $$;
 
 -- ─── 4. Recreate View: students_decrypted with ALL columns ───────────
 
+DROP VIEW IF EXISTS students_decrypted;
+
 CREATE OR REPLACE VIEW students_decrypted AS
 SELECT 
   id,
