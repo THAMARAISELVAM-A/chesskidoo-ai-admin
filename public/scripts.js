@@ -4613,7 +4613,7 @@
           else if (active === "page-msgs") renderMsgs();
           else if (active === "page-fame") renderFame();
           else if (active === "page-events") renderEvents();
-          else if (active === "page-batches") renderBatches();
+          else if (active === "page-batches") { if (window.renderBatchesGrid) window.renderBatchesGrid(); }
           else if (active === "page-ai") {
             if (window.updateTomKpis) window.updateTomKpis();
           } else renderDash();
@@ -8565,7 +8565,7 @@
         toast("Batch saved successfully", "success");
         closeModal("edit-batch-modal");
         await loadAllData(true);
-        renderBatches();
+        if (window.renderBatchesGrid) window.renderBatchesGrid();
       } else {
         const err = await res.json().catch(() => ({}));
         toast(
@@ -8593,7 +8593,7 @@
       if (res.ok) {
         toast("Batch deleted", "success");
         await loadAllData(true);
-        renderBatches();
+        if (window.renderBatchesGrid) window.renderBatchesGrid();
       } else {
         toast("Error deleting batch", "error");
       }
