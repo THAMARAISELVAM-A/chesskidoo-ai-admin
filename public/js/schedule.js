@@ -4,6 +4,7 @@
  * WhatsApp sharing, and contextual AI insights.
  */
 
+
 (function () {
     let currentScheduleData = {};
 
@@ -31,7 +32,7 @@
         populateCoachSelect();
         // Clear inputs on page load
         resetScheduleInputs();
-        generateSchedulePreview(); // Reset preview
+        if (window.generateSchedulePreview) window.generateSchedulePreview(); // Reset preview
     };
 
     function populateStudentSelect() {
@@ -80,14 +81,14 @@
     // alphabet (A-Za-z0-9+/=) survives sanitization intact.
     function encodeSchedulePayload(obj) {
         try {
-            return btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+            return window.btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
         } catch (e) {
             return '';
         }
     }
     function decodeSchedulePayload(b64) {
         try {
-            return JSON.parse(decodeURIComponent(escape(atob(b64))));
+            return JSON.parse(decodeURIComponent(escape(window.atob(b64))));
         } catch (e) {
             return null;
         }
@@ -125,7 +126,7 @@
     window.loadStudentScheduleData = function (studentId) {
         resetScheduleInputs();
         if (!studentId) {
-            generateSchedulePreview();
+            if (window.generateSchedulePreview) window.generateSchedulePreview();
             return;
         }
 
@@ -143,7 +144,7 @@
             }
         }
 
-        generateSchedulePreview();
+        if (window.generateSchedulePreview) window.generateSchedulePreview();
 
         // Call Contextual AI Insight for the Schedule block
         if(window.generateContextualInsight) {
@@ -161,7 +162,7 @@
             days.push(day);
         }
         input.value = days.join(' & ');
-        generateSchedulePreview();
+        if (window.generateSchedulePreview) window.generateSchedulePreview();
     };
 
     window.generateSchedulePreview = function () {
@@ -346,7 +347,6 @@
         panel.style.display = 'block';
     };
 
-    // Quick-select helpers for the group list.
     window.schGroupSelect = function (mode) {
         const cbs = document.querySelectorAll('.sch-group-cb');
         const students = window.allStudents || [];
@@ -383,7 +383,7 @@
         }
 
         window.toast('Generating image...', 'info');
-        html2canvas(target, { backgroundColor: null, scale: 2 }).then(canvas => {
+        window.html2canvas(target, { backgroundColor: null, scale: 2 }).then(canvas => {
             const link = document.createElement('a');
             link.download = `Chesskidoo_Schedule_${stName.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
             link.href = canvas.toDataURL('image/png');
@@ -544,6 +544,7 @@
                 <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; justify-content:center;">
                     ${schedData.meetLink ? `<a href="${schedData.meetLink}" target="_blank" style="background:var(--gold); color:#000; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:13px; box-shadow:0 4px 15px rgba(218,163,62,0.4); display:flex; align-items:center; gap:6px;">Join Class 🎥</a>` : ''}
                     <button onclick="window.syncClassCalendar('${student.id}')" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.2); color:#fff; padding:10px 20px; border-radius:8px; font-weight:bold; font-size:13px; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:6px;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">Add to Calendar 📅</button>
+                    ${(window.currentUser && window.currentUser.role === 'admin') ? `<button onclick="window.editStudentSchedule('${student.id}')" style="background:var(--primary); border:1px solid rgba(255,255,255,0.2); color:#fff; padding:10px 20px; border-radius:8px; font-weight:bold; font-size:13px; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:6px;" onmouseover="this.style.background='var(--primary-hover)'" onmouseout="this.style.background='var(--primary)'">Edit Schedule ✏️</button>` : ''}
                 </div>
             </div>
             
@@ -602,6 +603,26 @@ DESCRIPTION:Regular chess class timing: ${schedData.regTime || 'TBD'}. Coach: ${
         document.body.removeChild(link);
 
         if (window.toast) window.toast('Class schedule calendar downloaded!', 'success');
+    };
+
+    window.editStudentSchedule = function (studentId) {
+        if (!window.currentUser || window.currentUser.role !== 'admin') return;
+        
+        // Find the student
+        const student = window.allStudents.find(s => String(s.id) === String(studentId));
+        if (!student) return;
+
+        // Open the Schedule Manager tab
+        if (window.setPage) window.setPage('schedule');
+
+        // Allow DOM to render page
+        setTimeout(() => {
+            const studentSelect = document.getElementById("sch-student");
+            if (studentSelect) {
+                studentSelect.value = studentId;
+                studentSelect.dispatchEvent(new window.Event('change')); // Trigger logic to load their existing schedule
+            }
+        }, 100);
     };
 
 })();
