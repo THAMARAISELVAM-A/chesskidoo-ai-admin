@@ -337,22 +337,20 @@
     const currentStudentId = currentStudentObj ? currentStudentObj.id : '';
 
     let studentSelectHtml = '';
-    if (!isChildView) {
-      // Admin Student Selector to test eligibility
-      const students = window.allStudents || [];
-      const opts = students.map(s => 
-        `<option value="${s.id}" ${String(s.id) === String(currentStudentId) ? 'selected' : ''}>${escapeHtml(s.name || s.full_name)} (${s.rating || 1000} ELO)</option>`
-      ).join('');
-      studentSelectHtml = `
-        <div style="display:flex; flex-direction:column; gap:4px; min-width:180px;">
-          <label style="font-size:11px; color:var(--ivory-dim); font-weight:700;">Check Eligibility For:</label>
-          <select id="tf-student-select" class="premium-select" onchange="window.selectFinderStudent(this.value)" style="padding:7px; font-size:12px;">
-            <option value="">-- Choose Student --</option>
-            ${opts}
-          </select>
-        </div>
-      `;
-    }
+    // Student Selector to test eligibility (for Admin and Parent portal with multiple children)
+    const students = window.allStudents || [];
+    const opts = students.map(s => 
+      `<option value="${s.id}" ${String(s.id) === String(currentStudentId) ? 'selected' : ''}>${escapeHtml(s.name || s.full_name)} (${s.rating || 1000} ELO)</option>`
+    ).join('');
+    studentSelectHtml = `
+      <div style="display:flex; flex-direction:column; gap:4px; min-width:180px;">
+        <label style="font-size:11px; color:var(--ivory-dim); font-weight:700;">Check Eligibility For:</label>
+        <select id="tf-student-select" class="premium-select" onchange="window.selectFinderStudent(this.value, ${isChildView})" style="padding:7px; font-size:12px;">
+          <option value="">-- Choose Student --</option>
+          ${opts}
+        </select>
+      </div>
+    `;
 
     // Coordinates auto-detection alert block
     const userCityName = getNearestCityName(userLat, userLon);
@@ -363,7 +361,7 @@
         <div style="display:flex; flex-direction:column; gap:4px; min-width:140px;">
           <label style="font-size:11px; color:var(--ivory-dim); font-weight:700;">Reference Location:</label>
           <div style="display:flex; gap:6px;">
-            <select id="tf-city-select" class="premium-select" onchange="window.selectFinderCity(this.value)" style="padding:7px; font-size:12px; flex:1;">
+            <select id="tf-city-select-${isChildView ? 'child' : 'admin'}" class="premium-select" onchange="window.selectFinderCity(this.value, ${isChildView})" style="padding:7px; font-size:12px; flex:1;">
               <option value="chennai" ${userCityName === 'chennai' ? 'selected' : ''}>Chennai, TN</option>
               <option value="bangalore" ${userCityName === 'bangalore' ? 'selected' : ''}>Bangalore, KA</option>
               <option value="coimbatore" ${userCityName === 'coimbatore' ? 'selected' : ''}>Coimbatore, TN</option>
@@ -376,7 +374,7 @@
 
         <div style="display:flex; flex-direction:column; gap:4px; min-width:140px;">
           <label style="font-size:11px; color:var(--ivory-dim); font-weight:700;">Coverage Radius:</label>
-          <select id="tf-radius-select" class="premium-select" onchange="window.filterTournaments(${isChildView})" style="padding:7px; font-size:12px;">
+          <select id="tf-radius-select-${isChildView ? 'child' : 'admin'}" class="premium-select" onchange="window.filterTournaments(${isChildView})" style="padding:7px; font-size:12px;">
             <option value="50">📍 Local — within 50 km</option>
             <option value="100">📍 Nearby — within 100 km</option>
             <option value="200" selected>🚗 Regional — within 200 km</option>
@@ -388,7 +386,7 @@
 
         <div style="display:flex; flex-direction:column; gap:4px; min-width:160px; flex:1;">
           <label style="font-size:11px; color:var(--ivory-dim); font-weight:700;">Search Events:</label>
-          <input type="text" id="tf-search" placeholder="Name, venue, city, category…" oninput="window.filterTournaments(${isChildView})" style="padding:7px 10px; font-size:12px; background:var(--bg3); border:1px solid var(--border); color:var(--ivory); border-radius:6px;">
+          <input type="text" id="tf-search-${isChildView ? 'child' : 'admin'}" placeholder="Name, venue, city, category…" oninput="window.filterTournaments(${isChildView})" style="padding:7px 10px; font-size:12px; background:var(--bg3); border:1px solid var(--border); color:var(--ivory); border-radius:6px;">
         </div>
 
         ${studentSelectHtml}
@@ -409,14 +407,14 @@
             <span style="z-index:2; font-size:26px;">📡</span>
           </div>
           <h4 style="margin:5px 0 2px 0; color:var(--gold); font-family:var(--font-head);">Location Telemetry Active</h4>
-          <p id="tf-location-summary" style="font-size:11px; color:var(--ivory-dim); margin:0;">
+          <p id="tf-location-summary-${isChildView ? 'child' : 'admin'}" style="font-size:11px; color:var(--ivory-dim); margin:0;">
             Centered on: <strong>${escapeHtml(userCityName.toUpperCase())}</strong> coords (${userLat.toFixed(4)}, ${userLon.toFixed(4)})
           </p>
         </div>
       </div>
 
       <!-- Tournaments Grid -->
-      <div class="tf-grid" id="tf-results-grid"></div>
+      <div class="tf-grid" id="tf-results-grid-${isChildView ? 'child' : 'admin'}"></div>
     `;
 
     // Perform initial filtering
@@ -425,7 +423,7 @@
 
   // Auto-detect Geolocation
   window.detectFinderLocation = function (isChildView) {
-    const locSummary = document.getElementById('tf-location-summary');
+    const locSummary = document.getElementById(`tf-location-summary-${isChildView ? 'child' : 'admin'}`);
     if (locSummary) {
       locSummary.innerHTML = '⏳ Querying GPS telemetry satellites...';
     }
@@ -465,13 +463,12 @@
   };
 
   // City selection updates center coords
-  window.selectFinderCity = function (cityKey) {
+  window.selectFinderCity = function (cityKey, isChildView) {
     const coords = CITIES_COORDS[cityKey];
     if (coords) {
       userLat = coords.lat;
       userLon = coords.lon;
       
-      const isChildView = !document.getElementById('tf-student-select');
       const containerId = isChildView ? 'child-tf-list-view' : 'tf-list-view';
       const container = document.getElementById(containerId);
       if (container) {
@@ -480,17 +477,21 @@
     }
   };
 
-  // Admin student selection updates eligibility
-  window.selectFinderStudent = function (studentId) {
+  // Admin and Parent student selection updates eligibility
+  window.selectFinderStudent = function (studentId, isChildView) {
     const student = (window.allStudents || []).find(s => String(s.id) === String(studentId));
-    activeFinderStudent = student || null;
-    window.filterTournaments(false);
+    if (isChildView) {
+      window.currentStudent = student || null;
+    } else {
+      activeFinderStudent = student || null;
+    }
+    window.filterTournaments(isChildView);
   };
 
   // Filters tournament cards by distance radius
   window.filterTournaments = function (isChildView) {
-    const gridEl = document.getElementById('tf-results-grid');
-    const radiusVal = document.getElementById('tf-radius-select')?.value || '200';
+    const gridEl = document.getElementById(`tf-results-grid-${isChildView ? 'child' : 'admin'}`);
+    const radiusVal = document.getElementById(`tf-radius-select-${isChildView ? 'child' : 'admin'}`)?.value || '200';
     if (!gridEl) return;
 
     gridEl.innerHTML = '';
@@ -505,7 +506,7 @@
     });
 
     // Free-text search across the visible events
-    const query = (document.getElementById('tf-search')?.value || '').toLowerCase().trim();
+    const query = (document.getElementById(`tf-search-${isChildView ? 'child' : 'admin'}`)?.value || '').toLowerCase().trim();
 
     // Apply radius + search filters. 'all' and 'world' show every event
     // (radius unbounded); 'world' is the global view.
@@ -525,7 +526,7 @@
         <div class="empty-state" style="grid-column:1/-1;">
           <span class="empty-icon">🏆</span>
           <p>No chess tournaments found ${reason}.</p>
-          <button class="btn btn-outline btn-sm" onclick="var r=document.getElementById('tf-radius-select'); if(r) r.value='world'; var sb=document.getElementById('tf-search'); if(sb) sb.value=''; window.filterTournaments(${isChildView});" style="margin-top:10px;">🌍 View All Worldwide Events</button>
+          <button class="btn btn-outline btn-sm" onclick="var r=document.getElementById('tf-radius-select-${isChildView ? 'child' : 'admin'}'); if(r) r.value='world'; var sb=document.getElementById('tf-search-${isChildView ? 'child' : 'admin'}'); if(sb) sb.value=''; window.filterTournaments(${isChildView});" style="margin-top:10px;">🌍 View All Worldwide Events</button>
         </div>
       `;
       return;
