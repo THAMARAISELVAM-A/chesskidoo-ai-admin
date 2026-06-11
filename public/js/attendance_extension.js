@@ -549,7 +549,7 @@ window.saveBatchInlineEdit = async function(coachId, batchIndex) {
     if (!student) continue;
 
     // Get existing schedule data from the student
-    const existingSchedule = window.extractScheduleJSON ? window.extractScheduleJSON(student.notes) : null;
+    const existingSchedule = window.extractScheduleJSON ? window.extractScheduleJSON(student.notes, student) : null;
     const schedData = {
       ...(existingSchedule || {}),
       regDays: daysString,

@@ -7647,50 +7647,88 @@
       .join(" – ");
   }
 
+  const STATIC_MASTER_MATRIX = [
+    {
+      coach: 'Rohith',
+      batches: [
+        { name: 'Batch 1', days: 'Tuesday, Wednesday, Saturday', time: '5:00 AM - 5:40 AM', students: ['Sreelaxmi'] },
+        { name: 'Batch 2', days: 'Wednesday, Thursday', time: '8:00 PM - 9:00 PM', students: ['Samiksha'] }
+      ]
+    },
+    {
+      coach: 'Ranjith',
+      batches: [
+        { name: 'Batch 1', days: 'Wednesday, Friday', time: '2:45 PM - 3:45 PM', students: ['Sakthi, Sathya'] },
+        { name: 'Batch 2', days: 'Saturday, Sunday', time: '7:00 PM - 8:00 PM', students: ['Riyas, Susil, Varun'] }
+      ]
+    },
+    {
+      coach: 'Gyana',
+      batches: [
+        { name: 'Batch 1', days: 'Wednesday, Friday', time: '5:40 AM - 6:20 AM', students: ['Ekash'] },
+        { name: 'Batch 2', days: 'Wednesday, Friday', time: '7:00 AM - 8:00 AM', students: ['Nigunan, Praneev'] },
+        { name: 'Batch 3', days: 'Saturday, Sunday', time: '7:00 PM - 8:00 PM', students: ['Aara, Anush, Rakshitha, Shervin'] }
+      ]
+    },
+    {
+      coach: 'Arivu',
+      batches: [
+        { name: 'Batch 1', days: 'Monday, Wednesday', time: '7:00 PM - 8:00 PM', students: ['Eduveer, Yugan'] },
+        { name: 'Batch 2', days: 'Monday, Wednesday', time: '8:00 PM - 9:00 PM', students: ['Aarunya, Magathi, Pranav'] },
+        { name: 'Batch 3', days: 'Monday, Wednesday', time: '8:00 PM - 9:00 PM', students: ['Aatish, Uttsan'] },
+        { name: 'Batch 4', days: 'Tuesday, Thursday', time: '7:00 PM - 8:00 PM', students: ['Mukilan, Sashwin'] }
+      ]
+    },
+    {
+      coach: 'Yogesh',
+      batches: [
+        { name: 'Batch 1', days: 'Thursday, Friday', time: '6:00 AM - 7:00 AM', students: ['Jeevan'] },
+        { name: 'Batch 2', days: 'Saturday, Sunday', time: '6:00 PM - 7:00 PM', students: ['Banu Priya, Dinesh, Sai, Venkatesh Son'] },
+        { name: 'Batch 3', days: 'Saturday, Sunday', time: '7:30 PM - 8:30 PM', students: ['Athvik, Mohammad Rayan, Pranesh'] },
+        { name: 'Batch 4', days: 'Monday, Wednesday', time: '7:30 PM - 8:30 PM', students: ['Poornima, Praveen, Magathi, Anush'] }
+      ]
+    },
+    {
+      coach: 'Sudhin',
+      batches: [
+        { name: 'Batch 1', days: 'Saturday, Sunday', time: '7:00 PM - 8:00 PM', students: ['Aakif, Pranish, Venkatesh Daughter'] }
+      ]
+    },
+    {
+      coach: 'Vasanth',
+      batches: [
+        { name: 'Batch 1 (Fri)', days: 'Friday', time: '6:00 PM - 7:00 PM', students: ['Harsha (Venkatesh Son)'] },
+        { name: 'Batch 1 (Sat)', days: 'Saturday', time: '8:00 AM - 9:00 AM', students: ['Harsha (Venkatesh Son)'] }
+      ]
+    },
+    {
+      coach: 'Vishnu',
+      batches: [
+        { name: 'Batch 1', days: 'Wednesday, Thursday', time: '6:00 PM - 7:00 PM', students: ['Abinitha'] },
+        { name: 'Batch 2', days: 'Wednesday, Thursday', time: '7:00 PM - 8:00 PM', students: ['Yogesh'] },
+        { name: 'Batch 3', days: 'Friday, Saturday', time: '7:00 PM - 8:00 PM', students: ['Akmal, Anfal, Buvargan'] }
+      ]
+    }
+  ];
+
+  window.STATIC_MASTER_MATRIX = STATIC_MASTER_MATRIX;
+
   function buildCoachBatches(coachId) {
-    const students = (allStudents || []).filter(
-      (s) =>
-        String(s.coach_id) === String(coachId) &&
-        getStudentStatus(s) !== "archived",
-    );
-    const groups = {};
-    students.forEach((s) => {
-      let days = "",
-        time = "";
-      const sd = window.extractScheduleJSON
-        ? window.extractScheduleJSON(s.notes)
-        : null;
-      if (sd && (sd.regDays || sd.regTime)) {
-        days = sd.regDays || "";
-        time = sd.regTime || "";
-      } else {
-        const t = getStudentSessionTime(s);
-        time = t && t !== "TBD" ? t : "";
-      }
-      time = prettyTime(time);
-      const mode = getStudentBatchType(s) || "Class";
-      // Lead with the class days when known, else fall back to the session mode.
-      const label = days || mode;
-      const scheduleStr =
-        days || time
-          ? label + (time ? " | " + time : "")
-          : "Day & time not set yet";
-      const key = scheduleStr.toLowerCase();
-      if (!groups[key]) groups[key] = { schedule: scheduleStr, students: [] };
-      groups[key].students.push(getStudentName(s));
-    });
-    // Stable order: scheduled batches first, "not set" last.
-    return Object.values(groups)
-      .sort(
-        (a, b) =>
-          (a.schedule === "Day & time not set yet" ? 1 : 0) -
-          (b.schedule === "Day & time not set yet" ? 1 : 0),
-      )
-      .map((g, i) => ({
-        name: "Batch " + (i + 1),
-        schedule: g.schedule,
-        students: g.students,
+    const c = (allCoaches || []).find((x) => String(x.id) === String(coachId));
+    if (!c) return [];
+    
+    const cName = getCoachName(c).toLowerCase();
+    const matrixEntry = STATIC_MASTER_MATRIX.find(m => cName.includes(m.coach.toLowerCase()));
+    
+    if (matrixEntry && matrixEntry.batches.length > 0) {
+      return matrixEntry.batches.map(b => ({
+        name: b.name,
+        schedule: b.days + " | " + b.time,
+        students: b.students
       }));
+    }
+
+    return [];
   }
   window.buildCoachBatches = buildCoachBatches;
 

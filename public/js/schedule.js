@@ -96,7 +96,27 @@
 
     // Parses the embedded schedule tag from the notes column. Supports the new
     // sanitization-safe [SCHEDULE64:...] format and the legacy [SCHEDULE:{...}].
-    window.extractScheduleJSON = function (notesString) {
+    window.extractScheduleJSON = function (notesString, student = null) {
+        // OVERRIDE: Prioritize exact hardcoded Master Matrix if available
+        if (student && student.name && window.STATIC_MASTER_MATRIX) {
+            const studentName = student.name.trim().toLowerCase();
+            for (const coachObj of window.STATIC_MASTER_MATRIX) {
+                for (const batch of coachObj.batches) {
+                    for (const std of batch.students) {
+                        const stdLower = std.toLowerCase();
+                        if (stdLower.includes(studentName) || studentName.includes(stdLower)) {
+                            return {
+                                regDays: batch.days,
+                                regTime: batch.time,
+                                regCoachName: coachObj.coach,
+                                isMatrixOverride: true
+                            };
+                        }
+                    }
+                }
+            }
+        }
+
         if (!notesString) return null;
         const m64 = notesString.match(/\[SCHEDULE64:([A-Za-z0-9+/=]+)\]/);
         if (m64 && m64[1]) {
@@ -498,7 +518,9 @@
         const wrapper = document.getElementById('child-schedule-card-container');
         if (!wrapper) return;
 
-        if (!student.notes || !window.extractScheduleJSON(student.notes)) {
+        const schedData = window.extractScheduleJSON(student.notes, student);
+
+        if (!schedData) {
             wrapper.innerHTML = `
             <div class="card" style="padding:40px; text-align:center; color:var(--ivory-dim); width:100%;">
               <span style="font-size:36px; display:block; margin-bottom:12px;">📅</span>
@@ -507,11 +529,9 @@
             return;
         }
 
-        const schedData = window.extractScheduleJSON(student.notes);
-
         // Resolve the coach actually chosen for this schedule (falls back to the
         // student's assigned coach / passed-in name).
-        const resolvedCoachName = resolveScheduleCoachName(schedData, student) || coachName || 'TBD';
+        const resolvedCoachName = schedData.regCoachName || resolveScheduleCoachName(schedData, student) || coachName || 'TBD';
 
         wrapper.innerHTML = buildScheduleCardHtml(student.name, schedData, resolvedCoachName, true, student.id);
         
