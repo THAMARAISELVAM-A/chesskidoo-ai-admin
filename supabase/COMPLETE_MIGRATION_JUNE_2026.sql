@@ -89,11 +89,11 @@ ALTER TABLE rate_limits ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "service_role only" ON rate_limits;
 CREATE POLICY "service_role only" ON rate_limits FOR ALL TO service_role USING (true) WITH CHECK (true);
 
--- Create batches table
+-- Create batches table (with coach_id as TEXT to match coaches.id)
 CREATE TABLE IF NOT EXISTS batches (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
-  coach_id UUID REFERENCES coaches(id) ON DELETE SET NULL,
+  coach_id TEXT REFERENCES coaches(id) ON DELETE SET NULL,
   level TEXT DEFAULT 'Beginner' CHECK (level IN ('Beginner','Intermediate','Advanced','Elite')),
   days TEXT DEFAULT '',
   time_slot TEXT DEFAULT '',
@@ -498,7 +498,7 @@ BEGIN
   END LOOP;
 
   INSERT INTO audit_logs(table_name, action, new_value)
-  VALUES ('students', 'MONTHLY_ROLLOVER_V4', jsonb_build_object('old_month', v_old_month, 'new_month', v_new_month, 'count', v_count));
+  VALUES ('students', 'MONTHOW_ROLLOVER_V4', jsonb_build_object('old_month', v_old_month, 'new_month', v_new_month, 'count', v_count));
 
   RETURN jsonb_build_object('old_month', v_old_month, 'new_month', v_new_month, 'count', v_count);
 END;
