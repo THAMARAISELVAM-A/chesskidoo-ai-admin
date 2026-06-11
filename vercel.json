@@ -49,6 +49,6 @@
     }
   ],
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/:match*" }
+    { "source": "/api/:match*", "destination": "https://vseombfkrvpffnpgbsnk.supabase.co/functions/v1/:match*" }
   ]
 }
