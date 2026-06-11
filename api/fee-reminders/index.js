@@ -312,6 +312,16 @@ export async function POST(request) {
   }
 }
 
+export default async function handler(request) {
+  if (request.method === 'GET') {
+    return GET(request);
+  }
+  if (request.method === 'POST') {
+    return POST(request);
+  }
+  return jsonResponse({ error: `Method ${request.method} not allowed` }, 405);
+}
+
 export const config = {
   runtime: 'edge'
 };

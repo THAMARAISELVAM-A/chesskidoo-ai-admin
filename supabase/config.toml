@@ -58,3 +58,10 @@ verify_jwt = true
 
 [functions.access_control]
 verify_jwt = true
+
+[functions.batches]
+verify_jwt = true
+
+[functions.tournaments]
+verify_jwt = true
+
