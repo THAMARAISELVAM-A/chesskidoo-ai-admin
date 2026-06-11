@@ -518,24 +518,32 @@
                 </div>
             </div>
 
-            <div style="background:rgba(255, 255, 255, 0.03); border:1px solid rgba(255, 255, 255, 0.1); border-radius:12px; padding:16px; margin-bottom:20px;">
-                <div style="font-size:11px; text-transform:uppercase; color:#bbb; font-weight:bold; letter-spacing:1px; margin-bottom:8px;">Regular Class (Weekly Calendar)</div>
+            <div style="background:rgba(255, 255, 255, 0.03); border:1px solid rgba(255, 255, 255, 0.1); border-radius:12px; padding:20px; margin-bottom:20px;">
+                <div style="font-size:12px; text-transform:uppercase; color:var(--ivory); font-weight:bold; letter-spacing:1px; margin-bottom:12px; text-align:center;">Regular Class Schedule</div>
                 ${weekGridHtml}
-                <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                    <span style="color:rgba(255,255,255,0.7); font-size:13px;">Days:</span>
-                    <span style="font-weight:bold; font-size:13px;">${schedData.regDays || 'TBD'}</span>
+                
+                <div style="background:rgba(0, 0, 0, 0.2); border-radius:10px; padding:12px; margin-top:16px;">
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="color:rgba(255,255,255,0.6); font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Days</span>
+                            <span style="font-weight:bold; font-size:14px; color:#fff;">${schedData.regDays || 'TBD'}</span>
+                        </div>
+                        <div style="height:1px; background:rgba(255,255,255,0.05); width:100%;"></div>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="color:rgba(255,255,255,0.6); font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Timing</span>
+                            <span style="font-weight:bold; font-size:15px; color:var(--gold);">${schedData.regTime || 'TBD'}</span>
+                        </div>
+                    </div>
                 </div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                    <span style="color:rgba(255,255,255,0.7); font-size:13px;">Timing:</span>
-                    <span style="font-weight:bold; font-size:13px;">${schedData.regTime || 'TBD'}</span>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; padding-top:12px; margin-top:12px;">
+                    <span style="color:rgba(255,255,255,0.6); font-size:12px; text-transform:uppercase;">Coach</span>
+                    <span style="font-weight:900; font-size:14px; color:#fff;">${resolvedCoachName}</span>
                 </div>
-                <div style="display:flex; justify-content:space-between; padding-top:8px; margin-top:8px; border-top:1px dashed rgba(255,255,255,0.1);">
-                    <span style="color:rgba(255,255,255,0.7); font-size:13px;">Coach:</span>
-                    <span style="font-weight:bold; font-size:13px; color:var(--gold);">${resolvedCoachName}</span>
-                </div>
-                <div style="display:flex; gap:10px; margin-top:16px; justify-content:center;">
-                    ${schedData.meetLink ? `<a href="${schedData.meetLink}" target="_blank" style="background:var(--gold); color:#000; padding:8px 16px; border-radius:6px; text-decoration:none; font-weight:bold; font-size:12px; box-shadow:0 4px 10px rgba(218,163,62,0.3);">Join Class 🎥</a>` : ''}
-                    <button onclick="window.syncClassCalendar('${student.id}')" style="background:transparent; border:1px solid rgba(255,255,255,0.3); color:#fff; padding:8px 16px; border-radius:6px; font-weight:bold; font-size:12px; cursor:pointer; transition:all 0.2s;">Add to Calendar 📅</button>
+
+                <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; justify-content:center;">
+                    ${schedData.meetLink ? `<a href="${schedData.meetLink}" target="_blank" style="background:var(--gold); color:#000; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:13px; box-shadow:0 4px 15px rgba(218,163,62,0.4); display:flex; align-items:center; gap:6px;">Join Class 🎥</a>` : ''}
+                    <button onclick="window.syncClassCalendar('${student.id}')" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.2); color:#fff; padding:10px 20px; border-radius:8px; font-weight:bold; font-size:13px; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:6px;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">Add to Calendar 📅</button>
                 </div>
             </div>
             
