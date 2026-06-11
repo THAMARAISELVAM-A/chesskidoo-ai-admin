@@ -1,6 +1,6 @@
 Deno.serve(async (req) => {
   const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
-  const { corsResponse } = await import('./cors.ts')
+  const { corsResponse } = await import('../cors.ts')
 
   const origin = req.headers.get('origin')
 

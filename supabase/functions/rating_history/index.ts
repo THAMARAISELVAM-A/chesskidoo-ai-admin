@@ -1,5 +1,5 @@
 import { checkRateLimit } from './rate_limit.js'
-const { getCorsHeaders, isOriginAllowed, corsResponse } = await import('./cors.ts');
+const { getCorsHeaders, isOriginAllowed, corsResponse } = await import('../cors.ts');
 
 // Helper function for input validation - must be defined before use
 function sanitizeString(str: unknown, maxLength = 255): string {

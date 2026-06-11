@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey)
-  const { getCorsHeaders, isOriginAllowed, corsResponse } = await import('./cors.ts');
+  const { getCorsHeaders, isOriginAllowed, corsResponse } = await import('../cors.ts');
 
   const origin = req.headers.get('origin');
   if (!isOriginAllowed(origin)) {

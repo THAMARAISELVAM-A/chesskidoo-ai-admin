@@ -32,7 +32,7 @@ export function isOriginAllowed(origin: string | null): boolean {
   return ALLOWED_ORIGINS.includes(origin);
 }
 
-export function corsResponse(body: string, status: number, origin: string | null): Response {
+export function corsResponse(body: unknown, status: number, origin: string | null): Response {
   const headers = getCorsHeaders(origin);
   if (Object.keys(headers).length === 0 && origin) {
     return new Response(JSON.stringify({ error: 'Origin not allowed' }), {
@@ -40,7 +40,8 @@ export function corsResponse(body: string, status: number, origin: string | null
       headers: { 'Content-Type': 'application/json' }
     });
   }
-  return new Response(body, {
+  const bodyString = typeof body === 'string' ? body : JSON.stringify(body);
+  return new Response(bodyString, {
     status,
     headers: { ...headers, 'Content-Type': 'application/json' }
   });
