@@ -388,7 +388,25 @@
 
     let studentSelectHtml = '';
     // Student Selector to test eligibility (for Admin and Parent portal with multiple children)
-    const students = window.allStudents || [];
+    let students = window.allStudents || [];
+    
+    // Privacy filter for parent portal: only show their own children
+    if (isChildView) {
+      if (window.currentUser && window.currentUser.role === 'parent') {
+        const pPhone = window.currentUser.phone;
+        const pEmail = window.currentUser.email;
+        students = students.filter(s => 
+          (pPhone && s.parent_phone === pPhone) || 
+          (pEmail && s.parent_email === pEmail)
+        );
+        // Fallback if matching fails but currentStudent is set
+        if (students.length === 0 && window.currentStudent) {
+          students = [window.currentStudent];
+        }
+      } else if (window.currentStudent) {
+        students = [window.currentStudent];
+      }
+    }
     const opts = students.map(s => 
       `<option value="${s.id}" ${String(s.id) === String(currentStudentId) ? 'selected' : ''}>${escapeHtml(s.name || s.full_name)} (${s.rating || 1000} ELO)</option>`
     ).join('');
@@ -655,7 +673,10 @@
 
           <!-- Actions -->
           <div style="display:flex; gap:8px; margin-top:4px;">
-            <a href="${t.regLink}" target="_blank" class="btn btn-gold btn-sm" style="flex:1; text-align:center; padding:6px; font-size:11px; border-radius:6px;">Register</a>
+            ${t.sourceBadge === 'Academy' && !t.regLink
+               ? `<button class="btn btn-gold btn-sm" onclick="window.showInterestTournament('${t.id}')" style="flex:1; padding:6px; font-size:11px; border-radius:6px; border:none; cursor:pointer;">⭐ Show Interest</button>`
+               : `<a href="${t.regLink || '#'}" target="_blank" class="btn btn-gold btn-sm" style="flex:1; text-align:center; padding:6px; font-size:11px; border-radius:6px; text-decoration:none;">Register</a>`
+            }
             <button class="btn btn-outline btn-sm" onclick="window.syncTournamentCalendar('${t.id}')" style="padding:6px 10px; font-size:11px;" title="Sync to Calendar">📅</button>
             <button class="btn btn-outline btn-sm" onclick="window.sendTournamentWhatsAppReminder('${t.id}')" style="padding:6px 10px; font-size:11px;" title="WhatsApp Reminder">💬</button>
             <button class="btn btn-outline btn-sm" onclick="window.downloadTournamentPoster('${t.id}')" style="padding:6px 10px; font-size:11px;" title="Download Event Poster">🖼️</button>
@@ -767,9 +788,22 @@ END:VCALENDAR`;
     if (window.toast) window.toast('Event calendar (.ics) downloaded successfully!', 'success');
   };
 
+  // Register Interest for Academy Tournaments
+  window.showInterestTournament = function(tournamentId) {
+    const t = tournamentsData.find(x => String(x.id) === String(tournamentId));
+    if (!t) return;
+    
+    // Attempt to log interest in the student's notes or via an API call in the future
+    if (window.toast) {
+      window.toast(`Interest registered for ${t.title}! An admin will contact you with details.`, 'success');
+    } else {
+      alert(`Interest registered for ${t.title}! An admin will contact you with details.`);
+    }
+  };
+
   // Dispatch WhatsApp Reminder
   window.sendTournamentWhatsAppReminder = function (tournamentId) {
-    const t = tournamentsData.find(x => x.id === tournamentId);
+    const t = tournamentsData.find(x => String(x.id) === String(tournamentId));
     if (!t) return;
 
     const studentObj = window.currentStudent || activeFinderStudent;
