@@ -165,6 +165,131 @@
         if (window.generateSchedulePreview) window.generateSchedulePreview();
     };
 
+    // Returns the base CSS color for a coach
+    function getCoachColor(name) {
+        const n = (name || '').toLowerCase();
+        if (n.includes('rohith')) return '#3b5998';
+        if (n.includes('ranjith')) return '#27ae60';
+        if (n.includes('gyana')) return '#8e44ad';
+        if (n.includes('arivu')) return '#d35400';
+        if (n.includes('yogesh')) return '#2ecc71';
+        if (n.includes('sudhin')) return '#f39c12';
+        if (n.includes('vasanth')) return '#16a085';
+        if (n.includes('vishnu')) return '#7f8c8d';
+        return '#4f5d75'; // default
+    }
+
+    // Shared function to render the Schedule Card HTML using the Master Matrix theme
+    function buildScheduleCardHtml(studentName, schedData, coachName, isChildView, studentId) {
+        const demoDate = schedData.demoDate || 'TBD';
+        const demoTime = schedData.demoTime || 'TBD';
+        const regDays = schedData.regDays || 'TBD';
+        const regTime = schedData.regTime || 'TBD';
+        const meetLink = schedData.meetLink || '';
+        const footnote = schedData.footnote || '';
+        
+        const coachColor = getCoachColor(coachName);
+
+        // Generate Weekly Calendar View HTML matching the Master Matrix table header style
+        const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const shortDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        const activeDaysStr = regDays.toLowerCase();
+        
+        let weekGridHtml = '<div style="display:flex; gap:3px; margin-top:12px; margin-bottom:12px; justify-content:space-between; width:100%;">';
+        for (let i = 0; i < 7; i++) {
+            const isActive = activeDaysStr.includes(daysOfWeek[i].toLowerCase()) || activeDaysStr.includes(shortDays[i].toLowerCase());
+            if (isActive) {
+                weekGridHtml += `<div style="flex:1; text-align:center; padding:6px 0; border-radius:2px; background-color:${coachColor}; color:#ffffff; font-weight:600; font-size:10px; border:1px solid ${coachColor}; text-transform:uppercase;">${shortDays[i]}</div>`;
+            } else {
+                weekGridHtml += `<div style="flex:1; text-align:center; padding:6px 0; border-radius:2px; background-color:#1c2030; color:#a4b0cb; font-weight:600; font-size:10px; border:1px solid #2c3242; text-transform:uppercase;">${shortDays[i]}</div>`;
+            }
+        }
+        weekGridHtml += '</div>';
+
+        // Action Buttons
+        let actionButtons = '';
+        if (isChildView) {
+            actionButtons = `
+                <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; justify-content:center;">
+                    ${meetLink ? `<a href="${meetLink}" target="_blank" style="background:${coachColor}; color:#ffffff; padding:10px 20px; border-radius:4px; text-decoration:none; font-weight:600; font-size:13px; box-shadow:0 4px 15px rgba(0,0,0,0.3); display:flex; align-items:center; gap:6px;">Join Class 🎥</a>` : ''}
+                    <button onclick="window.syncClassCalendar('${studentId}')" style="background:#1c2030; border:1px solid #2c3242; color:#ffffff; padding:10px 20px; border-radius:4px; font-weight:600; font-size:13px; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:6px;" onmouseover="this.style.background='#2c3242'" onmouseout="this.style.background='#1c2030'">Add to Calendar 📅</button>
+                    ${(window.currentUser && window.currentUser.role === 'admin') ? `<button onclick="window.editStudentSchedule('${studentId}')" style="background:#4f5d75; border:1px solid rgba(255,255,255,0.2); color:#fff; padding:10px 20px; border-radius:4px; font-weight:600; font-size:13px; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:6px;">Edit Schedule ✏️</button>` : ''}
+                </div>`;
+        }
+
+        return `
+        <div id="sch-render-target" style="
+            background-color: #141722;
+            border: 1px solid #2c3242;
+            border-left: 4px solid ${coachColor};
+            border-radius: 6px;
+            padding: 24px;
+            color: #ffffff;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            box-sizing: border-box;
+        ">
+            <!-- Header -->
+            <div style="text-align:center; border-bottom:1px solid #2c3242; padding-bottom:12px; margin-bottom:20px;">
+                <h2 style="color:#ffffff; margin:0; font-size:16px; font-weight:500; letter-spacing:0.5px;">Chess Academy &mdash; Official Schedule</h2>
+                <div style="color:#8a90a6; font-size:11px; margin-top:2px;">Complete Unified Roster</div>
+            </div>
+
+            <!-- Student Name -->
+            <div style="text-align:center; margin-bottom:24px;">
+                <div style="font-size:12px; color:#8a90a6;">Welcome to the academy,</div>
+                <div style="font-size:24px; font-weight:600; color:#ffffff; margin-top:4px;">${studentName}</div>
+            </div>
+
+            <!-- Demo Class Block -->
+            <div style="background-color:#1a1e2e; border:1px solid #2c3242; border-radius:4px; padding:14px; margin-bottom:16px;">
+                <div style="font-size:10px; text-transform:uppercase; color:#a4b0cb; font-weight:600; letter-spacing:0.5px; margin-bottom:8px;">Demo Class</div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <span style="color:#8a90a6; font-size:12px;">Date:</span>
+                    <span style="font-weight:600; font-size:12px;">${demoDate}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between;">
+                    <span style="color:#8a90a6; font-size:12px;">Timing:</span>
+                    <span style="font-weight:600; font-size:12px;">${demoTime}</span>
+                </div>
+            </div>
+
+            <!-- Regular Class Block -->
+            <div style="background-color:#1a1e2e; border:1px solid #2c3242; border-radius:4px; padding:16px; margin-bottom:16px;">
+                <div style="font-size:10px; text-transform:uppercase; color:#a4b0cb; font-weight:600; letter-spacing:0.5px; margin-bottom:8px;">Regular Class (Weekly Calendar)</div>
+                
+                ${weekGridHtml}
+                
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px; padding-top:8px;">
+                    <span style="color:#8a90a6; font-size:12px;">Days:</span>
+                    <span style="font-weight:600; font-size:12px;">${regDays}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                    <span style="color:#8a90a6; font-size:12px;">Timing:</span>
+                    <span style="font-weight:600; font-size:12px;">${regTime}</span>
+                </div>
+                
+                <div style="display:flex; justify-content:space-between; padding-top:12px; margin-top:4px; border-top:1px dashed #2c3242;">
+                    <span style="color:#8a90a6; font-size:12px;">Coach:</span>
+                    <span style="font-weight:bold; font-size:13px; color:${coachColor};">${coachName}</span>
+                </div>
+
+                ${!isChildView && meetLink ? `
+                <div style="margin-top:16px; text-align:center;">
+                    <a href="${meetLink}" target="_blank" style="display:inline-block; background:${coachColor}; color:#ffffff; padding:8px 20px; border-radius:4px; text-decoration:none; font-weight:600; font-size:12px;">Join Class 🎥</a>
+                </div>` : ''}
+            </div>
+
+            ${actionButtons}
+
+            ${footnote ? `<div style="font-size:10px; color:#4f5d75; text-align:center; font-style:italic; line-height:1.4; margin-top:16px;">"${footnote}"</div>` : ''}
+        </div>
+        `;
+    }
+
     window.generateSchedulePreview = function () {
         const wrapper = document.getElementById('sch-card-preview-wrapper');
         const studentId = document.getElementById('sch-student-select') ? document.getElementById('sch-student-select').value : null;
@@ -183,100 +308,23 @@
         const student = (window.allStudents || []).find(s => s.id == studentId);
         const stName = student ? student.name : 'Student';
         
-        const demoDate = document.getElementById('sch-demo-date').value || 'TBD';
-        const demoTime = document.getElementById('sch-demo-time').value || 'TBD';
-        const regDays = document.getElementById('sch-reg-days').value || 'TBD';
-        const regTime = document.getElementById('sch-reg-time').value || 'TBD';
-        const meetLink = document.getElementById('sch-meet-link') ? document.getElementById('sch-meet-link').value : '';
+        const schedData = {
+            demoDate: document.getElementById('sch-demo-date').value || 'TBD',
+            demoTime: document.getElementById('sch-demo-time').value || 'TBD',
+            regDays: document.getElementById('sch-reg-days').value || 'TBD',
+            regTime: document.getElementById('sch-reg-time').value || 'TBD',
+            meetLink: document.getElementById('sch-meet-link') ? document.getElementById('sch-meet-link').value : '',
+            footnote: document.getElementById('sch-footnote').value || ''
+        };
+        
         const coachId = document.getElementById('sch-coach-select').value;
         let coachName = 'TBD';
         if (coachId && (window.allCoaches || window.coaches)) {
             const coach = (window.allCoaches || window.coaches || []).find(c => c.id == coachId);
             if (coach) coachName = coach.name;
         }
-        const footnote = document.getElementById('sch-footnote').value || '';
 
-        // Generate Weekly Calendar View HTML
-        const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-        const shortDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        const activeDaysStr = regDays.toLowerCase();
-        
-        let weekGridHtml = '<div style="display:flex; gap:6px; margin-top:12px; margin-bottom:12px; justify-content:space-between;">';
-        for (let i = 0; i < 7; i++) {
-            const isActive = activeDaysStr.includes(daysOfWeek[i].toLowerCase()) || activeDaysStr.includes(shortDays[i].toLowerCase());
-            if (isActive) {
-                weekGridHtml += `<div style="flex:1; text-align:center; padding:8px 0; border-radius:8px; background:linear-gradient(135deg, var(--gold) 0%, #b8860b 100%); color:#000; font-weight:900; font-size:11px; box-shadow:0 2px 8px rgba(218,163,62,0.4); border:1px solid #ffdf00;">${shortDays[i][0]}</div>`;
-            } else {
-                weekGridHtml += `<div style="flex:1; text-align:center; padding:8px 0; border-radius:8px; background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.4); font-size:11px; border:1px solid rgba(255,255,255,0.05);">${shortDays[i][0]}</div>`;
-            }
-        }
-        weekGridHtml += '</div>';
-
-        // Build HTML for the card (high fidelity, responsive, uses variables from styles.css)
-        wrapper.innerHTML = `
-        <div id="sch-render-target" style="
-            background: linear-gradient(145deg, #1f2937 0%, #111827 100%);
-            border: 2px solid var(--gold);
-            border-radius: 16px;
-            padding: 30px;
-            color: #fff;
-            font-family: sans-serif;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
-            position: relative;
-            overflow: hidden;
-            width: 100%;
-            box-sizing: border-box;
-            user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
-        ">
-            <!-- Decorative background elements -->
-            <div style="position:absolute; top:-20px; right:-20px; font-size:120px; opacity:0.03; pointer-events:none;">♟️</div>
-            
-            <div style="text-align:center; border-bottom:1px solid rgba(218, 163, 62, 0.3); padding-bottom:16px; margin-bottom:20px;">
-                <h2 style="color:var(--gold); margin:0; font-family:var(--font-head); font-size:24px; text-transform:uppercase; letter-spacing:1px;">Chesskidoo Academy</h2>
-                <div style="color:rgba(255,255,255,0.7); font-size:12px; letter-spacing:3px; margin-top:4px;">OFFICIAL SCHEDULE</div>
-            </div>
-
-            <div style="text-align:center; margin-bottom:24px;">
-                <div style="font-size:14px; color:rgba(255,255,255,0.8);">Welcome to the academy,</div>
-                <div style="font-size:28px; font-weight:bold; color:#fff; margin-top:4px;">${stName}</div>
-            </div>
-
-            <div style="background:rgba(218, 163, 62, 0.08); border:1px solid rgba(218, 163, 62, 0.2); border-radius:12px; padding:16px; margin-bottom:16px;">
-                <div style="font-size:11px; text-transform:uppercase; color:var(--gold); font-weight:bold; letter-spacing:1px; margin-bottom:8px;">Demo Class</div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                    <span style="color:rgba(255,255,255,0.7); font-size:13px;">Date:</span>
-                    <span style="font-weight:bold; font-size:13px;">${demoDate}</span>
-                </div>
-                <div style="display:flex; justify-content:space-between;">
-                    <span style="color:rgba(255,255,255,0.7); font-size:13px;">Timing:</span>
-                    <span style="font-weight:bold; font-size:13px;">${demoTime}</span>
-                </div>
-            </div>
-
-            <div style="background:rgba(255, 255, 255, 0.03); border:1px solid rgba(255, 255, 255, 0.1); border-radius:12px; padding:16px; margin-bottom:20px;">
-                <div style="font-size:11px; text-transform:uppercase; color:#bbb; font-weight:bold; letter-spacing:1px; margin-bottom:8px;">Regular Class (Weekly Calendar)</div>
-                ${weekGridHtml}
-                <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                    <span style="color:rgba(255,255,255,0.7); font-size:13px;">Days:</span>
-                    <span style="font-weight:bold; font-size:13px;">${regDays}</span>
-                </div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                    <span style="color:rgba(255,255,255,0.7); font-size:13px;">Timing:</span>
-                    <span style="font-weight:bold; font-size:13px;">${regTime}</span>
-                </div>
-                <div style="display:flex; justify-content:space-between; padding-top:8px; margin-top:8px; border-top:1px dashed rgba(255,255,255,0.1);">
-                    <span style="color:rgba(255,255,255,0.7); font-size:13px;">Coach:</span>
-                    <span style="font-weight:bold; font-size:13px; color:var(--gold);">${coachName}</span>
-                </div>
-                ${meetLink ? `
-                <div style="margin-top:16px; text-align:center;">
-                    <a href="${meetLink}" target="_blank" style="display:inline-block; background:var(--gold); color:#000; padding:8px 20px; border-radius:6px; text-decoration:none; font-weight:bold; font-size:13px; box-shadow:0 4px 10px rgba(218,163,62,0.3);">Join Class 🎥</a>
-                </div>` : ''}
-            </div>
-
-            ${footnote ? `<div style="font-size:11px; color:rgba(255,255,255,0.6); text-align:center; font-style:italic; line-height:1.4;">"${footnote}"</div>` : ''}
-        </div>
-        `;
+        wrapper.innerHTML = buildScheduleCardHtml(stName, schedData, coachName, false, studentId);
     };
 
     // Reads the current schedule form into a schedData object (shared by the
@@ -463,93 +511,7 @@
         // student's assigned coach / passed-in name).
         const resolvedCoachName = resolveScheduleCoachName(schedData, student) || coachName || 'TBD';
 
-        // Generate Weekly Calendar View HTML
-        const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-        const shortDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        const activeDaysStr = (schedData.regDays || 'TBD').toLowerCase();
-        
-        let weekGridHtml = '<div style="display:flex; gap:6px; margin-top:12px; margin-bottom:12px; justify-content:space-between;">';
-        for (let i = 0; i < 7; i++) {
-            const isActive = activeDaysStr.includes(daysOfWeek[i].toLowerCase()) || activeDaysStr.includes(shortDays[i].toLowerCase());
-            if (isActive) {
-                weekGridHtml += `<div style="flex:1; text-align:center; padding:8px 0; border-radius:8px; background:linear-gradient(135deg, var(--gold) 0%, #b8860b 100%); color:#000; font-weight:900; font-size:11px; box-shadow:0 2px 8px rgba(218,163,62,0.4); border:1px solid #ffdf00;">${shortDays[i][0]}</div>`;
-            } else {
-                weekGridHtml += `<div style="flex:1; text-align:center; padding:8px 0; border-radius:8px; background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.4); font-size:11px; border:1px solid rgba(255,255,255,0.05);">${shortDays[i][0]}</div>`;
-            }
-        }
-        weekGridHtml += '</div>';
-
-        wrapper.innerHTML = `
-        <div style="
-            background: linear-gradient(145deg, #1f2937 0%, #111827 100%);
-            border: 2px solid var(--gold);
-            border-radius: 16px;
-            padding: 30px;
-            color: #fff;
-            font-family: sans-serif;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
-            position: relative;
-            overflow: hidden;
-            width: 100%;
-            box-sizing: border-box;
-            user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
-        ">
-            <div style="position:absolute; top:-20px; right:-20px; font-size:120px; opacity:0.03; pointer-events:none;">♟️</div>
-            
-            <div style="text-align:center; border-bottom:1px solid rgba(218, 163, 62, 0.3); padding-bottom:16px; margin-bottom:20px;">
-                <h2 style="color:var(--gold); margin:0; font-family:var(--font-head); font-size:24px; text-transform:uppercase; letter-spacing:1px;">Chesskidoo Academy</h2>
-                <div style="color:rgba(255,255,255,0.7); font-size:12px; letter-spacing:3px; margin-top:4px;">OFFICIAL SCHEDULE</div>
-            </div>
-
-            <div style="text-align:center; margin-bottom:24px;">
-                <div style="font-size:14px; color:rgba(255,255,255,0.8);">Welcome to the academy,</div>
-                <div style="font-size:28px; font-weight:bold; color:#fff; margin-top:4px;">${student.name}</div>
-            </div>
-
-            <div style="background:rgba(218, 163, 62, 0.08); border:1px solid rgba(218, 163, 62, 0.2); border-radius:12px; padding:16px; margin-bottom:16px;">
-                <div style="font-size:11px; text-transform:uppercase; color:var(--gold); font-weight:bold; letter-spacing:1px; margin-bottom:8px;">Demo Class</div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                    <span style="color:rgba(255,255,255,0.7); font-size:13px;">Date:</span>
-                    <span style="font-weight:bold; font-size:13px;">${schedData.demoDate || 'TBD'}</span>
-                </div>
-                <div style="display:flex; justify-content:space-between;">
-                    <span style="color:rgba(255,255,255,0.7); font-size:13px;">Timing:</span>
-                    <span style="font-weight:bold; font-size:13px;">${schedData.demoTime || 'TBD'}</span>
-                </div>
-            </div>
-
-            <div style="background:rgba(255, 255, 255, 0.03); border:1px solid rgba(255, 255, 255, 0.1); border-radius:12px; padding:20px; margin-bottom:20px;">
-                <div style="font-size:12px; text-transform:uppercase; color:var(--ivory); font-weight:bold; letter-spacing:1px; margin-bottom:12px; text-align:center;">Regular Class Schedule</div>
-                ${weekGridHtml}
-                
-                <div style="background:rgba(0, 0, 0, 0.2); border-radius:10px; padding:12px; margin-top:16px;">
-                    <div style="display:flex; flex-direction:column; gap:8px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="color:rgba(255,255,255,0.6); font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Days</span>
-                            <span style="font-weight:bold; font-size:14px; color:#fff;">${schedData.regDays || 'TBD'}</span>
-                        </div>
-                        <div style="height:1px; background:rgba(255,255,255,0.05); width:100%;"></div>
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="color:rgba(255,255,255,0.6); font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Timing</span>
-                            <span style="font-weight:bold; font-size:15px; color:var(--gold);">${schedData.regTime || 'TBD'}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="display:flex; justify-content:space-between; align-items:center; padding-top:12px; margin-top:12px;">
-                    <span style="color:rgba(255,255,255,0.6); font-size:12px; text-transform:uppercase;">Coach</span>
-                    <span style="font-weight:900; font-size:14px; color:#fff;">${resolvedCoachName}</span>
-                </div>
-
-                <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; justify-content:center;">
-                    ${schedData.meetLink ? `<a href="${schedData.meetLink}" target="_blank" style="background:var(--gold); color:#000; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:13px; box-shadow:0 4px 15px rgba(218,163,62,0.4); display:flex; align-items:center; gap:6px;">Join Class 🎥</a>` : ''}
-                    <button onclick="window.syncClassCalendar('${student.id}')" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.2); color:#fff; padding:10px 20px; border-radius:8px; font-weight:bold; font-size:13px; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:6px;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">Add to Calendar 📅</button>
-                    ${(window.currentUser && window.currentUser.role === 'admin') ? `<button onclick="window.editStudentSchedule('${student.id}')" style="background:var(--primary); border:1px solid rgba(255,255,255,0.2); color:#fff; padding:10px 20px; border-radius:8px; font-weight:bold; font-size:13px; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:6px;" onmouseover="this.style.background='var(--primary-hover)'" onmouseout="this.style.background='var(--primary)'">Edit Schedule ✏️</button>` : ''}
-                </div>
-            </div>
-            
-            ${schedData.footnote ? `<div style="font-size:11px; color:rgba(255,255,255,0.6); text-align:center; font-style:italic; line-height:1.4;">"${schedData.footnote}"</div>` : ''}
-        </div>`;
+        wrapper.innerHTML = buildScheduleCardHtml(student.name, schedData, resolvedCoachName, true, student.id);
         
         // Trigger AI Insight update for Parent Portal Schedule
         if(window.generateContextualInsight) {

@@ -150,24 +150,186 @@ window.openMasterSchedule = function() {
   let scheduleData = (typeof window.buildDynamicSchedule === 'function') ? window.buildDynamicSchedule() : null;
   if (!scheduleData || scheduleData.length === 0) scheduleData = hardcodedSchedule;
 
-  let html = '';
+  let html = `
+    <style>
+        #master-schedule-container table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 3px;
+            table-layout: fixed;
+            background-color: transparent;
+        }
+
+        #master-schedule-container th {
+            background-color: #1c2030;
+            color: #a4b0cb;
+            font-weight: 600;
+            padding: 5px;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-radius: 2px;
+            font-size: 10px;
+            border: none;
+        }
+
+        #master-schedule-container th.coach-header {
+            width: 12%;
+        }
+
+        #master-schedule-container td {
+            padding: 2px;
+            vertical-align: middle;
+            text-align: center;
+            background-color: #1a1e2e;
+            border-radius: 2px;
+            height: 52px;
+            border: none;
+        }
+
+        #master-schedule-container td.coach-cell {
+            font-weight: bold;
+            font-size: 11px;
+            text-align: center;
+            padding: 4px;
+            line-height: 1.2;
+            color: #fff;
+        }
+
+        /* Border highlights per coach */
+        .row-rohith { border-left: 3.5px solid #3b5998 !important; }
+        .row-ranjith { border-left: 3.5px solid #27ae60 !important; }
+        .row-gyana { border-left: 3.5px solid #8e44ad !important; }
+        .row-arivu { border-left: 3.5px solid #d35400 !important; }
+        .row-yogesh { border-left: 3.5px solid #2ecc71 !important; }
+        .row-sudhin { border-left: 3.5px solid #f39c12 !important; }
+        .row-vasanth { border-left: 3.5px solid #16a085 !important; }
+        .row-vishnu { border-left: 3.5px solid #7f8c8d !important; }
+        .row-default { border-left: 3.5px solid #4f5d75 !important; }
+
+        .empty-cell {
+            color: #2c3242;
+            font-size: 12px;
+        }
+
+        .mat-block {
+            display: block;
+            padding: 4px;
+            margin: 2px 0;
+            border-radius: 3px;
+            color: #ffffff;
+            font-weight: 600;
+            line-height: 1.1;
+            text-align: left;
+        }
+
+        .bg-rohith { background-color: #3b5998; }
+        .bg-ranjith { background-color: #27ae60; }
+        .bg-gyana { background-color: #8e44ad; }
+        .bg-arivu { background-color: #d35400; }
+        .bg-yogesh { background-color: #2ecc71; }
+        .bg-sudhin { background-color: #f39c12; }
+        .bg-vasanth { background-color: #16a085; }
+        .bg-vishnu { background-color: #7f8c8d; }
+        .bg-default { background-color: #4f5d75; }
+
+        .time-text {
+            display: block;
+            font-size: 9px;
+            opacity: 0.85;
+            margin-top: 2px;
+            font-weight: normal;
+        }
+        
+        .student-text {
+            display: block;
+            font-size: 9.5px;
+            font-style: italic;
+            opacity: 0.95;
+            font-weight: normal;
+            margin-top: 3px;
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            padding-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    </style>
+    <table>
+        <thead>
+            <tr>
+                <th class="coach-header">Coach</th>
+                <th>Mon</th>
+                <th>Tue</th>
+                <th>Wed</th>
+                <th>Thu</th>
+                <th>Fri</th>
+                <th>Sat</th>
+                <th>Sun</th>
+            </tr>
+        </thead>
+        <tbody>
+  `;
+
+  const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  
+  function getCoachThemeClass(name) {
+      const n = (name || '').toLowerCase();
+      if (n.includes('rohith')) return 'rohith';
+      if (n.includes('ranjith')) return 'ranjith';
+      if (n.includes('gyana')) return 'gyana';
+      if (n.includes('arivu')) return 'arivu';
+      if (n.includes('yogesh')) return 'yogesh';
+      if (n.includes('sudhin')) return 'sudhin';
+      if (n.includes('vasanth')) return 'vasanth';
+      if (n.includes('vishnu')) return 'vishnu';
+      return 'default';
+  }
+
   scheduleData.forEach(c => {
-    html += `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:15px;margin-bottom:15px">`;
-    html += `<h3 style="color:var(--gold);margin-top:0;margin-bottom:10px;font-family:var(--font-head)">Coach: ${c.coach}</h3>`;
+    const theme = getCoachThemeClass(c.coach);
+    html += `<tr>`;
+    html += `<td class="coach-cell row-${theme}">${c.coach}<br><span style="font-size:9px; font-weight:normal; color:#8a90a6;">${c.tier || 'Coach'}</span></td>`;
     
-    html += `<table style="width:100%;text-align:left;font-size:13px">`;
-    html += `<thead><tr><th style="width:15%">Batch</th><th style="width:40%">Students</th><th style="width:45%">Schedule</th></tr></thead><tbody>`;
+    // Group batches by day
+    const dayBatches = { 'Monday': [], 'Tuesday': [], 'Wednesday': [], 'Thursday': [], 'Friday': [], 'Saturday': [], 'Sunday': [] };
     
     c.batches.forEach(b => {
-      html += `<tr>
-                 <td style="font-weight:600;color:var(--ivory)">${b.name}</td>
-                 <td style="color:var(--ivory-dim)">${b.students.join(', ')}</td>
-                 <td style="color:var(--blue)">${b.schedule}</td>
-               </tr>`;
+        let timeStr = '';
+        let daysStr = (b.schedule || '').toLowerCase();
+        
+        if (b.schedule && b.schedule.includes('|')) {
+            const parts = b.schedule.split('|');
+            daysStr = parts[0].toLowerCase();
+            timeStr = parts[1].trim();
+        }
+        
+        daysOfWeek.forEach(day => {
+            if (daysStr.includes(day.toLowerCase()) || daysStr.includes(day.substring(0,3).toLowerCase())) {
+                dayBatches[day].push({ name: b.name, time: timeStr, students: b.students });
+            }
+        });
     });
-    
-    html += `</tbody></table></div>`;
+
+    daysOfWeek.forEach(day => {
+        const batches = dayBatches[day];
+        if (batches.length === 0) {
+            html += `<td class="empty-cell">&mdash;</td>`;
+        } else {
+            html += `<td>`;
+            // Sort by time roughly (AM before PM, then numerical)
+            batches.forEach(b => {
+                const stdStr = b.students && b.students.length > 0 ? b.students.join(', ') : 'No students';
+                html += `<div class="mat-block bg-${theme}">${b.name}<span class="time-text">${b.time}</span><span class="student-text" title="${stdStr}">${stdStr}</span></div>`;
+            });
+            html += `</td>`;
+        }
+    });
+
+    html += `</tr>`;
   });
+  
+  html += `</tbody></table>`;
   
   container.innerHTML = html;
   openModal('master-schedule-modal');
