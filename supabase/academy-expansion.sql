@@ -56,7 +56,14 @@ ALTER TABLE resources ENABLE ROW LEVEL SECURITY;
 ALTER TABLE internal_tournaments ENABLE ROW LEVEL SECURITY;
 
 -- Allow all for now (simulating current open access pattern)
-CREATE POLICY "Allow all on attendance" ON attendance FOR ALL USING (true);
-CREATE POLICY "Allow all on rating_history" ON rating_history FOR ALL USING (true);
-CREATE POLICY "Allow all on resources" ON resources FOR ALL USING (true);
-CREATE POLICY "Allow all on tournaments" ON internal_tournaments FOR ALL USING (true);
+CREATE POLICY "anon_read_attendance" ON attendance FOR SELECT TO anon USING (true);
+CREATE POLICY "service_role_all_attendance" ON attendance FOR ALL TO service_role USING (true);
+
+CREATE POLICY "anon_read_rating_history" ON rating_history FOR SELECT TO anon USING (true);
+CREATE POLICY "service_role_all_rating_history" ON rating_history FOR ALL TO service_role USING (true);
+
+CREATE POLICY "anon_read_resources" ON resources FOR SELECT TO anon USING (true);
+CREATE POLICY "service_role_all_resources" ON resources FOR ALL TO service_role USING (true);
+
+CREATE POLICY "anon_read_tournaments" ON internal_tournaments FOR SELECT TO anon USING (true);
+CREATE POLICY "service_role_all_tournaments" ON internal_tournaments FOR ALL TO service_role USING (true);

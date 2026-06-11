@@ -52,13 +52,18 @@ Deno.serve(async (req) => {
     })
   }
 
-  const supabase   = createClient(supabaseUrl, supabaseKey)
-  const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || '*'
-  const corsHeaders = {
-    'Access-Control-Allow-Origin':  ALLOWED_ORIGIN,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
+  const supabase = createClient(supabaseUrl, supabaseKey)
+  const { getCorsHeaders, isOriginAllowed, corsResponse } = await import('./cors.ts');
+
+  const origin = req.headers.get('origin');
+  if (!isOriginAllowed(origin)) {
+    return new Response(JSON.stringify({ error: 'Origin not allowed' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
+
+  const corsHeaders = getCorsHeaders(origin);
 
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 

@@ -1,11 +1,16 @@
 Deno.serve(async (req) => {
   const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+  const { getCorsHeaders, isOriginAllowed, corsResponse } = await import('./cors.ts');
 
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
-  };
+  const origin = req.headers.get('origin');
+  if (!isOriginAllowed(origin)) {
+    return new Response(JSON.stringify({ error: 'Origin not allowed' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  const corsHeaders = getCorsHeaders(origin);
 
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -15,10 +20,7 @@ Deno.serve(async (req) => {
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
   if (!supabaseUrl || !supabaseKey) {
-    return new Response(JSON.stringify({ error: 'Server configuration error' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return corsResponse({ error: 'Server configuration error' }, 500, origin);
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey);
@@ -27,10 +29,7 @@ Deno.serve(async (req) => {
   const { validateAuth } = await import('./rate_limit.js')
   const auth = await validateAuth(req, supabase)
   if (!auth.allowed) {
-    return new Response(JSON.stringify({ error: auth.error }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
+    return corsResponse({ error: auth.error }, 401, origin);
   }
 
   // FIX: previous transformMessage ran a per-row query for student names = N+1.

@@ -1,6 +1,6 @@
 -- Login Sessions table for tracking real login history
 CREATE TABLE IF NOT EXISTS login_sessions (
-  id TEXT PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_type TEXT NOT NULL CHECK (user_type IN ('admin', 'parent', 'coach')),
   user_id TEXT,
   user_name TEXT NOT NULL,
@@ -17,5 +17,6 @@ CREATE INDEX IF NOT EXISTS idx_sessions_created ON login_sessions(created_at DES
 -- Enable RLS
 ALTER TABLE login_sessions ENABLE ROW LEVEL SECURITY;
 
--- Allow all operations
-CREATE POLICY "Allow all on sessions" ON login_sessions FOR ALL USING (true);
+-- SECURITY: Only service_role (Edge Functions) can access login_sessions
+-- This table contains IP addresses, device info, and user names
+CREATE POLICY "service_role_all_sessions" ON login_sessions FOR ALL TO service_role USING (true);

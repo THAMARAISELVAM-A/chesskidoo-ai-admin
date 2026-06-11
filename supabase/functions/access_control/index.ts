@@ -2,15 +2,25 @@ import { checkRateLimit } from '../auth/rate_limit.js';
 
 Deno.serve(async (req) => {
   const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+  const { corsResponse } = await import('../cors.ts');
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
+  const origin = req.headers.get('origin')
+
+  // Rate limiting
+  const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
+  const rateLimitResult = await checkRateLimit(ip, 'access_control')
+  if (!rateLimitResult.allowed) {
+    return corsResponse({
+      error: 'Rate limit exceeded',
+      retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
+    }, 429, origin);
+  }
+
   if (!supabaseUrl || !supabaseKey) {
-    return new Response(JSON.stringify({ error: 'Server configuration error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return corsResponse({ error: 'Server configuration error' }, 500, origin);
   }
 
   // Create client with service_role to manage users via admin API
@@ -21,23 +31,19 @@ Deno.serve(async (req) => {
     }
   });
 
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, role',
-  };
-
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return corsResponse({}, 200, origin);
   }
 
-  // Verify requester is a master admin
-  const requestRole = req.headers.get('role');
-  if (requestRole !== 'master' && requestRole !== 'admin') {
-    return new Response(JSON.stringify({ error: 'Unauthorized: Admin privileges required' }), {
-      status: 403,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders }
-    });
+  // Verify requester is a master admin using JWT claims (not client-controlled headers)
+  const { validateAuth } = await import('../auth/rate_limit.js')
+  const auth = await validateAuth(req, supabase)
+  if (!auth.allowed) {
+    return corsResponse({ error: auth.error }, 401, origin);
+  }
+  // Only master or admin roles can access this endpoint
+  if (auth.role !== 'master' && auth.role !== 'admin') {
+    return corsResponse({ error: 'Unauthorized: Admin privileges required' }, 403, origin);
   }
 
   try {
@@ -47,7 +53,7 @@ Deno.serve(async (req) => {
       // List users
       const { data: users, error } = await supabase.auth.admin.listUsers();
       if (error) throw error;
-      
+
       const safeUsers = users.users.map(u => ({
         id: u.id,
         email: u.email,
@@ -56,20 +62,16 @@ Deno.serve(async (req) => {
         last_sign_in_at: u.last_sign_in_at
       }));
 
-      return new Response(JSON.stringify({ users: safeUsers }), {
-        headers: { 'Content-Type': 'application/json', ...corsHeaders }
-      });
+      return corsResponse({ users: safeUsers }, 200, origin);
     }
 
     if (method === 'POST') {
       // Create user
       const body = await req.json();
       const { email, password, role } = body;
-      
+
       if (!email || !password || !role) {
-         return new Response(JSON.stringify({ error: 'Email, password, and role are required' }), {
-           status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders }
-         });
+        return corsResponse({ error: 'Email, password, and role are required' }, 400, origin);
       }
 
       const { data, error } = await supabase.auth.admin.createUser({
@@ -81,33 +83,27 @@ Deno.serve(async (req) => {
 
       if (error) throw error;
 
-      return new Response(JSON.stringify({ success: true, user: data.user }), {
-        headers: { 'Content-Type': 'application/json', ...corsHeaders }
-      });
+      return corsResponse({ success: true, user: data.user }, 201, origin);
     }
 
     if (method === 'PUT') {
       // Update user role or password
       const body = await req.json();
-      const { id, role, password } = body;
+      const { id, role: newRole, password } = body;
 
       if (!id) {
-         return new Response(JSON.stringify({ error: 'User ID is required' }), {
-           status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders }
-         });
+        return corsResponse({ error: 'User ID is required' }, 400, origin);
       }
 
-      const updates: any = {};
-      if (role) updates.user_metadata = { role: role };
+      const updates = {};
+      if (newRole) updates.user_metadata = { role: newRole };
       if (password) updates.password = password;
 
       const { data, error } = await supabase.auth.admin.updateUserById(id, updates);
 
       if (error) throw error;
 
-      return new Response(JSON.stringify({ success: true, user: data.user }), {
-        headers: { 'Content-Type': 'application/json', ...corsHeaders }
-      });
+      return corsResponse({ success: true, user: data.user }, 200, origin);
     }
 
     if (method === 'DELETE') {
@@ -116,29 +112,20 @@ Deno.serve(async (req) => {
       const { id } = body;
 
       if (!id) {
-         return new Response(JSON.stringify({ error: 'User ID is required' }), {
-           status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders }
-         });
+        return corsResponse({ error: 'User ID is required' }, 400, origin);
       }
 
       const { error } = await supabase.auth.admin.deleteUser(id);
 
       if (error) throw error;
 
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { 'Content-Type': 'application/json', ...corsHeaders }
-      });
+      return corsResponse({ success: true }, 200, origin);
     }
 
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405, headers: { 'Content-Type': 'application/json', ...corsHeaders }
-    });
-    
-  } catch (error: any) {
+    return corsResponse({ error: 'Method not allowed' }, 405, origin);
+
+  } catch (error) {
     console.error('Access Control error:', error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders }
-    });
+    return corsResponse({ error: error.message }, 500, origin);
   }
-});
+})

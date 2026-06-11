@@ -1,4 +1,5 @@
 import { checkRateLimit } from './rate_limit.js'
+const { getCorsHeaders, isOriginAllowed, corsResponse } = await import('./cors.ts');
 
 // Helper function for input validation - must be defined before use
 function sanitizeString(str: unknown, maxLength = 255): string {
@@ -8,53 +9,39 @@ function sanitizeString(str: unknown, maxLength = 255): string {
 
 Deno.serve(async (req) => {
   const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
-  
+
+  const origin = req.headers.get('origin');
+
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-  
+
   if (!supabaseUrl || !supabaseKey) {
-    return new Response(JSON.stringify({ error: 'Server configuration error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    return corsResponse({ error: 'Server configuration error' }, 500, origin);
   }
-  
+
   const supabase = createClient(supabaseUrl, supabaseKey)
-  
-  const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || '*'
-  
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
-  }
-  
+
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    const corsHeaders = getCorsHeaders(origin);
+    return new Response('ok', { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
-  
+
   // --- Rate Limiting ---
   const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
   const rateLimitResult = await checkRateLimit(ip, 'rating_history')
-  
+
   if (!rateLimitResult.allowed) {
-    return new Response(JSON.stringify({ 
+    return corsResponse({
       error: 'Rate limit exceeded',
       retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
-    }), { 
-      status: 429, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    })
+    }, 429, origin)
   }
 
   // --- Authentication ---
   const { validateAuth } = await import('./rate_limit.js')
   const auth = await validateAuth(req, supabase)
   if (!auth.allowed) {
-    return new Response(JSON.stringify({ error: auth.error }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
+    return corsResponse({ error: auth.error }, 401, origin);
   }
   
   function transformRatingHistory(r: Record<string, unknown>) {
@@ -95,15 +82,12 @@ Deno.serve(async (req) => {
       const { data: ratings, error, count } = await query
       
       if (error) {
-        return new Response(JSON.stringify({ error: error.message }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
+        return corsResponse({ error: error.message }, 500, origin);
       }
-      
+
       const transformed = (ratings || []).map(transformRatingHistory)
-      
-      return new Response(JSON.stringify({
+
+      return corsResponse({
         data: transformed,
         pagination: {
           page,
@@ -111,32 +95,24 @@ Deno.serve(async (req) => {
           total: count || transformed.length,
           total_pages: count ? Math.ceil(count / limit) : 1
         }
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
+      }, 200, origin);
     }
-    
+
     // POST - Create new rating entry
     if (method === 'POST') {
       let rawBody: Record<string, unknown> = {}
       try { rawBody = await req.json() } catch (_e) {}
-      
+
       const studentId = String(rawBody.student_id || '').trim()
       if (!studentId) {
-        return new Response(JSON.stringify({ error: 'Student ID is required' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
+        return corsResponse({ error: 'Student ID is required' }, 400, origin);
       }
-      
+
       const rating = parseInt(String(rawBody.rating || 0))
       if (isNaN(rating) || rating < 0 || rating > 3500) {
-        return new Response(JSON.stringify({ error: 'Rating must be between 0 and 3500' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
+        return corsResponse({ error: 'Rating must be between 0 and 3500' }, 400, origin);
       }
-      
+
       const newRating: Record<string, unknown> = {
         id: crypto.randomUUID(),
         student_id: studentId,
@@ -146,34 +122,22 @@ Deno.serve(async (req) => {
         notes: sanitizeString(rawBody.notes || '', 2000),
         recorded_at: rawBody.recorded_at ? String(rawBody.recorded_at) : new Date().toISOString()
       }
-      
+
       const { data: insertedRating, error: insertError } = await supabase
         .from('rating_history')
         .insert(newRating)
         .select()
         .single()
-      
+
       if (insertError) {
-        return new Response(JSON.stringify({ error: insertError.message }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
+        return corsResponse({ error: insertError.message }, 400, origin);
       }
-      
-      return new Response(JSON.stringify(insertedRating ? transformRatingHistory(insertedRating) : { success: true }), {
-        status: 201,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
+
+      return corsResponse(insertedRating ? transformRatingHistory(insertedRating) : { success: true }, 201, origin);
     }
-    
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
+
+    return corsResponse({ error: 'Method not allowed' }, 405, origin);
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
+    return corsResponse({ error: error.message }, 500, origin);
   }
 })

@@ -1,22 +1,30 @@
 Deno.serve(async (req) => {
   const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
-  
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  
-  if (!supabaseUrl || !supabaseKey) {
-    return new Response(JSON.stringify({ error: 'Server configuration error' }), {
-      status: 500,
+  const { getCorsHeaders, isOriginAllowed, corsResponse } = await import('./cors.ts');
+
+  const origin = req.headers.get('origin');
+  if (!isOriginAllowed(origin)) {
+    return new Response(JSON.stringify({ error: 'Origin not allowed' }), {
+      status: 403,
       headers: { 'Content-Type': 'application/json' }
     });
   }
-  
+
+  const corsHeaders = getCorsHeaders(origin);
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (!supabaseUrl || !supabaseKey) {
+    return corsResponse({ error: 'Server configuration error' }, 500, origin);
+  }
+
   const supabase = createClient(supabaseUrl, supabaseKey);
-  
+
   const { validateAuth } = await import('./rate_limit.js')
   const auth = await validateAuth(req, supabase)
   if (!auth.allowed) {
-    return new Response(JSON.stringify({ error: auth.error }), { status: 401, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } })
+    return corsResponse({ error: auth.error }, 401, origin);
   }
 
   function generateId() { return crypto.randomUUID(); }

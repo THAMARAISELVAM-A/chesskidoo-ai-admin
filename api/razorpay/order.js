@@ -20,7 +20,10 @@ export default async function handler(request, response) {
   const { amount, currency, receipt } = request.body;
 
   if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-    // Simulated order for development when Razorpay is not configured
+    // Simulated order only in development when Razorpay is not configured
+    if (process.env.NODE_ENV !== 'development') {
+      return response.status(500).json({ error: 'Server configuration error: Razorpay keys not configured' });
+    }
     return response.status(200).json({
       simulated: true,
       id: "order_sim_" + Date.now(),

@@ -2,53 +2,40 @@ import { checkRateLimit } from './rate_limit.js'
 
 Deno.serve(async (req) => {
   const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
-  
+  const { getCorsHeaders, isOriginAllowed, corsResponse } = await import('./cors.ts');
+
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-  
+
   if (!supabaseUrl || !supabaseKey) {
-    return new Response(JSON.stringify({ error: 'Server configuration error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    return corsResponse({ error: 'Server configuration error' }, 500, origin);
   }
-  
+
   const supabase = createClient(supabaseUrl, supabaseKey)
-  
-  const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || '*'
-  
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
-  }
-  
+
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
-  
+
   // --- Rate Limiting ---
   const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
   const rateLimitResult = await checkRateLimit(ip, 'resources')
-  
+
   if (!rateLimitResult.allowed) {
-    return new Response(JSON.stringify({ 
+    return corsResponse({
       error: 'Rate limit exceeded',
       retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
-    }), { 
-      status: 429, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    })
+    }, 429, origin)
   }
 
   // --- Authentication ---
   const { validateAuth } = await import('./rate_limit.js')
   const auth = await validateAuth(req, supabase)
   if (!auth.allowed) {
-    return new Response(JSON.stringify({ error: auth.error }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
+    return corsResponse({ error: auth.error }, 401, origin);
   }
   
   function transformResource(r: Record<string, unknown>) {
@@ -75,20 +62,12 @@ Deno.serve(async (req) => {
         .order('created_at', { ascending: false })
       
       if (error) throw error
-      
-      return new Response(JSON.stringify((resources || []).map(transformResource)), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
+
+      return corsResponse((resources || []).map(transformResource), 200, origin);
     }
-    
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
+
+    return corsResponse({ error: 'Method not allowed' }, 405, origin);
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
+    return corsResponse({ error: error.message }, 500, origin);
   }
 })

@@ -191,6 +191,9 @@ Deno.serve(async (req) => {
        monthly_fee: parseInt(String(fee)) || 0,
        due_date: s.due_date || null,
        account_status: s.account_status || 'active',
+       lichess_username: s.lichess_username || '',
+       chesscom_username: s.chesscom_username || '',
+       chessable_username: s.chessable_username || '',
        created_at: s.created_at,
        updated_at: s.updated_at
      }
@@ -320,6 +323,9 @@ Deno.serve(async (req) => {
          })(),
          notes: `[LM:${sanitizeString(rawBody.learning_mode, 50) || 'online'}] ${sanitizeString(rawBody.notes, 2000)}`.trim(),
          account_status: 'active',
+         lichess_username: sanitizeString(rawBody.lichess_username, 100),
+         chesscom_username: sanitizeString(rawBody.chesscom_username, 100),
+         chessable_username: sanitizeString(rawBody.chessable_username, 100),
          created_at: new Date().toISOString()
         }
       
@@ -457,6 +463,15 @@ Deno.serve(async (req) => {
        }
        if (rawBody.country_code !== undefined) {
          updateData.country_code = validateCountryCode(rawBody.country_code);
+       }
+       if (rawBody.lichess_username !== undefined) {
+         updateData.lichess_username = sanitizeString(rawBody.lichess_username, 100);
+       }
+       if (rawBody.chesscom_username !== undefined) {
+         updateData.chesscom_username = sanitizeString(rawBody.chesscom_username, 100);
+       }
+       if (rawBody.chessable_username !== undefined) {
+         updateData.chessable_username = sanitizeString(rawBody.chessable_username, 100);
        }
       
       updateData.updated_at = new Date().toISOString();
