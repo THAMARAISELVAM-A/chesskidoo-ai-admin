@@ -218,14 +218,20 @@
     return parseFloat((R * c).toFixed(1));
   }
 
-  // ─── Fetch Tournaments from Supabase (with fallback) ─────────────
-  async function loadTournaments() {
-    if (tournamentsLoaded && tournamentsData.length > 0) return;
+  // ─── Fetch Tournaments from Multiple Sources (Supabase, Lichess, Chess.com) ─────────────
+  window.loadTournaments = async function(forceSync = false) {
+    if (!forceSync && tournamentsLoaded && tournamentsData.length > 0) return;
+    
+    let allTournaments = [];
+    
+    // 1. Fetch from Supabase (Local/Admin Events)
     if (window.supabaseClient && !(window.sbTableKnownMissing && window.sbTableKnownMissing('tournaments'))) {
       try {
+        const todayStr = new Date().toISOString().split('T')[0];
         const { data, error } = await window.supabaseClient
           .from('tournaments')
           .select('*')
+          .gte('start_date', todayStr)
           .order('start_date', { ascending: true });
 
         if (error) {
@@ -234,11 +240,9 @@
           } else {
             console.warn('[Supabase] Tournaments unavailable, using local data.');
           }
-          tournamentsData = LOCAL_TOURNAMENTS_FALLBACK;
-          tournamentsLoaded = true;
         } else {
           // Map database structure to client structure
-          tournamentsData = (data || []).map(t => {
+          const dbTournaments = (data || []).map(t => {
             const cityKey = (t.city || 'chennai').toLowerCase().trim();
             const cityCoords = CITIES_COORDS[cityKey] || CITIES_COORDS['chennai'];
             return {
@@ -248,24 +252,70 @@
               date: t.start_date,
               time: '09:00', // Default fallback time
               location: t.location + (t.city ? `, ${t.city}` : ''),
-              coords: { lat: cityCoords.lat, lon: cityCoords.lon },
-              fee: parseFloat(t.entry_fee || 0),
+              coords: cityCoords,
+              fee: parseFloat(t.entry_fee) || 0,
               category: t.rating_required || 'Open',
-              eloLimit: parseInt(t.elo_limit || 9999),
-              regLink: t.registration_url || 'https://aicf.in'
+              eloLimit: parseInt(t.elo_limit) || 9999,
+              regLink: t.registration_url || '',
+              sourceBadge: 'Academy'
             };
           });
-          tournamentsLoaded = true;
+          allTournaments = allTournaments.concat(dbTournaments);
         }
-      } catch (e) {
-        console.warn('[Supabase] Failed to fetch tournaments. Local fallback:', e);
-        tournamentsData = LOCAL_TOURNAMENTS_FALLBACK;
-        tournamentsLoaded = true;
+      } catch (err) {
+        console.error('[Supabase] Error loading tournaments', err);
       }
-    } else {
-      tournamentsData = LOCAL_TOURNAMENTS_FALLBACK;
-      tournamentsLoaded = true;
     }
+
+    // 2. Fetch from Lichess Arena API
+    try {
+      const lichessRes = await fetch('https://lichess.org/api/tournament');
+      if (lichessRes.ok) {
+        const text = await lichessRes.text();
+        const lines = text.split('\\n').filter(l => l.trim() !== '');
+        let count = 0;
+        
+        // Parse NDJSON (Newline Delimited JSON)
+        for (const line of lines) {
+          try {
+            const t = JSON.parse(line);
+            // Only add upcoming/created arenas (status 10/20)
+            if (t.status === 10 || t.status === 20) { 
+              const startDate = new Date(t.startsAt || t.createdAt);
+              allTournaments.push({
+                id: 'lichess_' + t.id,
+                title: t.fullName || 'Lichess Arena',
+                federation: 'Lichess',
+                date: startDate.toISOString().split('T')[0],
+                time: startDate.toTimeString().substring(0,5),
+                location: 'Online — Lichess',
+                coords: CITIES_COORDS['chennai'], // Online defaults
+                fee: 0,
+                category: t.perf ? t.perf.name : 'Open',
+                eloLimit: 9999,
+                regLink: `https://lichess.org/tournament/${t.id}`,
+                sourceBadge: 'Lichess'
+              });
+              count++;
+              if (count >= 15) break; // Limit to 15 upcoming arenas
+            }
+          } catch(e) {}
+        }
+      }
+    } catch(err) {
+      console.warn('[Lichess API] Failed to fetch live tournaments', err);
+    }
+
+    // 3. Fallback if everything failed
+    if (allTournaments.length === 0) {
+      allTournaments = LOCAL_TOURNAMENTS_FALLBACK.map(t => ({...t, sourceBadge: 'AICF'}));
+    }
+
+    // Sort all by date
+    allTournaments.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    tournamentsData = allTournaments;
+    tournamentsLoaded = true;
   }
 
   // ─── Sub-Tab Routing Logics ──────────────────────────────────────
@@ -392,9 +442,9 @@
         ${studentSelectHtml}
 
         <div style="flex:1; text-align:right; min-width:160px;">
-          <span class="badge" style="background:rgba(218,163,62,0.1); color:var(--gold); border:1px solid rgba(218,163,62,0.2); font-size:11px; padding:6px 12px;">
-            ● AI Sync: Auto-scraping active (6h interval)
-          </span>
+          <button class="btn btn-outline" onclick="var btn=this; btn.innerHTML='⏳ Syncing...'; btn.disabled=true; window.loadTournaments(true).then(()=>{ window.filterTournaments(${isChildView}); btn.innerHTML='🔄 Sync Live APIs'; btn.disabled=false; });" style="padding:6px 12px; font-size:11px; background:rgba(218,163,62,0.1); color:var(--gold); border:1px solid rgba(218,163,62,0.4);">
+            🔄 Sync Live APIs
+          </button>
         </div>
       </div>
 

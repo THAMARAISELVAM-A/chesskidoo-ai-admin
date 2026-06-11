@@ -361,6 +361,8 @@
             return false;
         }
     }
+    window.persistScheduleForStudent = persistScheduleForStudent;
+    window.encodeSchedulePayload = encodeSchedulePayload;
 
     window.saveStudentSchedule = async function () {
         const studentId = document.getElementById('sch-student-select').value;

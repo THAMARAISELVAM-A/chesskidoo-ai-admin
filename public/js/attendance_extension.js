@@ -96,59 +96,17 @@ window.toggleCellAttendance = async function(studentId, date, currentStatus) {
   }
 };
 
-// --- NEW MASTER SCHEDULE LOGIC ---
-// Curated weekly timetable (source of truth: the coach schedule PDFs). Used for
-// the day-pill calendar in the per-coach and master schedule views, since live
-// student records don't store class DAYS.
-const hardcodedSchedule = [
-  { coach: 'Arivuselvam', tier: 'Advanced', batches: [
-      { name: 'Batch 1', schedule: 'Monday & Wednesday | 6:00 PM - 7:00 PM', students: ['Aarunya', 'Magathi', 'Pranav'] },
-      { name: 'Batch 2', schedule: 'Monday & Wednesday | 8:00 PM - 9:00 PM', students: ['Aatish', 'Uttsan'] },
-      { name: 'Batch 3', schedule: 'Tuesday & Thursday | 7:00 PM - 8:00 PM', students: ['Mukilan', 'Sachin'] },
-      { name: 'Batch 4', schedule: 'Monday & Wednesday | 7:00 PM - 8:00 PM', students: ['Eduveer', 'Yugan'] }
-  ] },
-  { coach: 'Gyana Suriya', tier: 'Beginner', batches: [
-      { name: 'Batch 1', schedule: 'Saturday & Sunday | 7:00 PM - 8:00 PM', students: ['Aara', 'Anush', 'Rakshitha', 'Shervin'] },
-      { name: 'Batch 2', schedule: 'Wednesday & Friday | 5:40 AM - 6:20 AM', students: ['Ekash'] },
-      { name: 'Batch 3', schedule: 'Wednesday & Friday | 7:00 AM - 8:00 AM', students: ['Nigunan'] }
-  ] },
-  { coach: 'Ranjith', tier: 'Advanced', batches: [
-      { name: 'Batch 1', schedule: 'Tuesday & Thursday | 2:45 PM - 3:45 PM', students: ['Sakthi', 'Sathya'] },
-      { name: 'Batch 2', schedule: 'Saturday & Sunday | 7:00 PM - 8:00 PM', students: ['Riyas', 'Susil', 'Varun'] }
-  ] },
-  { coach: 'Sudhin', tier: 'Beginner', batches: [
-      { name: 'Batch 1', schedule: 'Thursday & Friday | 6:00 AM - 7:00 AM', students: ['Jeevan'] },
-      { name: 'Batch 3', schedule: 'Saturday & Sunday | 7:00 PM - 8:00 PM', students: ['Aakif', 'Pranish', 'Venkatesh Daughter'] }
-  ] },
-  { coach: 'Vishnu', tier: 'Intermediate', batches: [
-      { name: 'Batch 1', schedule: 'Friday & Saturday | 7:00 PM - 8:00 PM', students: [] },
-      { name: 'Batch 2', schedule: 'Wednesday & Thursday | 7:00 PM - 8:00 PM', students: ['Yogesh'] },
-      { name: 'Batch 3', schedule: 'Wednesday & Thursday | 6:00 PM - 7:00 PM', students: ['Abinitha'] }
-  ] },
-  { coach: 'Yogesh', tier: 'Beginner', batches: [
-      { name: 'Batch 1', schedule: 'Saturday & Sunday | 7:30 PM - 8:30 PM', students: ['Athvik', 'Mohammad Rayan', 'Pranesh'] },
-      { name: 'Batch 2', schedule: 'Saturday & Sunday | 6:00 PM - 7:00 PM', students: ['Sai', 'Venkatesh Son'] }
-  ] },
-  { coach: 'Vasanth Kumar', tier: 'Beginner', batches: [
-      { name: 'Batch 1', schedule: 'Monday & Wednesday | 7:00 PM - 7:40 PM', students: ['Aaradhya'] }
-  ] },
-  { coach: 'Rohith', tier: 'Beginner', batches: [
-      { name: 'Batch 1', schedule: 'Monday, Wednesday & Saturday | 5:00 AM - 5:40 AM', students: ['Sreelaxmi'] },
-      { name: 'Batch 2', schedule: 'Thursday & Friday | 6:00 PM - 8:00 PM', students: ['Samiksha'] }
-  ] }
-];
-
-// Expose the master schedule data so the per-coach schedule view can reuse it.
-window.hardcodedSchedule = hardcodedSchedule;
+// --- MASTER SCHEDULE MATRIX (100% DYNAMIC) ---
+// No more hardcoded data. Everything comes from live student/coach data via
+// window.buildDynamicSchedule() defined in scripts.js.
 
 window.openMasterSchedule = function() {
   const container = document.getElementById('master-schedule-container');
   if (!container) return;
 
-  // Prefer LIVE data (reflects coach reassignments, deletions, new enrolments).
-  // Fall back to the bundled sample only if live data isn't available yet.
-  let scheduleData = (typeof window.buildDynamicSchedule === 'function') ? window.buildDynamicSchedule() : null;
-  if (!scheduleData || scheduleData.length === 0) scheduleData = hardcodedSchedule;
+  // Always use LIVE data from the dynamic schedule builder.
+  let scheduleData = (typeof window.buildDynamicSchedule === 'function') ? window.buildDynamicSchedule() : [];
+  const isAdmin = window.currentUser && window.currentUser.role === 'admin';
 
   let html = `
     <style>
@@ -221,7 +179,11 @@ window.openMasterSchedule = function() {
             font-weight: 600;
             line-height: 1.1;
             text-align: left;
+            cursor: pointer;
+            position: relative;
+            transition: opacity 0.15s;
         }
+        .mat-block:hover { opacity: 0.85; }
 
         .bg-rohith { background-color: #3b5998; }
         .bg-ranjith { background-color: #27ae60; }
@@ -254,8 +216,112 @@ window.openMasterSchedule = function() {
             overflow: hidden;
             text-overflow: ellipsis;
         }
+
+        .mat-edit-btn {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: rgba(0,0,0,0.4);
+            border: none;
+            color: #fff;
+            font-size: 9px;
+            cursor: pointer;
+            border-radius: 3px;
+            padding: 1px 3px;
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+        .mat-block:hover .mat-edit-btn { opacity: 1; }
+
+        /* Inline Edit Popover */
+        .mat-edit-popover {
+            position: fixed;
+            z-index: 9999;
+            background: #1a1e2e;
+            border: 1px solid #3c4256;
+            border-radius: 10px;
+            padding: 16px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+            min-width: 300px;
+            max-width: 380px;
+            color: #fff;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .mat-edit-popover h4 {
+            margin: 0 0 12px 0;
+            font-size: 13px;
+            color: #daa33e;
+        }
+        .mat-edit-popover label {
+            display: block;
+            font-size: 11px;
+            color: #a4b0cb;
+            font-weight: 600;
+            margin-bottom: 4px;
+            margin-top: 10px;
+        }
+        .mat-edit-popover input, .mat-edit-popover select {
+            width: 100%;
+            padding: 7px 10px;
+            background: #141722;
+            border: 1px solid #2c3242;
+            color: #fff;
+            border-radius: 6px;
+            font-size: 12px;
+            box-sizing: border-box;
+        }
+        .mat-edit-popover .day-pills {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            margin-top: 4px;
+        }
+        .mat-edit-popover .day-pill {
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid #2c3242;
+            background: #141722;
+            color: #a4b0cb;
+            font-size: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.15s;
+        }
+        .mat-edit-popover .day-pill.active {
+            background: #daa33e;
+            color: #000;
+            border-color: #daa33e;
+        }
+        .mat-edit-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 14px;
+            justify-content: flex-end;
+        }
+        .mat-edit-actions button {
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: none;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .mat-btn-save { background: #daa33e; color: #000; }
+        .mat-btn-cancel { background: #2c3242; color: #fff; }
     </style>
-    <table>
+  `;
+
+  if (scheduleData.length === 0) {
+    html += `<div style="text-align:center; padding:40px; color:#8a90a6;">
+        <span style="font-size:36px; display:block; margin-bottom:12px;">📅</span>
+        No schedule data available. Assign coaches and set schedule days for students in the Schedule Manager.
+    </div>`;
+    container.innerHTML = html;
+    openModal('master-schedule-modal');
+    return;
+  }
+
+  html += `<table>
         <thead>
             <tr>
                 <th class="coach-header">Coach</th>
@@ -288,13 +354,14 @@ window.openMasterSchedule = function() {
 
   scheduleData.forEach(c => {
     const theme = getCoachThemeClass(c.coach);
+    const coachId = c.coachId || '';
     html += `<tr>`;
     html += `<td class="coach-cell row-${theme}">${c.coach}<br><span style="font-size:9px; font-weight:normal; color:#8a90a6;">${c.tier || 'Coach'}</span></td>`;
     
     // Group batches by day
     const dayBatches = { 'Monday': [], 'Tuesday': [], 'Wednesday': [], 'Thursday': [], 'Friday': [], 'Saturday': [], 'Sunday': [] };
     
-    c.batches.forEach(b => {
+    c.batches.forEach((b, batchIndex) => {
         let timeStr = '';
         let daysStr = (b.schedule || '').toLowerCase();
         
@@ -306,7 +373,7 @@ window.openMasterSchedule = function() {
         
         daysOfWeek.forEach(day => {
             if (daysStr.includes(day.toLowerCase()) || daysStr.includes(day.substring(0,3).toLowerCase())) {
-                dayBatches[day].push({ name: b.name, time: timeStr, students: b.students });
+                dayBatches[day].push({ name: b.name, time: timeStr, students: b.students, schedule: b.schedule, batchIndex, coachId });
             }
         });
     });
@@ -317,10 +384,10 @@ window.openMasterSchedule = function() {
             html += `<td class="empty-cell">&mdash;</td>`;
         } else {
             html += `<td>`;
-            // Sort by time roughly (AM before PM, then numerical)
             batches.forEach(b => {
                 const stdStr = b.students && b.students.length > 0 ? b.students.join(', ') : 'No students';
-                html += `<div class="mat-block bg-${theme}">${b.name}<span class="time-text">${b.time}</span><span class="student-text" title="${stdStr}">${stdStr}</span></div>`;
+                const editBtn = isAdmin ? `<button class="mat-edit-btn" onclick="event.stopPropagation(); window.openBatchInlineEdit('${b.coachId}', ${b.batchIndex}, this)" title="Edit batch">✏️</button>` : '';
+                html += `<div class="mat-block bg-${theme}">${b.name}${editBtn}<span class="time-text">${b.time}</span><span class="student-text" title="${stdStr}">${stdStr}</span></div>`;
             });
             html += `</td>`;
         }
@@ -333,4 +400,137 @@ window.openMasterSchedule = function() {
   
   container.innerHTML = html;
   openModal('master-schedule-modal');
+};
+
+// --- Inline Batch Editor ---
+window.openBatchInlineEdit = function(coachId, batchIndex, btnEl) {
+  // Remove any existing popover
+  document.querySelectorAll('.mat-edit-popover').forEach(el => el.remove());
+
+  // Get live schedule data
+  const scheduleData = (typeof window.buildDynamicSchedule === 'function') ? window.buildDynamicSchedule() : [];
+  const coachEntry = scheduleData.find(c => String(c.coachId) === String(coachId));
+  if (!coachEntry || !coachEntry.batches[batchIndex]) return;
+
+  const batch = coachEntry.batches[batchIndex];
+  const allDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  
+  // Parse existing days and time from schedule string (e.g. "Monday & Wednesday | 6:00 PM - 7:00 PM")
+  let currentDays = [];
+  let currentTime = '';
+  if (batch.schedule && batch.schedule.includes('|')) {
+    const parts = batch.schedule.split('|');
+    const daysPart = parts[0].toLowerCase();
+    currentTime = parts[1].trim();
+    allDays.forEach(d => {
+      if (daysPart.includes(d.toLowerCase())) currentDays.push(d);
+    });
+  }
+
+  // Position popover near the button
+  const rect = btnEl.getBoundingClientRect();
+  const popX = Math.min(rect.left, window.innerWidth - 400);
+  const popY = Math.min(rect.bottom + 4, window.innerHeight - 400);
+
+  const popover = document.createElement('div');
+  popover.className = 'mat-edit-popover';
+  popover.style.left = popX + 'px';
+  popover.style.top = popY + 'px';
+
+  const dayPillsHtml = allDays.map(d => 
+    `<span class="day-pill ${currentDays.includes(d) ? 'active' : ''}" data-day="${d}" onclick="this.classList.toggle('active')">${d.substring(0,3)}</span>`
+  ).join('');
+
+  // Students in this batch — allow removal
+  const studentChipsHtml = (batch.students || []).map(name => 
+    `<span style="display:inline-flex; align-items:center; gap:4px; background:#2c3242; padding:3px 8px; border-radius:4px; font-size:11px; margin:2px;">
+       ${name}
+     </span>`
+  ).join('');
+
+  popover.innerHTML = `
+    <h4>✏️ Edit ${batch.name} — ${coachEntry.coach}</h4>
+    <label>Class Days</label>
+    <div class="day-pills" id="mat-edit-days">${dayPillsHtml}</div>
+    <label>Time Slot</label>
+    <input type="text" id="mat-edit-time" value="${currentTime}" placeholder="e.g. 6:00 PM - 7:00 PM">
+    <label>Students in Batch</label>
+    <div style="margin-top:4px; max-height:80px; overflow-y:auto;">${studentChipsHtml || '<span style="color:#8a90a6; font-size:11px;">No students assigned</span>'}</div>
+    <div class="mat-edit-actions">
+      <button class="mat-btn-cancel" onclick="this.closest('.mat-edit-popover').remove()">Cancel</button>
+      <button class="mat-btn-save" onclick="window.saveBatchInlineEdit('${coachId}', ${batchIndex})">Save</button>
+    </div>
+  `;
+
+  document.body.appendChild(popover);
+
+  // Close on outside click
+  setTimeout(() => {
+    const handler = function(e) {
+      if (!popover.contains(e.target)) {
+        popover.remove();
+        document.removeEventListener('mousedown', handler);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+  }, 50);
+};
+
+window.saveBatchInlineEdit = async function(coachId, batchIndex) {
+  const popover = document.querySelector('.mat-edit-popover');
+  if (!popover) return;
+
+  // Read new days
+  const activePills = popover.querySelectorAll('.day-pill.active');
+  const newDays = Array.from(activePills).map(el => el.dataset.day);
+  const newTime = document.getElementById('mat-edit-time')?.value || '';
+
+  if (newDays.length === 0) {
+    if (window.toast) window.toast('Please select at least one day.', 'error');
+    return;
+  }
+
+  // Build the new schedule string
+  const daysString = newDays.join(' & ');
+  const newSchedule = newTime ? `${daysString} | ${newTime}` : daysString;
+
+  // Find all students in this batch and update their schedule notes
+  const scheduleData = (typeof window.buildDynamicSchedule === 'function') ? window.buildDynamicSchedule() : [];
+  const coachEntry = scheduleData.find(c => String(c.coachId) === String(coachId));
+  if (!coachEntry || !coachEntry.batches[batchIndex]) return;
+
+  const batch = coachEntry.batches[batchIndex];
+  const studentNames = batch.students || [];
+
+  if (window.toast) window.toast(`Updating schedule for ${studentNames.length} students...`, 'info');
+
+  let successCount = 0;
+  for (const name of studentNames) {
+    const student = (window.allStudents || []).find(s =>
+      (s.name || s.full_name || '').toLowerCase().includes(name.toLowerCase())
+    );
+    if (!student) continue;
+
+    // Get existing schedule data from the student
+    const existingSchedule = window.extractScheduleJSON ? window.extractScheduleJSON(student.notes) : null;
+    const schedData = {
+      ...(existingSchedule || {}),
+      regDays: daysString,
+      regTime: newTime,
+      coachId: coachId,
+      coachName: coachEntry.coach
+    };
+
+    if (window.persistScheduleForStudent) {
+      const ok = await window.persistScheduleForStudent(student, schedData);
+      if (ok) successCount++;
+    }
+  }
+
+  popover.remove();
+
+  if (window.toast) window.toast(`Schedule updated for ${successCount}/${studentNames.length} students.`, successCount > 0 ? 'success' : 'error');
+
+  // Re-render the matrix with fresh data
+  window.openMasterSchedule();
 };
