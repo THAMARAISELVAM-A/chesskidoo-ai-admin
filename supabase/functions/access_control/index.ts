@@ -9,6 +9,10 @@ Deno.serve(async (req) => {
 
   const origin = req.headers.get('origin')
 
+  if (req.method === 'OPTIONS') {
+    return corsResponse({}, 200, origin);
+  }
+
   // Rate limiting
   const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
   const rateLimitResult = await checkRateLimit(ip, 'access_control')
@@ -30,10 +34,6 @@ Deno.serve(async (req) => {
       persistSession: false
     }
   });
-
-  if (req.method === 'OPTIONS') {
-    return corsResponse({}, 200, origin);
-  }
 
   // Verify requester is a master admin using JWT claims (not client-controlled headers)
   const { validateAuth } = await import('./rate_limit.js')
