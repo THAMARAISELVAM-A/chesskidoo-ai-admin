@@ -159,7 +159,9 @@ async function initEncryption() {
 if (typeof window !== 'undefined') {
   window.addEventListener('load', () => {
     setTimeout(() => {
-      toast('Encryption module ready. Data will be encrypted in your browser.', 'info', 5000)
+      if (window.toast) {
+        toast('Encryption module ready. Data will be encrypted in your browser.', 'info', 5000)
+      }
     }, 2000)
   })
   initEncryption()
