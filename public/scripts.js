@@ -136,6 +136,7 @@
   let allPayments = [];
   let allAttendance = [];
   let allBatches = [];
+  let allHomework = [];
 
   // Expose to window for external modules (like reporting.js)
   window.allCoaches = allCoaches;
@@ -143,6 +144,7 @@
   window.allPayments = allPayments;
   window.allAttendance = allAttendance;
   window.allBatches = allBatches;
+  window.allHomework = allHomework;
 
   let achievementsData = [];
   window.achievementsData = achievementsData;
@@ -189,12 +191,19 @@
     // key (a valid JWT). Edge functions authorize via the `role` header / their
     // own checks, so the anon key Bearer is correct here.
     const storedTok = localStorage.getItem("sb-access-token");
+    const authState = JSON.parse(localStorage.getItem("chesskidoo_auth") || "{}");
     const bearer =
       storedTok && storedTok.startsWith("eyJ") ? storedTok : SUPABASE_ANON_KEY;
+    const isFormData =
+      typeof window !== "undefined" && options.body instanceof window.FormData;
     const headers = {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       apikey: SUPABASE_ANON_KEY,
       Authorization: `Bearer ${bearer}`,
+      "x-portal-token": authState.portalToken || authState.portal_token || "",
+      "x-portal-role": authState.role || window.role || "",
+      "x-portal-student-id":
+        authState.studentId || authState.student_id || "",
       ...options.headers,
     };
 
@@ -254,6 +263,10 @@
     const div = document.createElement("div");
     div.textContent = String(text);
     return div.innerHTML;
+  }
+
+  function escapeAttr(text) {
+    return escapeHtml(text).replace(/"/g, "&quot;");
   }
 
   // Escape string for safe embedding in JavaScript string literal inside HTML attribute
@@ -408,6 +421,7 @@
       if (window.setChildEventsSubTab) window.setChildEventsSubTab("academy");
     }
     if (tabId === "reports" && typeof window.renderChildReports === "function") window.renderChildReports();
+    if (tabId === "homework" && typeof window.renderChildHomework === "function") window.renderChildHomework();
     if (
       tabId === "productivity" &&
       typeof window.renderChildProductivity === "function"
@@ -4359,6 +4373,7 @@
         allPayments = dataCache.payments || [];
         allRatingHistory = dataCache.ratingHistory || [];
         allBatches = dataCache.batches || [];
+        allHomework = dataCache.homework || [];
 
         // Sync to window for modules
         window.allStudents = allStudents;
@@ -4368,6 +4383,7 @@
         window.allPayments = allPayments;
         window.allRatingHistory = allRatingHistory;
         window.allBatches = allBatches;
+        window.allHomework = allHomework;
 
         window.allResources = allResources;
 
@@ -4574,6 +4590,7 @@
         window.allMessages = allMessages;
         window.allAttendance = allAttendance;
         window.allRatingHistory = allRatingHistory;
+        window.allHomework = allHomework;
 
         window.allResources = allResources;
 
@@ -4598,6 +4615,7 @@
           ratingHistory: allRatingHistory,
           resources: allResources,
           batches: allBatches,
+          homework: allHomework,
           timestamp: now,
         };
         try {
@@ -4622,6 +4640,7 @@
           else if (active === "page-fame") renderFame();
           else if (active === "page-events") renderEvents();
           else if (active === "page-batches") { if (window.renderBatchesGrid) window.renderBatchesGrid(); }
+          else if (active === "page-homework") { if (window.renderHomeworkAdmin) window.renderHomeworkAdmin(); }
           else if (active === "page-ai") {
             if (window.updateTomKpis) window.updateTomKpis();
           } else renderDash();
@@ -5041,6 +5060,7 @@
     productivity: "Operations Productivity Center",
     chessable: "Chessable Profiles",
     "parent-ai": "Ask TOM AI",
+    homework: "Homework Manager",
   };
 
   function setPage(p) {
@@ -5056,10 +5076,11 @@
       "events",
       "ai",
       "access",
-      "schedules",
-      "productivity",
-      "chessable",
-      "attendance",
+    "schedules",
+    "productivity",
+    "chessable",
+    "attendance",
+    "homework",
     ];
     if (adminPages.includes(p) && role !== "admin" && role !== "master") {
       toast("Access denied", "error");
@@ -5098,6 +5119,9 @@
       if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().split("T")[0];
       window.renderAttendanceList();
     }
+    if (p === "homework" && window.renderHomeworkAdmin) {
+      window.renderHomeworkAdmin?.();
+    }
 
     // Mobile auto-close sidebar
     if (window.innerWidth <= 768) {
@@ -5134,6 +5158,13 @@
           btnArea.innerHTML = `
             <button class="btn btn-outline-grey" onclick="openMasterSchedule()">📋 Master Schedule</button>
             <button class="btn btn-gold" onclick="openBatchModal()">+ New Batch</button>
+          `;
+        }
+        if (p === "homework") {
+          btnArea.innerHTML = `
+            <button class="btn btn-outline-grey" onclick="sendHomeworkReminders()">🔔 Send Reminders</button>
+            <button class="btn btn-outline-grey" onclick="renderHomeworkAdmin()">🔄 Refresh</button>
+            <button class="btn btn-gold" onclick="openHomeworkModal()">+ Assign Homework</button>
           `;
         }
         if (p === "coach-mgmt")
@@ -5181,6 +5212,8 @@
         window.initSchedulePage();
       if (p === "chessable" && window.renderChessableProfiles)
         window.renderChessableProfiles();
+      if (p === "homework" && window.renderHomeworkAdmin)
+        window.renderHomeworkAdmin?.();
       if (p === "productivity" && window.initProductivityPage)
         window.initProductivityPage();
       if (p === "access") {
@@ -5898,9 +5931,12 @@
           .trim()
           .toLowerCase() === sid
       ) {
-        const d = new Date(p.payment_date || p.created_at);
-        if (!isNaN(d.getTime()))
-          months.add(d.getUTCFullYear() + "-" + d.getUTCMonth());
+        // Use applied_month if available (for advance/billed payments)
+        // Month is 1-indexed to match applied_month format: "2026-06" for June
+        const monthKey = p.applied_month
+          ? p.applied_month
+          : new Date(p.payment_date || p.created_at).getUTCFullYear() + "-" + String(new Date(p.payment_date || p.created_at).getUTCMonth() + 1).padStart(2, '0');
+        months.add(monthKey);
       }
     });
     return months.size;
@@ -5956,25 +5992,38 @@
       );
   };
 
-  function calculateSlotRevenue(year, month, studentIdMap) {
+function calculateSlotRevenue(year, month, studentIdMap) {
     if (!allPayments) return 0;
     const seenStuds = new Set();
     return allPayments.reduce((sum, p) => {
+      if (p.status !== "paid") return sum;
+      
+      const sid = String(p.student_id || "").toLowerCase();
+      if (!sid || seenStuds.has(sid)) return sum;
+      
+      // applied_month format: "2026-06" (1-indexed) - check if payment applies to target month
+      if (p.applied_month) {
+        const [appYear, appMonth] = p.applied_month.split("-").map(Number);
+        if (appYear === year && appMonth === month + 1) {
+          const s = allStudents.find((x) => String(x.id).toLowerCase() === sid);
+          if (s) {
+            seenStuds.add(sid);
+            return sum + (getStudentMonthlyFee(s) || 0);
+          }
+        }
+        return sum;
+      }
+      
+      // No applied_month: use payment date for cash view
       const pDate = new Date(p.payment_date || p.created_at);
       if (
         pDate.getUTCMonth() === month &&
-        pDate.getUTCFullYear() === year &&
-        p.status === "paid"
+        pDate.getUTCFullYear() === year
       ) {
-        const sid = String(p.student_id).toLowerCase();
-        if (seenStuds.has(sid)) return sum;
-
         const s = allStudents.find((x) => String(x.id).toLowerCase() === sid);
         if (s) {
-          if (getStudentPaymentStatus(s, month, year) === "Paid") {
-            seenStuds.add(sid);
-            return sum + getStudentMonthlyFee(s);
-          }
+          seenStuds.add(sid);
+          return sum + (getStudentMonthlyFee(s) || 0);
         }
       }
       return sum;
@@ -6053,25 +6102,28 @@
         const s = allStudents.find((x) => String(x.id).toLowerCase() === sid);
         if (!s) return;
 
-        const enrollDateStr = getStudentDate(s);
-        const baseline = new Date(Date.UTC(2026, 3, 1));
-        const enrollDate = enrollDateStr ? new Date(enrollDateStr) : baseline;
-        const effectiveEnroll = (function () {
-          var _a =
-            window.getBillingAnchor && window.getBillingAnchor(s, baseline);
-          return _a
-            ? new Date(Date.UTC(_a.year, _a.month, 1))
-            : enrollDate < baseline
-              ? baseline
-              : enrollDate;
-        })();
+        // applied_month format: "2026-6" (1-indexed) for June
+        // Convert to 0-indexed for comparison with targetMonth
+        let pMon = targetMonth; // default to current
+        let pYr = targetYear;
+        if (p.applied_month) {
+          const parts = p.applied_month.split("-");
+          pYr = parseInt(parts[0]);
+          pMon = parseInt(parts[1]) - 1; // Convert 1-indexed to 0-indexed
+        } else {
+          const pDate = new Date(p.payment_date || p.created_at);
+          pYr = pDate.getUTCFullYear();
+          pMon = pDate.getUTCMonth();
+        }
 
-        const pDate = new Date(p.payment_date || p.created_at);
-        if (pDate <= targetMonthEnd) {
-          const mKey = `${sid}_${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`;
-          if (seenMonthsAudit.has(mKey)) return;
-          seenMonthsAudit.add(mKey);
+        // Only count payments for months up to (and including) target month
+        const isBeforeOrAtTarget = pYr < targetYear ||
+          (pYr === targetYear && pMon <= targetMonth);
 
+        if (isBeforeOrAtTarget) {
+          const auditKey = `${pYr}-${pMon}_${sid}`;
+          if (seenMonthsAudit.has(auditKey)) return;
+          seenMonthsAudit.add(auditKey);
           if (!s_id_map[sid]) s_id_map[sid] = 0;
           s_id_map[sid]++;
         }
@@ -6148,7 +6200,9 @@
       const totalMonthsUnpaid = Math.max(0, monthsRequired - totalCredits);
       if (totalMonthsUnpaid > 0) {
         const isPaidThisMonth = status === "Paid";
-        const histMonths = totalMonthsUnpaid - (isPaidThisMonth ? 0 : 1);
+        // Historical arrears = unpaid months strictly BEFORE the current month
+        // current month unpaid amount goes to currMonthPending, not arrears
+        const histMonths = Math.max(0, isPaidThisMonth ? totalMonthsUnpaid : totalMonthsUnpaid - 1);
 
         if (histMonths > 0) {
           totalArrears += fee * histMonths;
@@ -6193,27 +6247,10 @@
 
     // Update UI
     if ($("s-rev")) $("s-rev").textContent = "₹" + paidRevenue.toLocaleString();
-    if ($("s-rev-mode"))
-      $("s-rev-mode").textContent =
-        "⇄ " + (window.revenueViewMode === "cash" ? "cash" : "cycle");
+    if ($("s-rev-mode")) $("s-rev-mode").textContent = "cycle";
+    if ($("s-last-month-collected")) $("s-last-month-collected").textContent = "₹" + prevRevenue.toLocaleString();
     if ($("s-total-revenue"))
       $("s-total-revenue").textContent = "₹" + totalPotential.toLocaleString();
-
-    const growthEl = $("s-due");
-    if (growthEl) {
-      if (prevRevenue > 0) {
-        growthEl.innerHTML = `₹${revenueGrowth.toLocaleString()} <span style="font-size:0.8em;opacity:0.8">(${revenueGrowth >= 0 ? "+" : ""}${growthPercent}%)</span>`;
-        growthEl.style.color =
-          revenueGrowth > 0
-            ? "var(--emerald)"
-            : revenueGrowth < 0
-              ? "var(--ruby)"
-              : "var(--ivory-dim)";
-      } else {
-        growthEl.innerHTML = `₹${paidRevenue.toLocaleString()} <span style="font-size:0.8em;opacity:0.8">(vs prev: ₹0)</span>`;
-        growthEl.style.color = "var(--ivory-dim)";
-      }
-    }
 
     if ($("s-last-due"))
       $("s-last-due").textContent = "₹" + totalArrears.toLocaleString();
@@ -6255,7 +6292,9 @@
     // Session counts
     let groupCount = 0,
       singleCount = 0,
-      activeEnroll = 0;
+      activeEnroll = 0,
+      onlineCount = 0,
+      offlineCount = 0;
     targetStudents.forEach((s) => {
       const sessStatus = getStudentStatus(s);
       if (
@@ -6268,10 +6307,16 @@
       const type = getStudentBatchType(s);
       if (type === "Single") singleCount++;
       else groupCount++;
+      // Learning mode counts (non-offline defaults to online per display logic)
+      const mode = (s.learning_mode || 'online').toLowerCase();
+      if (mode === 'offline') offlineCount++;
+      else onlineCount++; // online or undefined/null default to online
     });
     if ($("s-group")) $("s-group").textContent = groupCount;
     if ($("s-single")) $("s-single").textContent = singleCount;
     if ($("s-active-enroll")) $("s-active-enroll").textContent = activeEnroll;
+    if ($("s-online")) $("s-online").textContent = onlineCount;
+    if ($("s-offline")) $("s-offline").textContent = offlineCount;
 
     // Build charts
     if (typeof Chart !== "undefined") buildCharts(targetStudents);
@@ -6814,6 +6859,8 @@
               dueDateHtml = `<span style="color: var(--warning); font-weight: 600;">${dueDateString}</span>`;
             }
 
+            const homeworkButton = `<button class="btn btn-outline-info btn-sm" style="flex-shrink:0;white-space:nowrap" onclick="openHomeworkModal('${s.id}')">📚 HW</button>`;
+
             // Primary action buttons (always visible)
             let primaryActions = "";
             let moreActions = "";
@@ -6821,6 +6868,7 @@
             if (status === "Paid") {
               primaryActions = `
                   <div style="display:flex;gap:4px;flex-wrap:nowrap">
+                  ${homeworkButton}
                   <button class="btn btn-gold btn-sm" style="flex-shrink:0;white-space:nowrap" onclick="sendPaymentReceiptNotification('${s.id}', '${getStudentMonthlyFee(s)}')">📢 Inform</button>
                   <button class="btn btn-outline-grey btn-sm" style="flex-shrink:0;white-space:nowrap" onclick="viewStudent('${s.id}')">View</button>
                   <button class="btn btn-outline-grey btn-sm" style="flex-shrink:0;white-space:nowrap" onclick="openEdit('${s.id}')">Edit</button>
@@ -6840,6 +6888,7 @@
             ) {
               primaryActions = `
                    <div style="display:flex;gap:4px;flex-wrap:nowrap">
+                   ${homeworkButton}
                    <button class="btn btn-gold btn-sm" style="flex-shrink:0;white-space:nowrap" onclick="togglePaymentStatus('${s.id}', '${jsAttrEncode(getStudentName(s))}', '${getStudentMonthlyFee(s)}')">✅ Mark as Paid</button>
                    <button class="btn btn-outline-grey btn-sm" style="flex-shrink:0;white-space:nowrap" onclick="viewStudent('${s.id}')">View</button>
                    <button class="btn btn-outline-grey btn-sm" style="flex-shrink:0;white-space:nowrap" onclick="openEdit('${s.id}')">Edit</button>
@@ -6855,6 +6904,7 @@
             } else if (isNonActive || status === "Not Enrolled") {
               primaryActions = `
                   <div style="display:flex;gap:4px;flex-wrap:nowrap">
+                  ${homeworkButton}
                   <button class="btn btn-outline-grey btn-sm" style="flex-shrink:0;white-space:nowrap" onclick="viewStudent('${s.id}')">View</button>
                   <button class="btn btn-outline-grey btn-sm" style="flex-shrink:0;white-space:nowrap" onclick="openEdit('${s.id}')">Edit</button>
                   <button class="btn btn-danger btn-sm" style="flex-shrink:0;white-space:nowrap" onclick="deleteStudent('${s.id}', '${jsAttrEncode(getStudentName(s))}')">Delete</button>
@@ -6946,6 +6996,558 @@
         tbody.innerHTML = `<tr><td colspan="12" class="text-center text-danger">Failed to load students. Please refresh the page.</td></tr>`;
     }
   }
+
+  function homeworkBatchIdsForStudent(student) {
+    if (!student) return [];
+    const ids = new Set();
+    if (student.batch_id) ids.add(String(student.batch_id));
+    (allBatches || []).forEach((batch) => {
+      const studentIds = Array.isArray(batch.student_ids) ? batch.student_ids.map(String) : [];
+      if (studentIds.includes(String(student.id))) ids.add(String(batch.id));
+    });
+    return [...ids];
+  }
+
+  function homeworkDueLabel(homework) {
+    if (!homework.due_date) return "No due date";
+    const date = new Date(homework.due_date + "T00:00:00");
+    if (Number.isNaN(date.getTime())) return homework.due_date;
+    return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  }
+
+  window.loadHomeworkForCurrentContext = async function (force = false) {
+    if (!force && allHomework.length > 0) return allHomework;
+    const params = role === "parent" && currentStudent ? `?student_id=${encodeURIComponent(currentStudent.id)}` : "";
+    const res = await apiCall(`/api/homework${params}`);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || "Failed to load homework");
+    }
+    const data = await res.json();
+    allHomework = data.data || [];
+    window.allHomework = allHomework;
+    return allHomework;
+  };
+
+  function homeworkCompletionForStudent(item, studentId) {
+    return item.student_completions?.find((c) => String(c.student_id) === String(studentId)) || item.student_completion || null;
+  }
+
+  function homeworkSubmissionFilesHtml(files) {
+    if (!files || files.length === 0) return "";
+    return files.map((file) => `
+      <div style="margin-top:8px">
+        <a href="${escapeAttr(file.file_url || file.url || "#")}" target="_blank" rel="noopener" style="color:var(--gold);font-weight:700">${escapeHtml(file.file_name || file.name || "Homework file")}</a>
+        <div style="font-size:11px;color:var(--ivory-dim)">${escapeHtml(file.mime_type || "")}${file.file_size ? ` · ${(file.file_size / 1024 / 1024).toFixed(2)} MB` : ""}</div>
+      </div>
+    `).join("");
+  }
+
+  function populateHomeworkTargetSelectors() {
+    const studentSelect = $("hw-student-id");
+    const batchSelect = $("hw-batch-id");
+    if (!studentSelect || !batchSelect) return;
+
+    const activeStudents = (allStudents || [])
+      .filter((student) => getStudentStatus(student) !== "archived")
+      .sort((a, b) => getStudentName(a).localeCompare(getStudentName(b)));
+    studentSelect.innerHTML = '<option value="">Select Student</option>' + activeStudents
+      .map((student) => `<option value="${escapeAttr(student.id)}">${escapeHtml(getStudentName(student))}</option>`)
+      .join("");
+
+    const activeBatches = (allBatches || [])
+      .filter((batch) => (batch.status || "active") !== "archived")
+      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+    batchSelect.innerHTML = '<option value="">Select Batch</option>' + activeBatches
+      .map((batch) => `<option value="${escapeAttr(batch.id)}">${escapeHtml(batch.name || "Untitled Batch")}</option>`)
+      .join("");
+  }
+
+  window.syncHomeworkTargetSelectors = function () {
+    const targetType = $("hw-target-type")?.value || "student";
+    if ($("hw-student-field")) $("hw-student-field").style.display = targetType === "student" ? "block" : "none";
+    if ($("hw-batch-field")) $("hw-batch-field").style.display = targetType === "batch" ? "block" : "none";
+  };
+
+  window.openHomeworkModal = function (studentId = "") {
+    populateHomeworkTargetSelectors();
+    $("hw-id").value = "";
+    $("homework-modal-title").textContent = "Assign Homework";
+    $("hw-due-date").value = "";
+    $("hw-title").value = "";
+    $("hw-description").value = "";
+    if (studentId) {
+      $("hw-target-type").value = "student";
+      $("hw-student-id").value = studentId;
+      $("hw-batch-id").value = "";
+    } else {
+      $("hw-target-type").value = "student";
+      $("hw-student-id").value = "";
+      $("hw-batch-id").value = "";
+    }
+    window.syncHomeworkTargetSelectors();
+    openModal("homework-modal");
+  };
+
+  window.editHomeworkAssignment = async function (id) {
+    populateHomeworkTargetSelectors();
+    try {
+      const res = await apiCall(`/api/homework?id=${encodeURIComponent(id)}`, { method: "GET" });
+      const payload = await res.json();
+      const item = payload?.data?.[0];
+      if (!item) throw new Error("Homework not found");
+      $("hw-id").value = item.id || "";
+      $("homework-modal-title").textContent = "Edit Homework";
+      $("hw-target-type").value = item.target_type || "student";
+      $("hw-student-id").value = item.student_id || "";
+      $("hw-batch-id").value = item.batch_id || "";
+      $("hw-title").value = item.title || "";
+      $("hw-description").value = item.description || "";
+      $("hw-due-date").value = item.due_date || "";
+      $("hw-max-marks").value = item.max_marks ?? 100;
+      window.syncHomeworkTargetSelectors();
+      openModal("homework-modal");
+    } catch (err) {
+      toast(err.message || "Failed to load homework", "error");
+    }
+  };
+
+  window.saveHomeworkAssignment = async function () {
+    const title = $("hw-title").value.trim();
+    if (!title) return toast("Homework title is required.", "error");
+
+    const targetType = $("hw-target-type").value;
+    const studentId = targetType === "student" ? $("hw-student-id").value : "";
+    const batchId = targetType === "batch" ? $("hw-batch-id").value : "";
+    if (targetType === "student" && !studentId) return toast("Please select a student.", "error");
+    if (targetType === "batch" && !batchId) return toast("Please select a batch.", "error");
+
+    const payload = {
+      target_type: targetType,
+      student_id: targetType === "student" ? studentId : null,
+      batch_id: targetType === "batch" ? batchId : null,
+      title,
+      description: $("hw-description").value.trim(),
+      due_date: $("hw-due-date").value || null,
+      max_marks: parseFloat($("hw-max-marks")?.value || "100") || 100,
+    };
+
+    const id = ($("hw-id").value || "").trim();
+    const verb = id ? "Update" : "Save";
+    const okMsg = id ? "Homework updated" : "Homework assigned successfully";
+
+    try {
+      const btn = document.querySelector("#homework-modal .btn-gold");
+      btn.textContent = verb + "...";
+      btn.disabled = true;
+
+      const res = await apiCall("/api/homework", {
+        method: id ? "PUT" : "POST",
+        body: JSON.stringify(id ? { id, ...payload } : payload),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) throw new Error(data.error || "Failed to save homework");
+
+      toast(okMsg, "success");
+      closeModal("homework-modal");
+      await window.loadHomeworkForCurrentContext(true);
+      if (role === "admin" || role === "master") window.renderHomeworkAdmin?.();
+      if (role === "parent") window.renderChildHomework?.();
+    } catch (error) {
+      toast(error.message || "Failed to save homework", "error");
+    } finally {
+      const btn = document.querySelector("#homework-modal .btn-gold");
+      btn.textContent = "Save";
+      btn.disabled = false;
+    }
+  };
+
+  window.renderHomeworkAdmin = async function () {
+    const body = $("homework-admin-body");
+    if (!body) return;
+    try {
+      await window.loadHomeworkForCurrentContext();
+      const filter = $("homework-admin-filter")?.value || "all";
+      let homework = (allHomework || []).filter((item) => (item.status || "active") !== "archived");
+
+      if (filter === "active") homework = homework.filter((item) => (item.status || "active") === "active");
+      if (filter === "completed") homework = homework.filter((item) => item.completion_summary?.total_students > 0 && item.completion_summary?.done_count >= item.completion_summary?.total_students);
+      if (filter === "student") homework = homework.filter((item) => item.target_type === "student");
+      if (filter === "batch") homework = homework.filter((item) => item.target_type === "batch");
+
+      homework = homework.sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+
+      if ($("homework-admin-count")) $("homework-admin-count").textContent = `${homework.length} assignment${homework.length === 1 ? "" : "s"}`;
+
+      if (homework.length === 0) {
+        body.innerHTML = '<div class="empty-state" style="grid-column:1/-1;padding:40px;text-align:center;color:var(--ivory-dim)"><span class="empty-icon">📚</span><p>No homework assignments found.</p></div>';
+        return;
+      }
+
+      const queueFilter = String(($("homework-admin-filter")?.value || "all"));
+      const isQueue = queueFilter === "review";
+      const today = new Date().toISOString().slice(0, 10);
+      const overdueIds = new Set();
+      const queueIds = new Set();
+      if (isQueue) {
+        homework.forEach((item) => {
+          (item.student_completions || []).forEach((c) => {
+            const grade = String(c.grade_status || 'ungraded');
+            const next = String(c.next_action || '');
+            const closed = !!c.review_closed_at;
+            const done = String(item.status || c.status || '') === 'done';
+            if (done && (grade === 'ungraded' || next === 'revise' || !closed)) queueIds.add(item.id);
+          });
+        });
+      }
+      homework.forEach((item) => {
+        const isOverdue = item.due_date && item.due_date < today && !item.completion_summary?.graded_count;
+        if (isOverdue && !isQueue) overdueIds.add(item.id);
+      });
+
+        body.innerHTML = homework.map((item) => {
+          const target = item.target_type === "batch"
+            ? `Batch: ${escapeHtml(item.batch_name || item.target_label || "Unnamed Batch")}`
+            : `Student: ${escapeHtml(item.student_name || item.target_label || "Unnamed Student")}`;
+          const due = homeworkDueLabel(item);
+          const summary = item.completion_summary || {};
+          const submissions = item.student_completions || [];
+          const submissionRows = submissions.length === 0
+            ? '<div style="font-size:12px;color:var(--ivory-dim);padding:10px 0">No submissions yet.</div>'
+            : submissions.map((c) => {
+                const nextAction = String(c.next_action || '').trim();
+                const revised = Number(c.revision_count || 0) > 0;
+                const closed = !!c.review_closed_at;
+                const subStatus = c.submission_status || (c.submitted_at ? 'submitted' : 'missing');
+                const actions = isQueue
+                  ? `<button class="btn btn-outline-grey btn-sm" type="button" onclick="closeHomeworkReview('${escapeAttr(item.id)}', '${escapeAttr(c.student_id)}')">${closed ? 'Closed' : 'Close Review'}</button>
+                     <button class="btn btn-outline-info btn-sm" type="button" onclick="reopenHomeworkReview('${escapeAttr(item.id)}', '${escapeAttr(c.student_id)}')">Reopen</button>`
+                  : '';
+                const revisedBadge = revised ? `<span class="badge badge-due">Revised x${Number(c.revision_count || 0)}</span>` : '';
+                const nextBadge = nextAction ? `<span class="badge badge-due">Next: ${escapeHtml(nextAction)}</span>` : '';
+                return `
+              <div class="card" style="padding:12px;margin-top:10px;background:rgba(218,163,62,0.03)">
+                <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap">
+                  <div>
+                    <div style="font-weight:700;color:var(--ivory)">${escapeHtml(c.student_name || c.student_id)}</div>
+                    <div style="font-size:12px;color:var(--ivory-dim)">Status: ${escapeHtml(c.status || "pending")} · Submitted: ${escapeHtml(c.submitted_at ? homeworkDueLabel({ due_date: c.submitted_at }) : "Not submitted")}</div>
+                    <div style="font-size:12px;color:var(--ivory-dim)">Submission: ${escapeHtml(subStatus)} · Grade: ${c.mark !== null && c.mark !== undefined ? `${escapeHtml(c.mark)} / ${escapeHtml(item.max_marks || 100)}` : "Not graded"}</div>
+                    ${revisedBadge}${nextBadge}
+                    ${homeworkSubmissionFilesHtml(c.submission_files)}
+                  </div>
+                  <form onsubmit="gradeHomeworkSubmission(event, '${escapeAttr(item.id)}', '${escapeAttr(c.student_id)}', this)" style="min-width:220px;display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start">
+                    <input type="number" name="mark" min="0" max="${escapeAttr(item.max_marks || 100)}" step="0.5" value="${escapeHtml(c.mark ?? "")}" placeholder="Mark" style="width:90px;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--ivory)">
+                    <textarea name="coach_review" rows="2" placeholder="Feedback or revision request" style="min-width:180px;flex:1;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--ivory);resize:vertical">${escapeHtml(c.coach_review || "")}</textarea>
+                    <button class="btn btn-outline-grey btn-sm" type="submit">Save Review</button>
+                    ${actions}
+                  </form>
+                </div>
+              </div>
+            `;
+              }).join("");
+        const overdueBadge = overdueIds.has(item.id) ? `<span class="badge badge-due">Overdue</span>` : '';
+        const queueBadge = queueIds.has(item.id) ? `<span class="badge badge-due">In review queue</span>` : '';
+        return `
+          <div class="card" style="padding:20px;position:relative;${overdueIds.has(item.id) || queueIds.has(item.id) ? 'border-left:4px solid var(--warning)' : ''}">
+            <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px">
+              <div>
+                <div style="font-size:12px;color:var(--ivory-dim);margin-bottom:6px">${target}</div>
+                <h3 style="color:var(--gold);margin:0 0 8px;font-size:17px">${escapeHtml(item.title)}</h3>
+                <div style="font-size:12px;color:var(--ivory-dim)">Due: ${escapeHtml(due)} · Max marks: ${escapeHtml(item.max_marks || 100)}</div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-outline-grey btn-sm" onclick="editHomeworkAssignment('${escapeAttr(item.id)}')">Edit</button>
+                <button class="btn btn-outline-danger btn-sm" onclick="deleteHomeworkAssignment('${escapeAttr(item.id)}')">Archive</button>
+              </div>
+            </div>
+            <p style="color:var(--ivory-dim);font-size:13px;line-height:1.6;white-space:pre-wrap;margin-bottom:14px">${escapeHtml(item.description || "No instructions provided.")}</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+              <span class="badge ${item.target_type === "batch" ? "badge-level" : "badge-due"}">${item.target_type === "batch" ? "Batch assignment" : escapeHtml(item.completion_status || "pending")}</span>
+              <span class="badge">${summary.done_count || 0} done / ${summary.total_students || 0} students</span>
+              <span class="badge">${summary.graded_count || 0} graded</span>
+              ${overdueBadge}${queueBadge}
+            </div>
+            ${submissionRows}
+          </div>
+        `;
+      }).join("");
+    } catch (error) {
+      body.innerHTML = `<div class="empty-state" style="grid-column:1/-1;color:var(--danger)">${escapeHtml(error.message || "Failed to load homework")}</div>`;
+    }
+  };
+
+  window.deleteHomeworkAssignment = async function (id) {
+    if (!confirm("Archive this homework assignment? Existing submissions and grades will be preserved.")) return;
+    try {
+      const res = await apiCall(`/api/homework?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to archive homework");
+      }
+      toast("Homework archived", "success");
+      await window.loadHomeworkForCurrentContext(true);
+      window.renderHomeworkAdmin?.();
+    } catch (error) {
+      toast(error.message || "Failed to archive homework", "error");
+    }
+  };
+
+  window.renderChildHomework = async function () {
+    const body = $("child-homework-body");
+    if (!body || !currentStudent) return;
+    try {
+      await window.loadHomeworkForCurrentContext();
+      const student = currentStudent;
+      const batchIds = new Set(homeworkBatchIdsForStudent(student));
+      const homework = (allHomework || []).filter((item) => {
+        if ((item.status || "active") === "archived") return false;
+        if (String(item.student_id) === String(student.id)) return true;
+        return batchIds.has(String(item.batch_id));
+      }).sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+
+      if (homework.length === 0) {
+        const noParent = ['No parent contact details available, please contact the administration.'];
+        const messageEl = $("no-parent-message");
+        if (messageEl) messageEl.textContent = noParent[0];
+      }
+
+      const submitted = homework.filter((item) => homeworkCompletionForStudent(item, student.id)?.submitted_at).length;
+      if ($("child-hw-total")) $("child-hw-total").textContent = homework.length;
+      if ($("child-hw-pending")) $("child-hw-pending").textContent = homework.length - submitted;
+      if ($("child-hw-done")) $("child-hw-done").textContent = submitted;
+
+      const recentNotes = (allAttendance || [])
+        .filter((a) => String(a.student_id) === String(student.id) && (a.classwork_notes || a.homework_notes))
+        .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))
+        .slice(0, 5);
+
+      const notesHtml = recentNotes.length === 0
+        ? '<div style="color:var(--ivory-dim);font-size:13px">No classwork/homework notes from attendance sessions yet.</div>'
+        : recentNotes.map((a) => `
+          <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+            <div style="font-size:12px;color:var(--gold);font-weight:700">${escapeHtml(a.date || "Session")}</div>
+            ${a.classwork_notes ? `<div style="font-size:13px;color:var(--ivory-dim)"><strong>Classwork:</strong> ${escapeHtml(a.classwork_notes)}</div>` : ""}
+            ${a.homework_notes ? `<div style="font-size:13px;color:var(--ivory-dim)"><strong>Homework:</strong> ${escapeHtml(a.homework_notes)}</div>` : ""}
+          </div>
+        `).join("");
+
+      if (homework.length === 0) {
+        body.innerHTML = `
+          <div class="empty-state" style="padding:40px;text-align:center"><span class="empty-icon">📚</span><p>No homework assigned yet.</p></div>
+          <div class="card" style="margin-top:16px;padding:18px">
+            <h3 style="color:var(--gold);margin-bottom:10px;font-size:16px">Recent Classwork & Homework Session Notes</h3>
+            ${notesHtml}
+          </div>
+        `;
+        return;
+      }
+
+      body.innerHTML = homework.map((item) => {
+        const completion = homeworkCompletionForStudent(item, student.id);
+        const isSubmitted = Boolean(completion?.submitted_at);
+        const isDone = completion?.status === "done";
+        const isGraded = completion?.grade_status === "graded";
+        const isClosed = Boolean(completion?.review_closed_at);
+        const subStatus = String(completion?.submission_status || (isSubmitted ? 'submitted' : 'missing'));
+        const revisionCount = Number(completion?.revision_count || 0);
+        const nextAction = String(completion?.next_action || '').trim();
+        const target = item.target_type === "batch"
+          ? `Assigned to batch: ${escapeHtml(item.batch_name || item.target_label || "Unnamed Batch")}`
+          : "Assigned to your child";
+        const due = homeworkDueLabel(item);
+        const files = completion?.submission_files || [];
+        const statusBadge = subStatus === 'late'
+          ? `<span class="badge badge-due">Late Submission</span>`
+          : subStatus === 'excused'
+            ? `<span class="badge">Excused</span>`
+            : subStatus === 'resubmitted'
+              ? `<span class="badge badge-due">Resubmitted</span>`
+              : isSubmitted
+                ? `<span class="badge">Submitted</span>`
+                : `<span class="badge badge-due">Missing</span>`;
+        const revisionBadge = revisionCount > 0 ? `<span class="badge badge-due">Revisions: ${revisionCount}</span>` : '';
+        const nextBadge = nextAction ? `<span class="badge badge-due">Next: ${escapeHtml(nextAction)}</span>` : '';
+        const closedBadge = isClosed ? `<span class="badge">Review Closed</span>` : '';
+        return `
+          <div class="card" style="padding:20px;margin-bottom:16px;border-left:4px solid ${isClosed ? 'var(--emerald)' : isGraded ? 'var(--emerald)' : isSubmitted ? 'var(--blue)' : 'var(--gold)'}">
+            <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap">
+              <div>
+                <h3 style="color:var(--gold);margin:0 0 8px;font-size:17px">${escapeHtml(item.title)}</h3>
+                <div style="font-size:12px;color:var(--ivory-dim);line-height:1.6">${target}<br>Due: ${escapeHtml(due)}</div>
+              </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span class="badge ${isDone ? "badge-success" : "badge-due"}">${isDone ? "Completed" : "Pending"}</span>
+              ${isGraded ? `<span class="badge badge-success">${escapeHtml(completion.mark)} / ${escapeHtml(item.max_marks || 100)}</span>` : ""}
+              ${statusBadge}${revisionBadge}${nextBadge}${closedBadge}
+            </div>
+            </div>
+            <p style="color:var(--ivory-dim);font-size:13px;line-height:1.7;white-space:pre-wrap;margin-bottom:14px">${escapeHtml(item.description || "No instructions provided.")}</p>
+            ${files.length ? `<div style="margin:10px 0;padding:12px;background:rgba(59,130,246,0.05);border-radius:8px"><div style="font-size:12px;color:var(--gold);font-weight:700;margin-bottom:6px">Submitted files</div>${homeworkSubmissionFilesHtml(files)}</div>` : ""}
+            ${isGraded || completion?.coach_review ? `<div style="margin:10px 0;padding:12px;background:rgba(16,185,129,0.05);border-radius:8px"><div style="font-size:12px;color:var(--gold);font-weight:700;margin-bottom:6px">Coach feedback</div><div style="font-size:13px;color:var(--ivory-dim);white-space:pre-wrap">${escapeHtml(completion?.coach_review || "No written review yet.")}</div></div>` : ""}
+            ${nextAction && !isClosed ? `<div style="margin:10px 0;padding:12px;background:rgba(218,163,62,0.08);border-radius:8px"><div style="font-size:12px;color:var(--gold);font-weight:700;margin-bottom:6px">Revision requested</div><div style="font-size:13px;color:var(--ivory-dim)">Please revise and resubmit.</div></div>` : ""}
+            <form onsubmit="submitHomeworkFiles(event, '${escapeAttr(item.id)}', this)" style="display:grid;gap:10px;margin-top:12px">
+              <input type="hidden" name="assignment_id" value="${escapeAttr(item.id)}">
+              <input type="hidden" name="student_id" value="${escapeAttr(student.id)}">
+              <textarea name="notes" rows="3" placeholder="Optional submission note..." style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--ivory);resize:vertical">${escapeHtml(completion?.submission_notes || "")}</textarea>
+              <input type="file" name="files" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,application/pdf,image/*,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple style="color:var(--ivory-dim)">
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn ${isClosed ? 'btn-outline-grey' : 'btn-gold'} btn-sm" type="submit">${isClosed ? 'Review Closed' : nextAction ? 'Resubmit Revised Homework' : 'Submit Completed Homework'}</button>
+                <button class="btn btn-outline-info btn-sm" type="button" onclick="markHomeworkComplete('${escapeAttr(item.id)}', ${isDone ? "'pending'" : "'done'"})" ${isClosed ? 'disabled' : ''}>${isDone ? "Mark Pending" : "Mark Completed Without Files"}</button>
+              </div>
+            </form>
+          </div>
+        `;
+      }).join("") + `
+        <div class="card" style="margin-top:18px;padding:18px">
+          <h3 style="color:var(--gold);margin-bottom:10px;font-size:16px">Recent Classwork & Homework Session Notes</h3>
+          ${notesHtml}
+        </div>
+      `;
+    } catch (error) {
+      body.innerHTML = `<div class="empty-state" style="color:var(--danger)">${escapeHtml(error.message || "Failed to load homework")}</div>`;
+    }
+  };
+
+  window.submitHomeworkFiles = async function (event, assignmentId, form) {
+    event.preventDefault();
+    if (!currentStudent) return toast("Student context is not loaded.", "error");
+    const formData = new window.FormData(form);
+    formData.set("action", "submit");
+    formData.set("assignment_id", assignmentId);
+    formData.set("student_id", currentStudent.id);
+    const files = formData.getAll("files");
+    if (files.length === 0 && !formData.get("notes")) {
+      return toast("Attach at least one file or add a submission note.", "error");
+    }
+    let originalText = "Submit";
+    try {
+      const btn = form.querySelector("button[type='submit']");
+      originalText = btn?.textContent || originalText;
+      if (btn) { btn.disabled = true; btn.textContent = "Submitting..."; }
+      const res = await apiCall("/api/homework", { method: "POST", body: formData });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to submit homework");
+      toast("Homework submitted successfully", "success");
+      await window.loadHomeworkForCurrentContext(true);
+      const submissionStatus = data?.submission_status || 'submitted';
+      window.renderChildHomework?.();
+      if (submissionStatus === 'late') {
+        toast('Note: This submission is marked as late.', 'warning');
+      }
+    } catch (error) {
+      toast(error.message || "Failed to submit homework", "error");
+    } finally {
+      const btn = form.querySelector("button[type='submit']");
+      if (btn) { btn.disabled = false; btn.textContent = originalText; }
+    }
+  };
+
+  window.gradeHomeworkSubmission = async function (event, assignmentId, studentId, form) {
+    event.preventDefault();
+    const formData = new window.FormData(form);
+    let originalText = "Save Review";
+    try {
+      const btn = form.querySelector("button[type='submit']");
+      originalText = btn?.textContent || originalText;
+      if (btn) { btn.disabled = true; btn.textContent = "Saving..."; }
+      const res = await apiCall("/api/homework", {
+        method: "POST",
+        body: JSON.stringify({
+          grade: {
+            assignment_id: assignmentId,
+            student_id: studentId,
+            mark: formData.get("mark") === "" ? null : Number(formData.get("mark")),
+            coach_review: String(formData.get("coach_review") || ""),
+          },
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to save grade");
+      toast("Review saved", "success");
+      await window.loadHomeworkForCurrentContext(true);
+      window.renderHomeworkAdmin?.();
+    } catch (error) {
+      toast(error.message || "Failed to save grade", "error");
+    } finally {
+      const btn = form.querySelector("button[type='submit']");
+      if (btn) { btn.disabled = false; btn.textContent = originalText; }
+    }
+  };
+
+  window.closeHomeworkReview = async function (assignmentId, studentId) {
+    if (!confirm("Close this review? This marks the submission as reviewed and closed.")) return;
+    try {
+      const res = await apiCall("/api/homework", {
+        method: "POST",
+        body: JSON.stringify({ action: "review_close", target: { assignment_id: assignmentId, student_id: studentId } }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to close review");
+      toast("Review closed", "success");
+      await window.loadHomeworkForCurrentContext(true);
+      window.renderHomeworkAdmin?.();
+    } catch (error) {
+      toast(error.message || "Failed to close review", "error");
+    }
+  };
+
+  window.reopenHomeworkReview = async function (assignmentId, studentId) {
+    if (!confirm("Reopen this review?")) return;
+    try {
+      const res = await apiCall("/api/homework", {
+        method: "POST",
+        body: JSON.stringify({ action: "reopen_review", target: { assignment_id: assignmentId, student_id: studentId } }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to reopen review");
+      toast("Review reopened", "success");
+      await window.loadHomeworkForCurrentContext(true);
+      window.renderHomeworkAdmin?.();
+    } catch (error) {
+      toast(error.message || "Failed to reopen review", "error");
+    }
+  };
+
+  window.markHomeworkComplete = async function (assignmentId, status = "done") {
+    if (!currentStudent) return toast("Student context is not loaded.", "error");
+    try {
+      const res = await apiCall("/api/homework", {
+        method: "POST",
+        body: JSON.stringify({
+          completion: {
+            assignment_id: assignmentId,
+            student_id: currentStudent.id,
+            status,
+            notes: "",
+          },
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to update homework status");
+      toast(status === "done" ? "Homework marked completed" : "Homework marked pending", "success");
+      await window.loadHomeworkForCurrentContext(true);
+      window.renderChildHomework?.();
+    } catch (error) {
+      toast(error.message || "Failed to update homework status", "error");
+    }
+  };
+
+  window.sendHomeworkReminders = async function () {
+    try {
+      const res = await apiCall('/api/homework', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'send_reminders', within_days: 2, scope: 'batch' })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to send reminders');
+      toast(`Reminders queued: ${data.reminders || 0}`, 'success');
+      await window.loadHomeworkForCurrentContext(true);
+      window.renderHomeworkAdmin?.();
+    } catch (error) {
+      toast(error.message || 'Failed to send reminders', 'error');
+    }
+  };
 
   window.toggleMoreMenu = function (id) {
     const menu = document.getElementById(id);
@@ -14200,7 +14802,7 @@ Best regards,
 
   if (document.getElementById("ui-version"))
     document.getElementById("ui-version").textContent =
-      "Portal v5.8 (Clean Messages & Excel)";
+      "Portal v5.10 (Homework Submissions & Grading)";
 })();
 
 window.toggleAcademyManager = function() {

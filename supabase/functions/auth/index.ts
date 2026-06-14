@@ -15,10 +15,43 @@ Deno.serve(async (req) => {
   
   const supabase = createClient(supabaseUrl, supabaseKey);
 
+  function base64UrlEncode(input: string | Uint8Array) {
+    const bytes = typeof input === 'string' ? new TextEncoder().encode(input) : input
+    let binary = ''
+    bytes.forEach((byte) => { binary += String.fromCharCode(byte) })
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+  }
+
+  async function signPortalToken(payload: Record<string, unknown>) {
+    const secret = Deno.env.get('PORTAL_AUTH_SECRET') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || 'dev-portal-auth-secret'
+    const header = { alg: 'HS256', typ: 'JWT' }
+    const encodedHeader = base64UrlEncode(JSON.stringify(header))
+    const encodedPayload = base64UrlEncode(JSON.stringify(payload))
+    const signingInput = `${encodedHeader}.${encodedPayload}`
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    )
+    const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(signingInput))
+    return `${signingInput}.${base64UrlEncode(new Uint8Array(signature))}`
+  }
+
+  function portalResponse(body: Record<string, unknown>, headers: Record<string, string> = {}) {
+    return new Response(JSON.stringify(body), {
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+        ...headers,
+      },
+    })
+  }
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, x-portal-token, x-portal-role, x-portal-student-id',
   };
 
   if (req.method === 'OPTIONS') {
@@ -86,22 +119,34 @@ Deno.serve(async (req) => {
 
     if (masterUser && masterPass && String(username) === String(masterUser) && String(password) === String(masterPass)) {
       console.log("Master login successful");
-      return new Response(JSON.stringify({
+      const portalToken = await signPortalToken({
+        role: 'master',
+        user: masterUser,
+        exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7
+      })
+      return portalResponse({
         success: true,
         token: 'master-token-' + Date.now(),
+        portal_token: portalToken,
         role: 'master',
         user: masterUser
-      }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+      });
     }
 
     if (adminUser && adminPass && String(username) === String(adminUser) && String(password) === String(adminPass)) {
       console.log("Admin login successful");
-      return new Response(JSON.stringify({
+      const portalToken = await signPortalToken({
+        role: 'admin',
+        user: adminUser,
+        exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7
+      })
+      return portalResponse({
         success: true,
         token: 'admin-token-' + Date.now(),
+        portal_token: portalToken,
         role: 'admin',
         user: adminUser
-      }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+      });
     }
 
     // 2. Check Supabase Auth (Built-in users from Dashboard)
@@ -121,20 +166,19 @@ Deno.serve(async (req) => {
         });
       }
       
-      return new Response(JSON.stringify({
+      const portalToken = await signPortalToken({
+        role: userRole,
+        user_id: authData.user.id,
+        user: authData.user.email,
+        exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7
+      })
+      return portalResponse({
         success: true,
         token: authData.session?.access_token || 'session-' + Date.now(),
+        portal_token: portalToken,
         role: userRole,
         user: authData.user.email
-       }), { 
-        headers: { 
-          'Content-Type': 'application/json', 
-          ...corsHeaders,
-          'X-RateLimit-Limit': String(rateLimitResult.limit),
-          'X-RateLimit-Remaining': String(rateLimitResult.remaining),
-          'X-RateLimit-Reset': String(rateLimitResult.resetTime)
-        } 
-      });
+       });
     }
 
     // 4. Check parent credentials (username = student name, password = parent phone)
@@ -180,13 +224,20 @@ Deno.serve(async (req) => {
 
       if (matchedStudent) {
         console.log(`[Auth] Successful parent login for student: ${matchedStudent.name}`);
-        return new Response(JSON.stringify({
+        const portalToken = await signPortalToken({
+          role: 'parent',
+          user: matchedStudent.name,
+          student_id: matchedStudent.id,
+          exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7
+        })
+        return portalResponse({
           success: true,
           token: 'parent-token-' + Date.now(),
+          portal_token: portalToken,
           role: 'parent',
           student_id: matchedStudent.id,
           user: matchedStudent.name
-        }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        });
       } else {
         console.log(`[Auth] No phone match among candidate students.`);
       }
@@ -194,10 +245,14 @@ Deno.serve(async (req) => {
       console.log(`[Auth] No student records matched name "${cleanUsername}".`);
     }
 
-     // Failed attempt
+// Failed attempt - check if we can suggest parent contact registration
+     const canRegisterParent = students && students.length > 0 && !authError;
+     const studentIds = (students || []).map(s => s.id).join(',');
      return new Response(JSON.stringify({ 
        error: 'Invalid credentials.',
-       details: authError ? authError.message : 'Check if user exists in Supabase Auth or as a Student Name + Parent Phone.' 
+       details: authError ? authError.message : 'Check if user exists in Supabase Auth or as a Student Name + Parent Phone.',
+       can_register_parent: canRegisterParent,
+       student_ids: canRegisterParent ? studentIds : undefined
      }), { 
        status: 401, 
        headers: { 

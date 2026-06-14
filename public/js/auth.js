@@ -27,8 +27,14 @@ window.doLogin = async function() {
         loginBtn.textContent = loading ? 'Authenticating...' : 'Sign In';
     };
 
-    setBtnLoading(true);
+    const showParentRegistrationPrompt = (studentIds, studentName) => {
+        errEl.innerHTML = `No parent phone registered for "${studentName}". <button onclick="window.registerParentPhone('${studentIds}')" style="background:var(--gold);border:none;color:#000;padding:4px 8px;border-radius:3px;cursor:pointer;margin-left:8px;">Add Parent Phone</button>`;
+        errEl.style.display = 'block';
+    };
+
     const telemetry = window.extractDeviceTelemetry ? window.extractDeviceTelemetry() : {};
+
+    setBtnLoading(true);
 
     try {
         // 1. Auth API - Primary Secure Authentication via Supabase Edge Function
@@ -53,7 +59,8 @@ window.doLogin = async function() {
                     role: data.role,
                     user: data.user || user,
                     studentId: data.student_id,
-                    token: data.token
+                    token: data.token,
+                    portalToken: data.portal_token
                 }));
                 // Store token separately for API Authorization header
                 localStorage.setItem('sb-access-token', data.token);
@@ -75,7 +82,8 @@ window.doLogin = async function() {
                 }
                 return;
             } else {
-                errEl.textContent = data.details || data.error || 'Invalid credentials.';
+                if (data.can_register_parent) showParentRegistrationPrompt(data.student_ids, user);
+                else errEl.textContent = data.details || data.error || 'Invalid credentials.';
                 errEl.style.display = 'block';
                 if (window.logAudit) {
                     window.logAudit('auth', user, 'login_failed', null, {
@@ -143,6 +151,28 @@ window.doLogin = async function() {
      const sidebar = document.getElementById('sidebar');
      if (sidebar) sidebar.classList.remove('active');
      
-     toast('Logged out safely.', 'info');
-     setTimeout(() => location.reload(), 500); // Reload to clear all state
-   };
+toast('Logged out safely.', 'info');
+      setTimeout(() => location.reload(), 500); // Reload to clear all state
+    };
+
+    window.registerParentPhone = async (studentIds) => {
+        const phones = prompt('Enter parent phone number (with country code, e.g. +919876543210):');
+        if (!phones || !phones.trim()) return;
+        const phone = phones.trim().replace(/\D/g, '');
+        if (phone.length < 8) return toast('Phone number too short', 'error');
+        
+        const ids = String(studentIds || '').split(',').filter(Boolean);
+        let success = 0;
+        for (const id of ids) {
+            const res = await apiCall(`${API_BASE}/students?id=${encodeURIComponent(id)}`, {
+                method: 'PUT',
+                body: JSON.stringify({ parent_phone: phone })
+            });
+            if (res && res.ok) success++;
+        }
+        toast(success ? `Parent phone saved for ${success} student(s)` : 'Failed to save parent phone', success ? 'success' : 'error');
+        if (success) {
+            document.getElementById('login-err').style.display = 'none';
+            if (window.doLogin) window.doLogin();
+        }
+    };

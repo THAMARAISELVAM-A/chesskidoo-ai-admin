@@ -125,6 +125,7 @@
       <div class="nav-item admin-only" id="nav-schedules" onclick="setPage('schedules')" style="font-size: 13px; padding: 10px 14px;"><span class="ico">🗓️</span> Schedule Manager</div>
       <div class="nav-item admin-only" id="nav-events" onclick="setPage('events')" style="font-size: 13px; padding: 10px 14px;"><span class="ico">📅</span> Event Manager</div>
       <div class="nav-item admin-only" id="nav-attendance" onclick="setPage('attendance')" style="font-size: 13px; padding: 10px 14px;"><span class="ico">✅</span> Attendance Manager</div>
+      <div class="nav-item admin-only" id="nav-homework" onclick="setPage('homework')" style="font-size: 13px; padding: 10px 14px;"><span class="ico">📚</span> Homework Manager</div>
     </div>
 
     <div class="nav-item admin-only" id="nav-chessable" onclick="setPage('chessable')"><span class="ico">♟️</span> Chessable Profiles</div>
@@ -137,6 +138,7 @@
     <div class="nav-item parent-only" id="nav-parent-attendance" onclick="goChildTab('attendance')"><span class="ico">🗓️</span> Attendance Logs</div>
     <div class="nav-item parent-only" id="nav-parent-billing" onclick="goChildTab('billing')"><span class="ico">💰</span> Tuition & Invoices</div>
     <div class="nav-item parent-only" id="nav-parent-reports" onclick="goChildTab('reports')"><span class="ico">📄</span> Academy Reports</div>
+    <div class="nav-item parent-only" id="nav-parent-homework" onclick="goChildTab('homework')"><span class="ico">📚</span> Homework</div>
     <div class="nav-item parent-only" id="nav-parent-productivity" onclick="goChildTab('productivity')"><span class="ico">📝</span> Daily Tasks</div>
     <div class="nav-item parent-only" id="nav-parent-ai" onclick="setPage('parent-ai')"><span class="ico">🤖</span> Ask TOM AI</div>
     <div class="nav-item" id="nav-fame" onclick="setPage('fame')"><span class="ico">🏆</span> Wall of Fame</div>
@@ -150,7 +152,7 @@
   </div>
   <div style="padding:16px;border-top:1px solid var(--border)">
     <div class="nav-item" onclick="toggleTheme()"><span class="ico">🌗</span> Switch Theme</div>
-    <div style="font-size:10px;color:var(--ivory3);text-align:center;margin-top:12px;opacity:0.6;letter-spacing:1px;" id="ui-version">Portal v5.5 (Cached)</div>
+    <div style="font-size:10px;color:var(--ivory3);text-align:center;margin-top:12px;opacity:0.6;letter-spacing:1px;" id="ui-version">Portal v5.10 (Homework Submissions)</div>
   </div>
 </nav>
 
@@ -191,8 +193,12 @@
         <div class="card card-clickable" onclick="setPage('coach-mgmt')"><div class="stat-label">Active Coaches</div><div class="stat-value" id="s-coaches">—</div></div>
       </div>
       <div class="dash-grid" style="margin-bottom:14px">
-        <div class="card card-clickable" onclick="setPage('bills')"><div class="stat-label" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">Collected Revenue <span id="s-rev-mode" onclick="event.stopPropagation(); toggleRevenueView();" title="Toggle: Cash (received this month) vs Cycle (billed for this month)" style="cursor:pointer;font-size:9px;font-weight:700;color:var(--gold);border:1px solid var(--border);border-radius:10px;padding:1px 7px;text-transform:none;letter-spacing:0;">⇄ cycle</span></div><div class="stat-value text-success" id="s-rev">—</div></div>
-        <div class="card card-clickable" onclick="setPage('bills')"><div class="stat-label">Revenue Growth (MoM)</div><div class="stat-value" id="s-due">—</div></div>
+        <div class="card card-clickable" onclick="setPage('stud'); document.getElementById('f-learning-mode').value='online'; renderStudents();"><div class="stat-label">Online Students</div><div class="stat-value" style="color:var(--info)" id="s-online">—</div></div>
+        <div class="card card-clickable" onclick="setPage('stud'); document.getElementById('f-learning-mode').value='offline'; renderStudents();"><div class="stat-label">Offline Students</div><div class="stat-value" style="color:var(--success)" id="s-offline">—</div></div>
+      </div>
+      <div class="dash-grid" style="margin-bottom:14px">
+        <div class="card card-clickable" onclick="setPage('bills')"><div class="stat-label" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">Collected This Month <span id="s-rev-mode" style="cursor:pointer;font-size:9px;font-weight:700;color:var(--gold);border:1px solid var(--border);border-radius:10px;padding:1px 7px;text-transform:none;letter-spacing:0;">cycle</span></div><div class="stat-value text-success" id="s-rev">—</div></div>
+        <div class="card card-clickable" onclick="setPage('bills')"><div class="stat-label">Collected Last Month</div><div class="stat-value" style="color:var(--blue)" id="s-last-month-collected">—</div></div>
         <div class="card"><div class="stat-label">Collection Rate</div><div class="stat-value" style="color:var(--blue)" id="s-rate">—</div></div>
       </div>
       <div class="dash-grid" style="margin-bottom:14px">
@@ -417,6 +423,43 @@
       </div>
     </div>
 
+    <!-- Homework Manager -->
+    <div id="page-homework" class="page admin-only">
+      <div style="background: linear-gradient(135deg, rgba(218, 163, 62, 0.08) 0%, rgba(218, 163, 62, 0.02) 100%); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px; margin-bottom: 24px; position: relative; overflow: hidden; box-shadow: var(--shadow);">
+        <div style="position: absolute; top: -20px; right: -20px; font-size: 120px; opacity: 0.04; pointer-events: none; font-family: sans-serif;">📚</div>
+        <h2 style="color:var(--gold); margin-bottom: 8px; font-family:var(--font-head); font-size: 26px; display: flex; align-items: center; gap: 10px;">
+          <span>📚</span> Homework Manager
+        </h2>
+        <p style="color:var(--ivory-dim); font-size: 14px; max-width: 720px; line-height: 1.6;">
+          Assign practice tasks to an individual student or an entire batch. Parents can view assignments in the Parent Portal and mark them as completed.
+        </p>
+        <button class="btn btn-gold" onclick="openHomeworkModal()">
+          <span class="ico">➕</span> Assign Homework
+        </button>
+      </div>
+
+      <div class="card" style="padding: 18px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+          <select id="homework-admin-filter" class="input-field" onchange="renderHomeworkAdmin()" style="width: auto;">
+            <option value="all">All Assignments</option>
+            <option value="active">Active</option>
+            <option value="review">Review Queue</option>
+            <option value="completed">Completed</option>
+            <option value="student">Student Assignments</option>
+            <option value="batch">Batch Assignments</option>
+          </select>
+          <button class="btn btn-outline-grey" onclick="renderHomeworkAdmin()">🔄 Refresh</button>
+        </div>
+        <div style="font-size: 12px; color: var(--ivory-dim);">
+          <span id="homework-admin-count">0 assignments</span>
+        </div>
+      </div>
+
+      <div id="homework-admin-body" class="grid-sidebar-layout" style="gap: 20px;">
+        <div class="loading-state" style="grid-column: 1 / -1;"><span class="spinner"></span> Loading homework…</div>
+      </div>
+    </div>
+
     <!-- Coaches -->
     <div id="page-coach-mgmt" class="page admin-only">
       <div style="display:flex;justify-content:flex-end;gap:12px;margin-bottom:24px">
@@ -489,6 +532,7 @@
           <button class="tab-link" onclick="setChildTab('learning', this)">Resources</button>
           <button class="tab-link" onclick="setChildTab('events', this)">Events</button>
           <button class="tab-link" onclick="setChildTab('reports', this)">Reports</button>
+          <button class="tab-link" onclick="setChildTab('homework', this)">Homework</button>
           <button class="tab-link" onclick="setChildTab('billing', this)">Billing & Receipts</button>
           <button class="tab-link" onclick="setChildTab('productivity', this)">Daily Tasks</button>
         </div>
@@ -533,6 +577,27 @@
             <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px;" id="parent-reports-container">
               <!-- Rendered by JS -->
             </div>
+          </div>
+        </div>
+
+        <div id="child-tab-homework" class="child-tab-content">
+          <div style="background: linear-gradient(135deg, rgba(218, 163, 62, 0.08) 0%, rgba(218, 163, 62, 0.02) 100%); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 24px; box-shadow: var(--shadow);">
+            <h2 style="color:var(--gold); margin:0 0 8px; font-family:var(--font-head); font-size:24px; display:flex; align-items:center; gap:10px;">
+              <span>📚</span> Assigned Homework
+            </h2>
+            <p style="color:var(--ivory-dim); font-size:14px; line-height:1.6; margin:0;">
+              View homework assigned directly to your child or to their batch. Mark tasks as completed after practice.
+            </p>
+          </div>
+
+          <div class="dash-grid" style="margin-bottom:20px; display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:16px;">
+            <div class="card"><div class="stat-label">Total Assigned</div><div class="stat-value" id="child-hw-total" style="color:var(--gold)">0</div></div>
+            <div class="card"><div class="stat-label">Pending</div><div class="stat-value text-warning" id="child-hw-pending">0</div></div>
+            <div class="card"><div class="stat-label">Completed</div><div class="stat-value text-success" id="child-hw-done">0</div></div>
+          </div>
+
+          <div id="child-homework-body">
+            <div class="loading-state"><span class="spinner"></span> Loading homework…</div>
           </div>
         </div>
 
@@ -2718,6 +2783,53 @@
         <div style="display:flex;gap:10px;margin-top:20px; border-top: 1px solid var(--border); padding-top: 20px;">
           <button class="btn btn-outline" style="flex:1" onclick="closeModal('edit-batch-modal')">Cancel</button>
           <button class="btn btn-gold" style="flex:1" onclick="saveBatch()">Save Batch</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Homework Assignment Modal -->
+    <div class="modal" id="homework-modal">
+      <div class="modal-box" style="max-width:560px">
+        <div class="modal-title" id="homework-modal-title">Assign Homework</div>
+        <input type="hidden" id="hw-id">
+        <div class="modal-grid">
+          <div class="form-group">
+            <label>Assign To</label>
+            <select id="hw-target-type" onchange="syncHomeworkTargetSelectors()">
+              <option value="student">Individual Student</option>
+              <option value="batch">Batch</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" id="hw-student-field">
+          <label>Student</label>
+          <select id="hw-student-id"></select>
+        </div>
+        <div class="form-group" id="hw-batch-field" style="display:none">
+          <label>Batch</label>
+          <select id="hw-batch-id"></select>
+        </div>
+        <div class="form-group">
+          <label>Title</label>
+          <input type="text" id="hw-title" placeholder="e.g. Tactics: Forks and Pins">
+        </div>
+        <div class="form-group">
+          <label>Instructions</label>
+          <textarea id="hw-description" rows="5" placeholder="Describe the practice task, pages, puzzles, games to review, or expected outcome..."></textarea>
+        </div>
+        <div class="modal-grid">
+          <div class="form-group">
+            <label>Max Marks</label>
+            <input type="number" id="hw-max-marks" min="1" max="100" step="0.5" value="100">
+          </div>
+          <div class="form-group">
+            <label>Due Date</label>
+            <input type="date" id="hw-due-date">
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:20px">
+          <button class="btn btn-outline" style="flex:1" onclick="closeModal('homework-modal')">Cancel</button>
+          <button class="btn btn-gold" style="flex:1" onclick="saveHomeworkAssignment()">Save Assignment</button>
         </div>
       </div>
     </div>

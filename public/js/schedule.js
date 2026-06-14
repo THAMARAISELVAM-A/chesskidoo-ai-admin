@@ -514,32 +514,117 @@
         window.open(waUrl, '_blank');
     };
 
-    window.renderChildSchedule = function (student, coachName) {
-        const wrapper = document.getElementById('child-schedule-card-container');
-        if (!wrapper) return;
+// Helper to compute homework summary for schedule card footer
+   window.getStudentHomeworkStatus = function (studentId) {
+     const homework = window.allHomework || [];
+     const batchIds = new Set((window.allBatches || []).reduce((acc, b) => {
+       const ids = Array.isArray(b.student_ids) ? b.student_ids.map(String) : [];
+       if (ids.includes(String(studentId))) acc.push(b.id);
+       return acc;
+     }, []))
+     const relevant = homework.filter((h) => {
+       if ((h.status || 'active') === 'archived') return false;
+       if (String(h.student_id) === String(studentId)) return true;
+       return batchIds.has(String(h.batch_id));
+     });
+     const pending = relevant.filter((h) => {
+       const c = h.student_completions?.find((c) => String(c.student_id) === String(studentId));
+       return !c?.submitted_at;
+     }).length;
+     const overdue = relevant.filter((h) => {
+       const c = h.student_completions?.find((c) => String(c.student_id) === String(studentId));
+       const due = h.due_date ? new Date(`${h.due_date}T23:59:59`) : null;
+       return due && new Date() > due && !c?.submitted_at;
+     }).length;
+     return { total: relevant.length, pending, overdue };
+   };
 
-        const schedData = window.extractScheduleJSON(student.notes, student);
+   // Get homework due dates for calendar overlay
+   window.getHomeworkDueDates = function (studentId) {
+     const homework = window.allHomework || [];
+     const batchIds = new Set((window.allBatches || []).reduce((acc, b) => {
+       const ids = Array.isArray(b.student_ids) ? b.student_ids.map(String) : [];
+       if (ids.includes(String(studentId))) acc.push(b.id);
+       return acc;
+     }, []))
+     const now = new Date();
+     const upcoming = homework.filter((h) => {
+       if ((h.status || 'active') === 'archived') return false;
+       if (String(h.student_id) !== String(studentId) && !batchIds.has(String(h.batch_id))) return false;
+       const due = h.due_date ? new Date(h.due_date) : null;
+       if (!due) return false;
+       const dueEnd = new Date(`${h.due_date}T23:59:59`);
+       return dueEnd >= now;
+     }).map((h) => ({
+       date: h.due_date,
+       title: h.title || 'Homework',
+       status: h.student_completions?.find((c) => String(c.student_id) === String(studentId))?.submission_status || 'pending'
+     }));
+     return upcoming;
+   };
 
-        if (!schedData) {
-            wrapper.innerHTML = `
-            <div class="card" style="padding:40px; text-align:center; color:var(--ivory-dim); width:100%;">
-              <span style="font-size:36px; display:block; margin-bottom:12px;">📅</span>
-              No active schedule found. Please contact the administrator.
-            </div>`;
-            return;
-        }
+   // Render homework calendar overlay on schedule card
+   window.renderHomeworkCalendarOverlay = function (studentId) {
+     const homeworkDates = window.getHomeworkDueDates(studentId);
+     if (!homeworkDates.length) return '';
+     
+     const datesMap = new Map();
+     homeworkDates.forEach(hw => {
+       if (!datesMap.has(hw.date)) datesMap.set(hw.date, []);
+       datesMap.get(hw.date).push(hw);
+     });
+     
+     const today = new Date();
+     const next30 = [];
+     for (let i = 0; i < 30; i++) {
+       const d = new Date(today);
+       d.setDate(today.getDate() + i);
+       next30.push({ date: d.toISOString().split('T')[0], day: d.getDate() });
+     }
+     
+     const dotsHtml = next30.slice(0, 14).map(d => {
+       const hw = datesMap.get(d.date);
+       if (!hw) return `<span style="flex:1;text-align:center;font-size:9px;color:#4f5d75;">${d.day}</span>`;
+       const color = hw.some(h => h.status === 'submitted' || h.status === 'graded') ? '#3b5998' : 
+                     hw.some(h => h.status === 'missing' || h.status === 'late') ? '#e74c3c' : '#d2a755';
+       return `<span style="flex:1;text-align:center;font-size:9px;color:${color};font-weight:bold;" title="${hw.map(h => h.title).join(', ')}">${d.day}</span>`;
+     }).join('');
+     
+     return `<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #2c3242;"><div style="font-size:10px;color:#8a90a6;margin-bottom:4px;">Homework Due Dates (Next 2 weeks)</div><div style="display:flex;flex-wrap:wrap;gap:4px;">${dotsHtml}</div></div>`;
+   };
 
-        // Resolve the coach actually chosen for this schedule (falls back to the
-        // student's assigned coach / passed-in name).
-        const resolvedCoachName = schedData.regCoachName || resolveScheduleCoachName(schedData, student) || coachName || 'TBD';
+  window.renderChildSchedule = function (student, coachName) {
+    const wrapper = document.getElementById('child-schedule-card-container');
+    if (!wrapper) return;
 
-        wrapper.innerHTML = buildScheduleCardHtml(student.name, schedData, resolvedCoachName, true, student.id);
-        
-        // Trigger AI Insight update for Parent Portal Schedule
-        if(window.generateContextualInsight) {
-            window.generateContextualInsight('child_schedule', student.id);
-        }
-    };
+    const schedData = window.extractScheduleJSON(student.notes, student);
+
+    if (!schedData) {
+      wrapper.innerHTML = `
+        <div class="card" style="padding:40px; text-align:center; color:var(--ivory-dim); width:100%;">
+          <span style="font-size:36px; display:block; margin-bottom:12px;">📅</span>
+          No active schedule found. Please contact the administrator.
+        </div>`;
+      return;
+    }
+
+    const resolvedCoachName = schedData.regCoachName || resolveScheduleCoachName(schedData, student) || coachName || 'TBD';
+
+    const hwStatus = window.getStudentHomeworkStatus(student.id);
+    const hwNotice = hwStatus.total > 0
+      ? `<div style="margin-top:12px;padding:8px;background:rgba(218,163,62,0.08);border-radius:4px;font-size:11px;color:var(--gold);">
+          📚 ${hwStatus.overdue ? `<strong>${hwStatus.overdue} overdue</strong> • ` : ''}${hwStatus.total} active homework • ${hwStatus.pending} pending
+        </div>`
+      : '';
+
+    const hwCalendar = window.renderHomeworkCalendarOverlay(student.id);
+
+    wrapper.innerHTML = buildScheduleCardHtml(student.name, schedData, resolvedCoachName, true, student.id) + hwNotice + hwCalendar;
+
+    if (window.generateContextualInsight) {
+      window.generateContextualInsight('child_schedule', student.id);
+    }
+  };
 
     window.syncClassCalendar = function(studentId) {
         const student = (window.allStudents || []).find(s => s.id == studentId);

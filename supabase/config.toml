@@ -62,6 +62,9 @@ verify_jwt = true
 [functions.batches]
 verify_jwt = true
 
+[functions.homework]
+verify_jwt = true
+
 [functions.tournaments]
 verify_jwt = true
 
