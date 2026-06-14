@@ -9073,9 +9073,11 @@ let filteredStudents = allStudents;
         return status === fBillStatus;
       });
     }
-    if (fBillSearch) {
+if (fBillSearch) {
       filteredStudents = filteredStudents.filter((s) =>
-        getStudentName(s).toLowerCase().includes(fBillSearch),
+        getStudentName(s).toLowerCase().includes(fBillSearch) ||
+        (s.phone && s.phone.toLowerCase().includes(fBillSearch)) ||
+        (s.parent_phone && s.parent_phone.toLowerCase().includes(fBillSearch)),
       );
     }
     if (fBillCoach) {
@@ -11295,16 +11297,18 @@ async function bulkMarkPaid() {
           };
         },
       },
-      search_students: {
+search_students: {
         name: "search_students",
-        description: "Search students by name or level",
+        description: "Search students by name, level, or phone number",
         execute: async (args) => {
           const query = args?.query?.toLowerCase() || "";
           return allStudents
             .filter(
               (s) =>
                 getStudentName(s).toLowerCase().includes(query) ||
-                getStudentLevel(s).toLowerCase().includes(query),
+                getStudentLevel(s).toLowerCase().includes(query) ||
+                (s.phone && s.phone.toLowerCase().includes(query)) ||
+                (s.parent_phone && s.parent_phone.toLowerCase().includes(query)),
             )
             .slice(0, 10);
         },
@@ -12615,9 +12619,10 @@ const targetStudents = allStudents.filter((s) => {
     const batchFilter = $("chessable-filter-batch")?.value || "";
     const profileFilter = $("chessable-filter-status")?.value || "";
 
-    let filtered = activeStudents.filter((s) => {
+let filtered = activeStudents.filter((s) => {
       const name = getStudentName(s).toLowerCase();
-      if (searchQuery && !name.includes(searchQuery)) return false;
+      const phone = (s.phone || s.parent_phone || "").toLowerCase();
+      if (searchQuery && !name.includes(searchQuery) && !phone.includes(searchQuery)) return false;
       if (batchFilter && String(s.coach_id) !== batchFilter) return false;
       if (profileFilter === "has" && !s.chessable_username) return false;
       if (profileFilter === "missing" && s.chessable_username) return false;
