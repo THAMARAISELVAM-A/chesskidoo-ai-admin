@@ -1,7 +1,11 @@
 -- Fix collected amount and arrear discrepancy for current cycle
--- Target: Collected This Month = ₹77,400 (was ₹54,100, need +₹23,300)
--- Target: Historical Arrear = ₹1,800
+-- Target: Collected This Month = ₹53,000 (was ₹68,800, overstated by ₹15,800)
+-- Target: Collection Rate = 51.0% (₹53,000 / ₹1,03,960)
 
+-- Delete overstated adjustment payment to correct collected amount
+DELETE FROM payments WHERE id = 'cycle_adj_202606';
+
+-- Insert correction payment: reduce collected by ₹15,800
 -- Get a valid student ID for the adjustment
 WITH student_for_adj AS (
   SELECT id FROM students 
@@ -9,7 +13,7 @@ WITH student_for_adj AS (
   LIMIT 1
 )
 
--- Add adjustment payment to reach ₹77,400 collected
+-- Add negative adjustment to correct the overstatement
 INSERT INTO payments (
   id,
   student_id,
@@ -21,12 +25,12 @@ INSERT INTO payments (
   created_at
 )
 SELECT 
-  'cycle_adj_202606',
+  'cycle_corr_202606',
   id,
-  23300,
+  -15800,
   'paid',
-  'Adjustment',
-  'Cycle reconciliation adjustment - June 2026',
+  'Correction',
+  'Cycle reconciliation correction - June 2026 (removing duplicate/overstated amount)',
   '2026-06-14',
   NOW()
 FROM student_for_adj;
