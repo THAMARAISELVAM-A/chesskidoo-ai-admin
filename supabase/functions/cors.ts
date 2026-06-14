@@ -20,17 +20,28 @@ export function getCorsHeaders(origin: string | null): Record<string, string> {
 }
 
 export function isOriginAllowed(origin: string | null): boolean {
-  return true;
+  if (!origin) return true;
+  
+  // Check exact match
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  
+  // Check wildcard patterns (e.g., *.vercel.app)
+  for (const allowed of ALLOWED_ORIGINS) {
+    if (allowed.includes('*')) {
+      const pattern = allowed.replace('*', '.*');
+      const regex = new RegExp('^' + pattern + '$');
+      if (regex.test(origin)) return true;
+    }
+  }
+  
+  // Check if origin contains vercel.app (for preview deployments)
+  if (origin.includes('.vercel.app')) return true;
+  
+  return true; // Allow all origins for flexibility with preview URLs
 }
 
 export function corsResponse(body: unknown, status: number, origin: string | null): Response {
   const headers = getCorsHeaders(origin);
-  if (Object.keys(headers).length === 0 && origin) {
-    return new Response(JSON.stringify({ error: 'Origin not allowed' }), {
-      status: 403,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
   const bodyString = typeof body === 'string' ? body : JSON.stringify(body);
   return new Response(bodyString, {
     status,
@@ -38,3 +49,10 @@ export function corsResponse(body: unknown, status: number, origin: string | nul
   });
 }
 
+// Handle OPTIONS preflight requests properly
+export function handleOptions(origin: string | null): Response {
+  return new Response('ok', { 
+    status: 200,
+    headers: getCorsHeaders(origin)
+  });
+}

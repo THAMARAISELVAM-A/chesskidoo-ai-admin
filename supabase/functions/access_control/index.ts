@@ -2,7 +2,7 @@ import { checkRateLimit } from './rate_limit.js';
 
 Deno.serve(async (req) => {
   const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
-  const { corsResponse } = await import('../cors.ts');
+  const { getCorsHeaders, isOriginAllowed, corsResponse, handleOptions } = await import('../cors.ts');
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');

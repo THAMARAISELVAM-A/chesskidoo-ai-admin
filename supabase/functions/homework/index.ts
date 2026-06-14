@@ -15,7 +15,7 @@ const ALLOWED_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.
 
 Deno.serve(async (req) => {
   const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
-  const { getCorsHeaders, isOriginAllowed, corsResponse } = await import('../cors.ts')
+  const { getCorsHeaders, isOriginAllowed, corsResponse, handleOptions } = await import('../cors.ts')
 
   const origin = req.headers.get('origin')
   if (!isOriginAllowed(origin)) {
@@ -267,9 +267,7 @@ Deno.serve(async (req) => {
   async function fetchBatchesMap(assignments: Record<string, unknown>[]) {
     const ids = [...new Set(assignments.map((a) => a.batch_id).filter(Boolean).map(String))]
     if (ids.length === 0) return new Map()
-    const { data, error } = await supabase
-      .from('batches')
-      .select('id, name')
+    const { data, error } = await supabase.from('batches').select('id, name, coach_id, days, time_slot')
       .in('id', ids)
     if (error) return new Map()
     return new Map((data || []).map((batch: Record<string, unknown>) => [String(batch.id), batch]))
@@ -359,11 +357,12 @@ Deno.serve(async (req) => {
     const activeCompletion = studentCompletion || assignmentCompletions[0] || null
     const maxMarks = Number(assignment.max_marks || 100)
 
-    return {
+return {
       id: assignment.id,
       target_type: assignment.target_type || 'student',
       student_id: assignment.student_id || null,
       batch_id: assignment.batch_id || null,
+      coach_id: assignment.coach_id || batch?.coach_id || null,
       title: assignment.title || '',
       description: assignment.description || '',
       due_date: assignment.due_date ? String(assignment.due_date).slice(0, 10) : null,
@@ -917,9 +916,10 @@ Deno.serve(async (req) => {
         return json({ success: true })
       }
 
-      const targetType = normalizeTargetType(body.target_type ?? body.targetType)
+const targetType = normalizeTargetType(body.target_type ?? body.targetType)
       const studentId = sanitizeId(body.student_id)
       const batchId = sanitizeId(body.batch_id)
+      const coachId = sanitizeId(body.coach_id)
       const title = sanitizeTitle(body.title)
       const description = sanitizeDescription(body.description ?? body.instructions)
       const dueDate = parseDate(body.due_date)
@@ -931,12 +931,19 @@ Deno.serve(async (req) => {
       if (targetType === 'student' && !(await fetchStudent(studentId))) return json({ error: 'Student not found' }, 404)
       if (targetType === 'batch' && !(await fetchBatch(batchId))) return json({ error: 'Batch not found' }, 404)
 
+      let resolvedCoachId = coachId;
+      if (targetType === 'batch' && !resolvedCoachId && batchId) {
+        const { data: batchData } = await supabase.from('batches').select('coach_id').eq('id', batchId).maybeSingle();
+        resolvedCoachId = batchData?.coach_id ? String(batchData.coach_id) : null;
+      }
+
       const now = new Date().toISOString()
       const newAssignment: Record<string, unknown> = {
         id: crypto.randomUUID(),
         target_type: targetType,
         student_id: targetType === 'student' ? studentId : null,
         batch_id: targetType === 'batch' ? batchId : null,
+        coach_id: resolvedCoachId ? resolvedCoachId : null,
         title,
         description,
         due_date: dueDate,
@@ -977,10 +984,11 @@ Deno.serve(async (req) => {
       if (body.status !== undefined) {
         updateData.status = normalizeStatus(body.status, ['active', 'completed', 'archived'], 'active')
       }
-      if (body.target_type !== undefined || body.targetType !== undefined) {
+if (body.target_type !== undefined || body.targetType !== undefined) {
         const targetType = normalizeTargetType(body.target_type ?? body.targetType)
         const studentId = sanitizeId(body.student_id)
         const batchId = sanitizeId(body.batch_id)
+        const coachId = sanitizeId(body.coach_id)
         if (targetType === 'student' && !studentId) return json({ error: 'student_id is required for student homework' }, 400)
         if (targetType === 'batch' && !batchId) return json({ error: 'batch_id is required for batch homework' }, 400)
         if (targetType === 'student' && !(await fetchStudent(studentId))) return json({ error: 'Student not found' }, 404)
@@ -988,6 +996,12 @@ Deno.serve(async (req) => {
         updateData.target_type = targetType
         updateData.student_id = targetType === 'student' ? studentId : null
         updateData.batch_id = targetType === 'batch' ? batchId : null
+        let resolvedCoachId = coachId;
+        if (targetType === 'batch' && !resolvedCoachId && batchId) {
+          const { data: batchData } = await supabase.from('batches').select('coach_id').eq('id', batchId).maybeSingle();
+          resolvedCoachId = batchData?.coach_id ? String(batchData.coach_id) : null;
+        }
+        updateData.coach_id = resolvedCoachId ? resolvedCoachId : null
       }
 
       const { data: assignment, error: updateError } = await supabase
@@ -1021,3 +1035,5 @@ Deno.serve(async (req) => {
     return json({ error: error.message || 'Server error' }, 500)
   }
 })
+
+

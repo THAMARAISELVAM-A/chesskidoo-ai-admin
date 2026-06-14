@@ -7030,28 +7030,79 @@ function calculateSlotRevenue(year, month) {
 
   function populateHomeworkTargetSelectors() {
     const studentSelect = $("hw-student-id");
-    const batchSelect = $("hw-batch-id");
-    if (!studentSelect || !batchSelect) return;
+    if (studentSelect) {
+      const activeStudents = (allStudents || [])
+        .filter((student) => getStudentStatus(student) !== "archived")
+        .sort((a, b) => getStudentName(a).localeCompare(getStudentName(b)));
+      studentSelect.innerHTML = '<option value="">Select Student</option>' + activeStudents
+        .map((student) => `<option value="${escapeAttr(student.id)}">${escapeHtml(getStudentName(student))}</option>`)
+        .join("");
+    }
 
-    const activeStudents = (allStudents || [])
-      .filter((student) => getStudentStatus(student) !== "archived")
-      .sort((a, b) => getStudentName(a).localeCompare(getStudentName(b)));
-    studentSelect.innerHTML = '<option value="">Select Student</option>' + activeStudents
-      .map((student) => `<option value="${escapeAttr(student.id)}">${escapeHtml(getStudentName(student))}</option>`)
-      .join("");
-
-    const activeBatches = (allBatches || [])
-      .filter((batch) => (batch.status || "active") !== "archived")
-      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
-    batchSelect.innerHTML = '<option value="">Select Batch</option>' + activeBatches
-      .map((batch) => `<option value="${escapeAttr(batch.id)}">${escapeHtml(batch.name || "Untitled Batch")}</option>`)
-      .join("");
+    const coachSelect = $("hw-coach-id");
+    if (coachSelect) {
+      const activeCoaches = (allCoaches || [])
+        .filter((coach) => (coach.status || "active") !== "archived")
+        .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+      coachSelect.innerHTML = '<option value="">Select Coach</option>' + activeCoaches
+        .map((coach) => `<option value="${escapeAttr(coach.id)}">${escapeHtml(coach.name || coach.full_name || "Unnamed Coach")}</option>`)
+        .join("");
+    }
   }
+
+  window.onHomeworkCoachChange = function () {
+    const coachId = $("hw-coach-id")?.value;
+    const batchSelect = $("hw-batch-id");
+    const sessionSchedule = $("hw-session-schedule");
+    const sessionField = $("hw-session-schedule-field");
+
+    if (batchSelect) {
+      batchSelect.innerHTML = '<option value="">Select Batch</option>';
+      batchSelect.value = "";
+    }
+    if (sessionSchedule) sessionSchedule.value = "";
+    if (sessionField) sessionField.style.display = "none";
+
+    if (!coachId) return;
+
+    const coachBatches = (allBatches || [])
+      .filter((batch) => String(batch.coach_id) === String(coachId))
+      .filter((batch) => (batch.status || "active") !== "archived");
+
+    if (batchSelect) {
+      batchSelect.innerHTML = '<option value="">Select Batch</option>' + coachBatches
+        .map((batch) => {
+          const scheduleData = `${batch.days || ""} ${batch.time_slot || ""}`.trim();
+          return `<option value="${escapeAttr(batch.id)}" data-schedule="${escapeAttr(scheduleData)}">${escapeHtml(batch.name || "Untitled Batch")}</option>`;
+        })
+        .join("");
+    }
+  };
+
+  window.onHomeworkBatchChange = function () {
+    const batchSelect = $("hw-batch-id");
+    const sessionSchedule = $("hw-session-schedule");
+    const sessionField = $("hw-session-schedule-field");
+
+    const selectedOption = batchSelect?.selectedOptions?.[0];
+    if (selectedOption) {
+      const scheduleData = selectedOption.dataset.schedule;
+      if (scheduleData && sessionSchedule) {
+        sessionSchedule.value = scheduleData;
+        if (sessionField) sessionField.style.display = "block";
+      }
+    } else {
+      if (sessionSchedule) sessionSchedule.value = "";
+      if (sessionField) sessionField.style.display = "none";
+    }
+  };
 
   window.syncHomeworkTargetSelectors = function () {
     const targetType = $("hw-target-type")?.value || "student";
     if ($("hw-student-field")) $("hw-student-field").style.display = targetType === "student" ? "block" : "none";
+    if ($("hw-coach-field")) $("hw-coach-field").style.display = targetType === "batch" ? "block" : "none";
     if ($("hw-batch-field")) $("hw-batch-field").style.display = targetType === "batch" ? "block" : "none";
+    if ($("hw-session-schedule-field")) $("hw-session-schedule-field").style.display = "none";
   };
 
   window.openHomeworkModal = function (studentId = "") {
@@ -7064,10 +7115,12 @@ function calculateSlotRevenue(year, month) {
     if (studentId) {
       $("hw-target-type").value = "student";
       $("hw-student-id").value = studentId;
+      $("hw-coach-id").value = "";
       $("hw-batch-id").value = "";
     } else {
       $("hw-target-type").value = "student";
       $("hw-student-id").value = "";
+      $("hw-coach-id").value = "";
       $("hw-batch-id").value = "";
     }
     window.syncHomeworkTargetSelectors();
@@ -7085,11 +7138,26 @@ function calculateSlotRevenue(year, month) {
       $("homework-modal-title").textContent = "Edit Homework";
       $("hw-target-type").value = item.target_type || "student";
       $("hw-student-id").value = item.student_id || "";
-      $("hw-batch-id").value = item.batch_id || "";
       $("hw-title").value = item.title || "";
       $("hw-description").value = item.description || "";
       $("hw-due-date").value = item.due_date || "";
       $("hw-max-marks").value = item.max_marks ?? 100;
+
+      if (item.target_type === "batch" && item.batch_id) {
+        if (item.coach_id) {
+          $("hw-coach-id").value = item.coach_id;
+        } else {
+          const { data: batch } = await apiCall(`/api/batches`);
+          const foundBatch = batch?.data?.find(b => String(b.id) === String(item.batch_id));
+          if (foundBatch?.coach_id) {
+            $("hw-coach-id").value = foundBatch.coach_id;
+          }
+        }
+        await window.onHomeworkCoachChange();
+        $("hw-batch-id").value = item.batch_id;
+        await window.onHomeworkBatchChange();
+      }
+
       window.syncHomeworkTargetSelectors();
       openModal("homework-modal");
     } catch (err) {
@@ -7104,13 +7172,19 @@ function calculateSlotRevenue(year, month) {
     const targetType = $("hw-target-type").value;
     const studentId = targetType === "student" ? $("hw-student-id").value : "";
     const batchId = targetType === "batch" ? $("hw-batch-id").value : "";
+    let coachId = null;
+    if (targetType === "batch") {
+      coachId = $("hw-coach-id").value || null;
+    }
     if (targetType === "student" && !studentId) return toast("Please select a student.", "error");
+    if (targetType === "batch" && !coachId) return toast("Please select a coach.", "error");
     if (targetType === "batch" && !batchId) return toast("Please select a batch.", "error");
 
     const payload = {
       target_type: targetType,
       student_id: targetType === "student" ? studentId : null,
       batch_id: targetType === "batch" ? batchId : null,
+      coach_id: coachId,
       title,
       description: $("hw-description").value.trim(),
       due_date: $("hw-due-date").value || null,
@@ -7589,8 +7663,8 @@ function calculateSlotRevenue(year, month) {
     if ($("e-payment-status"))
       $("e-payment-status").value = getStudentPaymentStatus(s);
     $("e-join").value = getStudentDate(s);
-    $("e-batch-type").value = getStudentBatchType(s);
-    $("e-batch-time").value = getStudentBatchTime(s);
+$("e-batch-time").value = getStudentBatchTime(s);
+    setBatchDaysCheckboxes("e-batch-days", s.session_mode || s.batch_type || "");
     if ($("e-due-date")) $("e-due-date").value = s.due_date || "";
     if ($("e-learning-mode"))
       $("e-learning-mode").value = s.learning_mode || "online";
@@ -7873,16 +7947,17 @@ function calculateSlotRevenue(year, month) {
   function openEnroll() {
     $("m-name").value = "";
     $("m-phone").value = "";
-    $("m-level").value = "Beginner";
+$("m-level").value = "Beginner";
     $("m-join").value = "";
     $("m-elo").value = "800";
     $("m-fee").value = "5000";
-    $("m-batch-type").value = "Evening";
     $("m-batch-time").value = "17:00";
     if ($("m-due-date")) $("m-due-date").value = "";
     if ($("m-coach")) $("m-coach").value = "";
     if ($("m-status")) $("m-status").value = "active";
     if ($("m-learning-mode")) $("m-learning-mode").value = "offline";
+    const dayCheckboxes = document.querySelectorAll('#m-batch-days input[type="checkbox"]');
+    dayCheckboxes.forEach(cb => cb.checked = false);
     window.selectedCountryCode = "IN";
     window.selectedCountryCodeEdit = "IN";
     const selected = $("country-selected");
@@ -7894,6 +7969,25 @@ function calculateSlotRevenue(year, month) {
     syncCoachDropdowns();
     renderCountryDropdown("country-dropdown", "selectCountry");
     openModal("enroll-modal");
+  }
+
+  function updateBatchTypeFromDays(prefix = "m") {
+    const checkboxes = document.querySelectorAll(`#${prefix}-batch-days input[type="checkbox"]:checked`);
+    const days = Array.from(checkboxes).map(cb => cb.value);
+    const hiddenField = $(`${prefix}-batch-type`);
+    if (hiddenField) {
+      hiddenField.value = days.join(", ");
+    }
+  }
+
+  function setBatchDaysCheckboxes(containerId, daysString) {
+    const container = $(containerId);
+    if (!container) return;
+    const selectedDays = String(daysString || "").split(/[,\s&]+/).map(d => d.trim()).filter(Boolean);
+    const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(cb => {
+      cb.checked = selectedDays.some(d => String(d).toLowerCase() === String(cb.value).toLowerCase());
+    });
   }
 
   async function saveStudent() {
@@ -14803,3 +14897,4 @@ window.toggleAcademyManager = function() {
     }
   }
 }
+

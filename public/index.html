@@ -2352,27 +2352,25 @@
       </div>
     </div>
 
-    <div class="modal-grid">
+<div class="modal-grid">
       <div class="form-group">
         <label>Assigned Coach</label>
         <select id="m-coach"><option value="">Loading...</option></select>
       </div>
       <div class="form-group">
-        <label>Batch Type</label>
-        <select id="m-batch-type">
-          <option value="Beginner">Beginner</option>
-          <option value="Intermediate">Intermediate</option>
-          <option value="Advanced">Advanced</option>
-          <option value="Batch 1">Batch 1</option>
-          <option value="Batch 2">Batch 2</option>
-          <option value="Batch 3">Batch 3</option>
-          <option value="Batch 4">Batch 4</option>
-          <option value="Morning">Morning</option>
-          <option value="Evening">Evening</option>
-          <option value="Weekend">Weekend</option>
-        </select>
+        <label>Batch Type (Days)</label>
+        <div id="m-batch-days" style="display:flex;flex-wrap:wrap;gap:8px;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px">
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Monday" onchange="updateBatchTypeFromDays('m')"> <span style="font-size:12px">Mon</span></label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Tuesday" onchange="updateBatchTypeFromDays('m')"> <span style="font-size:12px">Tue</span></label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Wednesday" onchange="updateBatchTypeFromDays('m')"> <span style="font-size:12px">Wed</span></label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Thursday" onchange="updateBatchTypeFromDays('m')"> <span style="font-size:12px">Thu</span></label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Friday" onchange="updateBatchTypeFromDays('m')"> <span style="font-size:12px">Fri</span></label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Saturday" onchange="updateBatchTypeFromDays('m')"> <span style="font-size:12px">Sat</span></label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Sunday" onchange="updateBatchTypeFromDays('m')"> <span style="font-size:12px">Sun</span></label>
+        </div>
       </div>
     </div>
+    <input type="hidden" id="m-batch-type">
 
 
 
@@ -2484,27 +2482,25 @@
       </div>
     </div>
 
-    <div class="modal-grid">
+<div class="modal-grid">
       <div class="form-group">
         <label>Assigned Coach</label>
         <select id="e-coach"></select>
       </div>
       <div class="form-group">
-        <label>Batch Type</label>
-        <select id="e-batch-type">
-          <option value="Beginner">Beginner</option>
-          <option value="Intermediate">Intermediate</option>
-          <option value="Advanced">Advanced</option>
-          <option value="Batch 1">Batch 1</option>
-          <option value="Batch 2">Batch 2</option>
-          <option value="Batch 3">Batch 3</option>
-          <option value="Batch 4">Batch 4</option>
-          <option value="Morning">Morning</option>
-          <option value="Evening">Evening</option>
-          <option value="Weekend">Weekend</option>
-        </select>
+        <label>Batch Type (Days)</label>
+        <div id="e-batch-days" style="display:flex;flex-wrap:wrap;gap:8px;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px">
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Monday" onchange="updateBatchTypeFromDays('e')"> <span style="font-size:12px">Mon</span></label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Tuesday" onchange="updateBatchTypeFromDays('e')"> <span style="font-size:12px">Tue</span></label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Wednesday" onchange="updateBatchTypeFromDays('e')"> <span style="font-size:12px">Wed</span></label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Thursday" onchange="updateBatchTypeFromDays('e')"> <span style="font-size:12px">Thu</span></label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Friday" onchange="updateBatchTypeFromDays('e')"> <span style="font-size:12px">Fri</span></label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Saturday" onchange="updateBatchTypeFromDays('e')"> <span style="font-size:12px">Sat</span></label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Sunday" onchange="updateBatchTypeFromDays('e')"> <span style="font-size:12px">Sun</span></label>
+        </div>
       </div>
     </div>
+    <input type="hidden" id="e-batch-type">
 
     <div class="modal-grid">
       <div class="form-group">
@@ -2842,9 +2838,21 @@
           <label>Student</label>
           <select id="hw-student-id"></select>
         </div>
+        <div class="form-group" id="hw-coach-field" style="display:none">
+          <label>Coach Name</label>
+          <select id="hw-coach-id" onchange="onHomeworkCoachChange()">
+            <option value="">Select Coach</option>
+          </select>
+        </div>
         <div class="form-group" id="hw-batch-field" style="display:none">
-          <label>Batch</label>
-          <select id="hw-batch-id"></select>
+          <label>Batch Number</label>
+          <select id="hw-batch-id" onchange="onHomeworkBatchChange()">
+            <option value="">Select Batch</option>
+          </select>
+        </div>
+        <div class="form-group" id="hw-session-schedule-field" style="display:none">
+          <label>Session Schedule</label>
+          <input type="text" id="hw-session-schedule" readonly style="background:var(--bg3);cursor:default">
         </div>
         <div class="form-group">
           <label>Title</label>

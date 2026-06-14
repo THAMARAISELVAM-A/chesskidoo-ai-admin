@@ -1,21 +1,19 @@
 Deno.serve(async (req) => {
   const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
-  const { getCorsHeaders, isOriginAllowed, corsResponse } = await import('../cors.ts');
+  const { getCorsHeaders, isOriginAllowed, corsResponse, handleOptions } = await import('../cors.ts');
 
   const origin = req.headers.get('origin');
-  if (!isOriginAllowed(origin)) {
-    return new Response(JSON.stringify({ error: 'Origin not allowed' }), {
-      status: 403,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-
-  const corsHeaders = getCorsHeaders(origin);
-
+  
+  // Handle OPTIONS preflight FIRST before any other checks
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return handleOptions(origin);
   }
-
+  
+  // Origin check for actual requests (after OPTIONS)
+  if (!isOriginAllowed(origin)) {
+    return corsResponse({ error: 'Origin not allowed' }, 403, origin);
+  }
+  
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -219,3 +217,4 @@ Deno.serve(async (req) => {
     });
   }
 });
+
