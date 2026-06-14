@@ -7308,8 +7308,8 @@ const foundBatch = batch?.data?.find(b => String(b.id) === String(item.batch_id)
           const base64 = await new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => {
-              const result = reader.result as string;
-              const base64Data = result.split(",")[1];
+              const result = reader.result;
+              const base64Data = result ? result.toString().split(",")[1] : "";
               resolve(base64Data);
             };
             reader.onerror = reject;
