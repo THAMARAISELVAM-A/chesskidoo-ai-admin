@@ -12,29 +12,15 @@ const ALLOWED_ORIGINS = [
 ];
 
 export function getCorsHeaders(origin: string | null): Record<string, string> {
-  if (!origin) {
-    return {
-      'Access-Control-Allow-Origin': ALLOWED_ORIGINS[0],
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-portal-token, x-portal-role, x-portal-student-id'
-    };
-  }
-
-  const allowed = ALLOWED_ORIGINS.includes(origin);
-  if (!allowed) {
-    return {};
-  }
-
   return {
-    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Origin': origin || '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-portal-token, x-portal-role, x-portal-student-id'
   };
 }
 
 export function isOriginAllowed(origin: string | null): boolean {
-  if (!origin) return true; // Allow requests without Origin (e.g., curl, Postman)
-  return ALLOWED_ORIGINS.includes(origin);
+  return true;
 }
 
 export function corsResponse(body: unknown, status: number, origin: string | null): Response {

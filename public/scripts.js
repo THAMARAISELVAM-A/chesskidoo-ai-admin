@@ -67,7 +67,7 @@
 
   let SUPABASE_URL = "";
   let SUPABASE_ANON_KEY = "";
-  const API_BASE = "/api";
+  let API_BASE = "/api";
   const $ = (id) => {
     const el = document.getElementById(id);
     if (el) return el;
@@ -104,6 +104,11 @@
       (typeof APP_CONFIG !== "undefined" ? APP_CONFIG.SUPABASE_ANON_KEY : "") ||
       window.SUPABASE_ANON_KEY ||
       "";
+
+    // Use direct Supabase Edge Functions URL instead of relying on a local proxy
+    if (SUPABASE_URL) {
+      API_BASE = `${SUPABASE_URL}/functions/v1`;
+    }
 
     // Expose for external modules
     window.SUPABASE_URL = SUPABASE_URL;
@@ -180,10 +185,11 @@
       throw err;
     }
 
+    const cleanEndpoint = endpoint.startsWith("/api") ? endpoint.substring(4) : endpoint;
     const url =
-      endpoint.startsWith("http") || endpoint.startsWith(API_BASE)
-        ? endpoint
-        : `${API_BASE}${endpoint}`;
+      cleanEndpoint.startsWith("http")
+        ? cleanEndpoint
+        : `${API_BASE}${cleanEndpoint}`;
     // The Supabase edge gateway requires a VALID JWT as the Bearer token. Our
     // custom auth stores a non-JWT placeholder ("admin-token-…") under
     // sb-access-token, which the gateway rejects with INVALID_JWT_FORMAT (401).
@@ -5833,7 +5839,6 @@
 
         // Compute paid revenue for this specific month
         let paidVal = 0;
-        const paidSet = new Set();
         (allPayments || []).forEach((p) => {
           const pDate = new Date(p.payment_date || p.created_at);
           if (
@@ -5841,17 +5846,13 @@
             pDate.getUTCFullYear() === y &&
             p.status === "paid"
           ) {
-            const sid = String(p.student_id).toLowerCase();
-            if (paidSet.has(sid)) return;
-            const s = allStudents.find(
-              (x) => String(x.id).toLowerCase() === sid,
-            );
-            if (s) {
-              // Ensure we don't count pending/waitlist deposits accidentally if they shouldn't count?
-              // Wait, actual paid deposits SHOULD count as revenue. We remove the destructive status filter.
+            let amt = parseFloat(p.amount);
+            if (isNaN(amt) || amt === 0) {
+              const sid = String(p.student_id).toLowerCase();
+              const s = allStudents.find((x) => String(x.id).toLowerCase() === sid);
+              amt = s ? getStudentMonthlyFee(s) : 0;
             }
-            paidSet.add(sid);
-            paidVal += s ? getStudentMonthlyFee(s) : parseFloat(p.amount) || 0;
+            paidVal += amt;
           }
         });
         paidData.push(paidVal);
@@ -5969,7 +5970,7 @@
   // Collected-revenue view mode: 'cycle' (default — fee counted in the billing
   // cycle it covers) or 'cash' (fee counted in the calendar month the payment
   // was received). Persisted so the admin's choice sticks.
-  window.revenueViewMode = localStorage.getItem("revenue_view_mode") || "cycle";
+  window.revenueViewMode = localStorage.getItem("revenue_view_mode") || "cash";
   function revenueFor(year, month) {
     return window.revenueViewMode === "cash"
       ? calculateSlotRevenue(year, month)
@@ -5992,39 +5993,23 @@
       );
   };
 
-function calculateSlotRevenue(year, month, studentIdMap) {
+function calculateSlotRevenue(year, month) {
     if (!allPayments) return 0;
-    const seenStuds = new Set();
     return allPayments.reduce((sum, p) => {
       if (p.status !== "paid") return sum;
       
-      const sid = String(p.student_id || "").toLowerCase();
-      if (!sid || seenStuds.has(sid)) return sum;
-      
-      // applied_month format: "2026-06" (1-indexed) - check if payment applies to target month
-      if (p.applied_month) {
-        const [appYear, appMonth] = p.applied_month.split("-").map(Number);
-        if (appYear === year && appMonth === month + 1) {
-          const s = allStudents.find((x) => String(x.id).toLowerCase() === sid);
-          if (s) {
-            seenStuds.add(sid);
-            return sum + (getStudentMonthlyFee(s) || 0);
-          }
-        }
-        return sum;
-      }
-      
-      // No applied_month: use payment date for cash view
       const pDate = new Date(p.payment_date || p.created_at);
       if (
         pDate.getUTCMonth() === month &&
         pDate.getUTCFullYear() === year
       ) {
-        const s = allStudents.find((x) => String(x.id).toLowerCase() === sid);
-        if (s) {
-          seenStuds.add(sid);
-          return sum + (getStudentMonthlyFee(s) || 0);
+        let amt = parseFloat(p.amount);
+        if (isNaN(amt) || amt === 0) {
+          const sid = String(p.student_id || "").toLowerCase();
+          const s = allStudents.find((x) => String(x.id).toLowerCase() === sid);
+          amt = s ? getStudentMonthlyFee(s) : 0;
         }
+        return sum + amt;
       }
       return sum;
     }, 0);
@@ -6247,7 +6232,7 @@ function calculateSlotRevenue(year, month, studentIdMap) {
 
     // Update UI
     if ($("s-rev")) $("s-rev").textContent = "₹" + paidRevenue.toLocaleString();
-    if ($("s-rev-mode")) $("s-rev-mode").textContent = "cycle";
+    if ($("s-rev-mode")) $("s-rev-mode").textContent = window.revenueViewMode;
     if ($("s-last-month-collected")) $("s-last-month-collected").textContent = "₹" + prevRevenue.toLocaleString();
     if ($("s-total-revenue"))
       $("s-total-revenue").textContent = "₹" + totalPotential.toLocaleString();

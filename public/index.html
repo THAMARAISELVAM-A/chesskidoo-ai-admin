@@ -191,13 +191,11 @@
         <div class="card card-clickable" onclick="setPage('stud')"><div class="stat-label">Total Students</div><div class="stat-value" id="s-total">—</div></div>
         <div class="card"><div class="stat-label">Avg Academy ELO</div><div class="stat-value" id="s-elo">—</div></div>
         <div class="card card-clickable" onclick="setPage('coach-mgmt')"><div class="stat-label">Active Coaches</div><div class="stat-value" id="s-coaches">—</div></div>
-      </div>
-      <div class="dash-grid" style="margin-bottom:14px">
         <div class="card card-clickable" onclick="setPage('stud'); document.getElementById('f-learning-mode').value='online'; renderStudents();"><div class="stat-label">Online Students</div><div class="stat-value" style="color:var(--info)" id="s-online">—</div></div>
         <div class="card card-clickable" onclick="setPage('stud'); document.getElementById('f-learning-mode').value='offline'; renderStudents();"><div class="stat-label">Offline Students</div><div class="stat-value" style="color:var(--success)" id="s-offline">—</div></div>
       </div>
       <div class="dash-grid" style="margin-bottom:14px">
-        <div class="card card-clickable" onclick="setPage('bills')"><div class="stat-label" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">Collected This Month <span id="s-rev-mode" style="cursor:pointer;font-size:9px;font-weight:700;color:var(--gold);border:1px solid var(--border);border-radius:10px;padding:1px 7px;text-transform:none;letter-spacing:0;">cycle</span></div><div class="stat-value text-success" id="s-rev">—</div></div>
+        <div class="card card-clickable" onclick="setPage('bills')"><div class="stat-label" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">Collected This Month <span id="s-rev-mode" onclick="event.stopPropagation(); toggleRevenueView()" style="cursor:pointer;font-size:9px;font-weight:700;color:var(--gold);border:1px solid var(--border);border-radius:10px;padding:1px 7px;text-transform:none;letter-spacing:0;">cash</span></div><div class="stat-value text-success" id="s-rev">—</div></div>
         <div class="card card-clickable" onclick="setPage('bills')"><div class="stat-label">Collected Last Month</div><div class="stat-value" style="color:var(--blue)" id="s-last-month-collected">—</div></div>
         <div class="card"><div class="stat-label">Collection Rate</div><div class="stat-value" style="color:var(--blue)" id="s-rate">—</div></div>
       </div>
@@ -2294,6 +2292,27 @@
   </div>
 </div>
 
+<!-- Schedule Datalist Options mapped from Matrix -->
+<datalist id="schedule-options">
+  <option value="Tue, Wed, Sat | 5:00 AM - 5:40 AM"></option>
+  <option value="Wed, Fri | 5:40 AM - 6:20 AM"></option>
+  <option value="Thu, Fri | 6:00 AM - 7:00 AM"></option>
+  <option value="Wed, Fri | 7:00 AM - 8:00 AM"></option>
+  <option value="Sat | 8:00 AM - 9:00 AM & Fri | 6:00 PM - 7:00 PM"></option>
+  <option value="Wed, Fri | 2:45 PM - 3:45 PM"></option>
+  <option value="Mon, Tue | 6:00 PM - 7:00 PM"></option>
+  <option value="Wed, Thu | 6:00 PM - 7:00 PM"></option>
+  <option value="Fri, Sat | 6:00 PM - 7:00 PM"></option>
+  <option value="Mon, Thu | 7:00 PM - 8:00 PM"></option>
+  <option value="Tue, Fri | 7:00 PM - 8:00 PM"></option>
+  <option value="Wed, Thu | 7:00 PM - 8:00 PM"></option>
+  <option value="Fri, Sat | 7:00 PM - 8:00 PM"></option>
+  <option value="Sat, Sun | 7:00 PM - 8:00 PM"></option>
+  <option value="Sat, Sun | 7:30 PM - 8:30 PM"></option>
+  <option value="Mon, Thu | 8:00 PM - 9:00 PM"></option>
+  <option value="Wed, Thu | 8:00 PM - 9:00 PM"></option>
+</datalist>
+
 <!-- Enroll Modal -->
 <div class="modal" id="enroll-modal">
   <div class="modal-box">
@@ -2341,7 +2360,16 @@
       <div class="form-group">
         <label>Batch Type</label>
         <select id="m-batch-type">
-          <option value="Morning">Morning</option><option value="Evening">Evening</option><option value="Weekend">Weekend</option>
+          <option value="Beginner">Beginner</option>
+          <option value="Intermediate">Intermediate</option>
+          <option value="Advanced">Advanced</option>
+          <option value="Batch 1">Batch 1</option>
+          <option value="Batch 2">Batch 2</option>
+          <option value="Batch 3">Batch 3</option>
+          <option value="Batch 4">Batch 4</option>
+          <option value="Morning">Morning</option>
+          <option value="Evening">Evening</option>
+          <option value="Weekend">Weekend</option>
         </select>
       </div>
     </div>
@@ -2351,7 +2379,7 @@
     <div class="modal-grid">
       <div class="form-group">
         <label>Session Schedule</label>
-        <input type="text" id="m-batch-time" placeholder="e.g. FRI & SAT or 17:00" value="17:00">
+        <input type="text" id="m-batch-time" list="schedule-options" placeholder="e.g. Sat & Sun | 7:00 PM - 8:00 PM">
       </div>
       <div class="form-group">
         <label>Joining Date</label>
@@ -2464,7 +2492,16 @@
       <div class="form-group">
         <label>Batch Type</label>
         <select id="e-batch-type">
-          <option value="Morning">Morning</option><option value="Evening">Evening</option><option value="Weekend">Weekend</option>
+          <option value="Beginner">Beginner</option>
+          <option value="Intermediate">Intermediate</option>
+          <option value="Advanced">Advanced</option>
+          <option value="Batch 1">Batch 1</option>
+          <option value="Batch 2">Batch 2</option>
+          <option value="Batch 3">Batch 3</option>
+          <option value="Batch 4">Batch 4</option>
+          <option value="Morning">Morning</option>
+          <option value="Evening">Evening</option>
+          <option value="Weekend">Weekend</option>
         </select>
       </div>
     </div>
@@ -2472,7 +2509,7 @@
     <div class="modal-grid">
       <div class="form-group">
         <label>Session Schedule</label>
-        <input type="text" id="e-batch-time" placeholder="e.g. FRI & SAT or 17:00">
+        <input type="text" id="e-batch-time" list="schedule-options" placeholder="e.g. Sat & Sun | 7:00 PM - 8:00 PM">
       </div>
       <div class="form-group">
         <label>Join Date</label>
