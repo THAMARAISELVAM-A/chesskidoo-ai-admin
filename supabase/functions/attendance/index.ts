@@ -15,7 +15,8 @@ Deno.serve(async (req) => {
   if (!isOriginAllowed(origin)) {
     return corsResponse({ error: 'Origin not allowed' }, 403, origin);
   }
-  
+
+  const corsHeaders = getCorsHeaders(origin);
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
@@ -23,12 +24,8 @@ Deno.serve(async (req) => {
     return corsResponse({ error: 'Server configuration error' }, 500, origin);
   }
 
-  const supabase = createClient(supabaseUrl, supabaseKey)
+const supabase = createClient(supabaseUrl, supabaseKey)
 
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
-  
   // --- Rate Limiting ---
   const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
   const rateLimitResult = await checkRateLimit(ip, 'attendance')
