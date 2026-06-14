@@ -2514,158 +2514,73 @@ const LATE_JOIN_GRACE_DAY = 28;
       }
     }
 
-    return { day, feeOverride };
+return { day, feeOverride };
   }
 
-  function getStudentPaymentStatus(
+function getStudentPaymentStatus(
     s,
     monthOverride = null,
     yearOverride = null,
   ) {
-    if (!s) return "Due";
+    // Only process active students
+    const st = getStudentStatus(s);
+    if (st !== "active") return "Not Enrolled";
 
-    // Time-Machine Context (Use override if provided, otherwise default to global)
-    const targetMonth =
-      monthOverride !== null ? monthOverride : window.reportMonth;
-    const targetYear = yearOverride !== null ? yearOverride : window.reportYear;
-    const isCurrentMonth =
-      targetMonth === new Date().getUTCMonth() &&
-      targetYear === new Date().getUTCFullYear();
-    const targetMonthEnd = new Date(
-      Date.UTC(targetYear, targetMonth + 1, 0, 23, 59, 59),
-    );
-    const baselineDate = new Date(Date.UTC(2026, 3, 1, 0, 0, 0)); // April 1st, 2026 baseline (UTC)
-    const _anchor = getBillingAnchor(s, baselineDate);
-    const targetMonthStr = String(targetMonth + 1).padStart(2, "0");
-    const targetMonthKey = `${targetYear}-${targetMonthStr}`;
-    const anchorMonthStr = String(_anchor.month + 1).padStart(2, "0");
-    const anchorMonthKey = `${_anchor.year}-${anchorMonthStr}`;
+    const targetMonth = monthOverride !== null ? monthOverride : today.getUTCMonth();
+    const targetYear = yearOverride !== null ? yearOverride : today.getUTCFullYear();
+    const isCurrentMonth = targetMonth === today.getUTCMonth() && targetYear === today.getUTCFullYear();
+
+    // Check late-join grace day
+    const enrollDateStr = getStudentDate(s);
+    const enrollDate = enrollDateStr ? new Date(enrollDateStr) : null;
+    const billingAnchor = getBillingAnchor(s);
+    
+    // If target month is before the billing anchor month, not yet enrolled for billing
+    const monthsSinceAnchor = (targetYear - billingAnchor.year) * 12 + (targetMonth - billingAnchor.month);
+    if (monthsSinceAnchor < 0) return "Pending";
 
     // TRUST THE DATABASE FOR CURRENT MONTH (v4 billing engine)
     if (isCurrentMonth && s.payment_status) {
       return s.payment_status;
     }
 
-    // 0. Cumulative Audit (All-Time Payment Count)
-    const s_id_key = String(s.id || "")
-      .trim()
-      .toLowerCase();
+    // Check actual payments for this student in target month
+    const s_id_key = String(s.id || "").trim().toLowerCase();
 
-    let paidMonths = new Set();
-    let hasPaymentThisMonth = false;
+    for (const p of (allPayments || [])) {
+      if (p.status !== "paid") continue;
+      const psid = String(p.student_id || "").trim().toLowerCase();
+      if (psid !== s_id_key) continue;
 
-    (allPayments || []).forEach((p) => {
-      const psid = String(p.student_id || "")
-        .trim()
-        .toLowerCase();
-      if (psid === s_id_key && p.status === "paid") {
-        const pDate = new Date(p.payment_date || p.created_at);
-        const pMonthKey = p.applied_month || `${pDate.getUTCFullYear()}-${String(pDate.getUTCMonth() + 1).padStart(2, '0')}`;
-        
-        // Only count payments that occurred in or before the target month and are at or after the billing anchor month
-        if (pDate <= targetMonthEnd && pMonthKey >= anchorMonthKey) {
-          paidMonths.add(pMonthKey);
-        }
-        if (pMonthKey === targetMonthKey) {
-          hasPaymentThisMonth = true;
-        }
-      }
-    });
-
-    const totalPaidInvoices = paidMonths.size;
-
-    // Did they explicitly pay for this month? (Overrides inactive/archived states)
-    if (hasPaymentThisMonth) return "Paid";
-
-    // 1. Enrollment Check
-    const enrollStatus = getStudentStatus(s);
-    if (
-      enrollStatus === "pending" ||
-      enrollStatus === "waitlist" ||
-      enrollStatus === "upcoming" ||
-      enrollStatus === "inactive" ||
-      enrollStatus === "archived"
-    ) {
-      return "Not Enrolled";
-    }
-    const enrollDateStr = getStudentDate(s);
-    const enrollDate = enrollDateStr ? new Date(enrollDateStr) : null;
-    if (!enrollDate || enrollDate > targetMonthEnd) return "Not Enrolled";
-
-    const monthsRequired =
-      (targetYear - _anchor.year) * 12 + (targetMonth - _anchor.month) + 1;
-    // Target period precedes the first billed month (the free grace month) →
-    // nothing is due yet.
-    if (monthsRequired <= 0) return "Pending";
-
-    // 3. Status Determination Logic:
-
-    // MANUAL OVERRIDE CHECK: If the admin has explicitly set a payment status in the database, 
-    // and we are looking at the current month, we should respect it. 
-    // This allows the admin to dynamically change the status to Due/Pending/Paid.
-    if (isCurrentMonth && s.payment_status && ['Pending', 'Due', 'Overdue'].includes(s.payment_status)) {
-       return s.payment_status;
-    }
-
-    // A. PAID AUDIT: Cumulative overpayments or pre-payments
-    if (totalPaidInvoices >= monthsRequired) return "Paid";
-
-    // C. DATE-BASED TRANSITION (Current Month): Transition automatically based on student-specific due date
-    if (isCurrentMonth) {
-      // Trust the DB status for the current month if it's there as a fallback
-      if (s.payment_status && ['Due', 'Pending', 'Overdue'].includes(s.payment_status)) {
-          return s.payment_status;
-      }
+      const pDate = new Date(p.payment_date || p.created_at);
       
-      // If the student has unpaid dues from previous months (arrears/overdue), they are immediately 'Overdue'
-      if (totalPaidInvoices < monthsRequired - 1) {
-        return "Overdue";
+      // Payment is for target month if applied_month matches OR payment date is in target month
+      const pMonthKey = p.applied_month || `${pDate.getUTCFullYear()}-${String(pDate.getUTCMonth() + 1).padStart(2, '0')}`;
+      const targetMonthKey = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}`;
+      
+      if (pMonthKey === targetMonthKey) {
+        return "Paid";
       }
-
-      const coach = allCoaches.find((c) => String(c.id) === String(s.coach_id));
-      const coachName = coach ? coach.name || "" : "";
-      const dueCfg = getStudentDueConfig(s, coachName, targetMonth, targetYear);
-
-      const currentDate = new Date();
-      const dueDateObj = new Date(
-        targetYear,
-        targetMonth,
-        dueCfg.day,
-        23,
-        59,
-        59,
-      );
-
-      // We omit isFirstMonth || here because dueDateObj is correctly set to their enrollment date for their first month.
-      // They will automatically transition from 'Pending' to 'Due' precisely on their join date.
-      if (currentDate < dueDateObj) return "Pending";
-      const diffTime = currentDate - dueDateObj;
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-      return diffDays > 5 ? "Overdue" : "Due";
+      // Also check if payment was received in target month calendar
+      if (pDate.getUTCMonth() === targetMonth && pDate.getUTCFullYear() === targetYear) {
+        return "Paid";
+      }
     }
 
-    // C2. FUTURE PERIODS: If target month is in the future
-    const now = new Date();
-    const currentUTCMonth = now.getUTCMonth();
-    const currentUTCFullYear = now.getUTCFullYear();
-    const isFuturePeriod =
-      targetYear > currentUTCFullYear ||
-      (targetYear === currentUTCFullYear && targetMonth > currentUTCMonth);
-    if (isFuturePeriod) {
-      const currentMonthsRequired =
-        (currentUTCFullYear - _anchor.year) * 12 +
-        (currentUTCMonth - _anchor.month) +
-        1;
-      if (totalPaidInvoices < currentMonthsRequired) {
-        return "Overdue";
-      }
-      return "Pending";
+    // Not paid for target month
+    if (isCurrentMonth) {
+      // Current month: check due date for Pending vs Due
+      const dueDateVal = s.due_date ? parseInt(s.due_date) : 5;
+      const dueDay = typeof dueDateVal === 'number' && dueDateVal >= 1 && dueDateVal <= 31 ? dueDateVal : 5;
+      const dueDateObj = new Date(targetYear, targetMonth, dueDay, 23, 59, 59);
+      const now = new Date();
+
+      if (now < dueDateObj) return "Pending";
+      return "Due"; // After due date, but not overdue (no historical arrears)
     }
 
-    // D. ARREARS (Past Months): If missing payments and in the past, status is 'Overdue'
-    if (totalPaidInvoices < monthsRequired) return "Overdue";
-
-    return "Due";
+    // Past months without payment
+    return "Overdue";
   }
 
   // ── COUNTRY PHONE VALIDATION ──
@@ -6065,10 +5980,17 @@ const LATE_JOIN_GRACE_DAY = 28;
     return calculateSlotRevenue(year, month);
   }
 
-  function calculateSlotRevenue(year, month) {
+function calculateSlotRevenue(year, month) {
     if (!allPayments) return 0;
+    // Pre-compute: only count payments from active students
+    const activeStudents = allStudents ? allStudents.filter(s => getStudentStatus(s) === "active") : [];
     return allPayments.reduce((sum, p) => {
       if (p.status !== "paid") return sum;
+      
+      const sid = String(p.student_id || "").toLowerCase();
+      // Only count if student is currently active
+      const isActive = activeStudents.some((x) => String(x.id).toLowerCase() === sid);
+      if (!isActive) return sum;
       
       const pDate = new Date(p.payment_date || p.created_at);
       if (
@@ -6077,8 +5999,7 @@ const LATE_JOIN_GRACE_DAY = 28;
       ) {
         let amt = parseFloat(p.amount);
         if (isNaN(amt) || amt === 0) {
-          const sid = String(p.student_id || "").toLowerCase();
-          const s = allStudents.find((x) => String(x.id).toLowerCase() === sid);
+          const s = activeStudents.find((x) => String(x.id).toLowerCase() === sid);
           amt = s ? getStudentMonthlyFee(s) : 0;
         }
         return sum + amt;
@@ -6140,68 +6061,56 @@ const LATE_JOIN_GRACE_DAY = 28;
       pendingEl.style.color = "var(--gold2)";
     }
 
-    // --- Time-Machine Financial Calculation ---
+// --- Time-Machine Financial Calculation ---
     const targetMonth = window.reportMonth;
     const targetYear = window.reportYear;
-    const targetMonthEnd = new Date(
-      Date.UTC(targetYear, targetMonth + 1, 0, 23, 59, 59),
-    );
 
-    // 1. Target Dataset Preparation — cumulative paid months (deduplicated)
-    const s_id_map = {};
-    const seenMonthsAudit = new Set();
-    (allPayments || []).forEach((p) => {
-      if (p.status === "paid") {
-        const sid = String(p.student_id || "")
-          .trim()
-          .toLowerCase();
-        if (!sid) return;
-        const s = allStudents.find((x) => String(x.id).toLowerCase() === sid);
-        if (!s) return;
-
-        // applied_month format: "2026-6" (1-indexed) for June
-        // Convert to 0-indexed for comparison with targetMonth
-        let pMon = targetMonth; // default to current
-        let pYr = targetYear;
-        if (p.applied_month) {
-          const parts = p.applied_month.split("-");
-          pYr = parseInt(parts[0]);
-          pMon = parseInt(parts[1]) - 1; // Convert 1-indexed to 0-indexed
-        } else {
-          const pDate = new Date(p.payment_date || p.created_at);
-          pYr = pDate.getUTCFullYear();
-          pMon = pDate.getUTCMonth();
-        }
-
-        // Only count payments for months up to (and including) target month
-        const isBeforeOrAtTarget = pYr < targetYear ||
-          (pYr === targetYear && pMon <= targetMonth);
-
-        if (isBeforeOrAtTarget) {
-          const auditKey = `${pYr}-${pMon}_${sid}`;
-          if (seenMonthsAudit.has(auditKey)) return;
-          seenMonthsAudit.add(auditKey);
-          if (!s_id_map[sid]) s_id_map[sid] = 0;
-          s_id_map[sid]++;
-        }
-      }
+    // 1. Filter: Only active students who have started billing (considering late-join grace)
+    const targetStudents = (allStudents || []).filter((s) => {
+      if (getStudentStatus(s) !== "active") return false;
+      // Check if billing has started for this target month
+      const billingAnchor = getBillingAnchor(s);
+      const monthsSinceAnchor = (targetYear - billingAnchor.year) * 12 + (targetMonth - billingAnchor.month);
+      return monthsSinceAnchor >= 0;
     });
 
-    const targetStudents = (allStudents || []).filter((s) => {
-      const sStatus = getStudentStatus(s);
-      if (
-        sStatus === "archived" ||
-        sStatus === "pending" ||
-        sStatus === "waitlist" ||
-        sStatus === "upcoming" ||
-        sStatus === "inactive"
-      )
-        return false;
+    // 2. Collected Revenue: Sum of UNIQUE payments in target month from active students only
+    // Use only targetStudents (not allStudents) for time-machine accuracy
+    const activeStudentIds = new Set(targetStudents.map(s => String(s.id).toLowerCase()));
+    const seenPaymentMonths = new Set();
+    const paidRevenue = (allPayments || []).reduce((sum, p) => {
+      if (p.status !== "paid") return sum;
+      const sid = String(p.student_id || "").toLowerCase();
+      // Only count payments from students in our target set
+      if (!activeStudentIds.has(sid)) return sum;
+      
+      // Deduplicate: 1 payment per student per month
+      const pDate = new Date(p.payment_date || p.created_at);
+      const monthKey = `${sid}_${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`;
+      if (seenPaymentMonths.has(monthKey)) return sum;
+      seenPaymentMonths.add(monthKey);
+      
+      if (pDate.getUTCMonth() === targetMonth && pDate.getUTCFullYear() === targetYear) {
+        const amt = parseFloat(p.amount);
+        return sum + (isNaN(amt) ? getStudentMonthlyFee(targetStudents.find(x => String(x.id).toLowerCase() === sid)) : amt);
+      }
+      return sum;
+    }, 0);
 
-      const enrollDateStr = getStudentDate(s);
-      const baseline = new Date(Date.UTC(2026, 3, 1, 0, 0, 0)); // April 1st Baseline (UTC)
-      const enrollDate = enrollDateStr ? new Date(enrollDateStr) : baseline;
-      return enrollDate <= targetMonthEnd;
+    // 3. Pending: Active students without payment in target month
+    let totalArrears = 0;
+    let currMonthPending = 0;
+    let totalPotential = 0;
+
+    targetStudents.forEach((s) => {
+      const fee = getStudentMonthlyFee(s) || 0;
+      const status = getStudentPaymentStatus(s, targetMonth, targetYear);
+      totalPotential += fee;
+
+      // Count current month pending only (simple model: no historical arrears shown)
+      if (status !== "Paid") {
+        currMonthPending += fee;
+      }
     });
 
     // Update target-based summary stats
@@ -6214,72 +6123,22 @@ const LATE_JOIN_GRACE_DAY = 28;
           )
         : 0;
 
-    // Collected Revenue (cycle-based): each fee is attributed to the billing
-    // cycle it covers, counting forward from the student's billing anchor — so an
-    // advance payment (e.g. paid in May for the June cycle) is counted in June,
-    // the month it pays FOR, rather than the calendar month the cash arrived.
-    const paidRevenue = revenueFor(targetYear, targetMonth);
-
-    let totalArrears = 0;
-    let currMonthPending = 0;
-    let totalPotential = 0;
-
-    targetStudents.forEach((s) => {
-      const fee = getStudentMonthlyFee(s) || 0;
-
-      const status = getStudentPaymentStatus(s, targetMonth, targetYear);
-
-      const enrollDateStr = getStudentDate(s);
-      const baseline = new Date(Date.UTC(2026, 3, 1));
-      const enrollDate = enrollDateStr ? new Date(enrollDateStr) : baseline;
-      const effectiveEnroll = (function () {
-        var _a =
-          window.getBillingAnchor && window.getBillingAnchor(s, baseline);
-        return _a
-          ? new Date(Date.UTC(_a.year, _a.month, 1))
-          : enrollDate < baseline
-            ? baseline
-            : enrollDate;
-      })();
-      const monthsRequired =
-        (targetYear - effectiveEnroll.getUTCFullYear()) * 12 +
-        (targetMonth - effectiveEnroll.getUTCMonth()) +
-        1;
-
-      // Only count students whose billing has STARTED by this month (respects the
-      // late-join grace anchor), so Projected = Collected + Outstanding stays
-      // consistent — a grace-month student isn't yet "expected" revenue.
-      if (monthsRequired >= 1) totalPotential += fee;
-
-      const sid = String(s.id).toLowerCase();
-      const totalCredits = s_id_map[sid] || 0;
-
-const totalMonthsUnpaid = Math.max(0, monthsRequired - totalCredits);
-      if (totalMonthsUnpaid > 0) {
-        const isPaidThisMonth = status === "Paid";
-        // Historical arrears = unpaid months strictly BEFORE the current month
-        // current month unpaid amount goes to currMonthPending, not arrears
-        // If paid this month, no historical arrears (current month is covered)
-        // If not paid this month, historical = totalMonthsUnpaid - 1 (excluding current)
-        const histMonths = isPaidThisMonth ? 0 : Math.max(0, totalMonthsUnpaid - 1);
-
-        if (histMonths > 0) {
-          totalArrears += fee * histMonths;
-        }
-        if (!isPaidThisMonth) {
-          currMonthPending += fee;
-        }
-      }
-    });
-
-    const totalOutstanding = totalArrears + currMonthPending;
+const totalOutstanding = totalArrears + currMonthPending;
 
     // --- Growth Calculation (MoM Slot-Based) ---
     const prevMonthDate = new Date(Date.UTC(targetYear, targetMonth - 1, 1));
-    const prevRevenue = revenueFor(
-      prevMonthDate.getUTCFullYear(),
-      prevMonthDate.getUTCMonth(),
-    );
+    // Use same targetStudents set for prev month calculation (simpler, no historical arrears)
+    const prevRevenue = (allPayments || []).reduce((sum, p) => {
+      if (p.status !== "paid") return sum;
+      const sid = String(p.student_id || "").toLowerCase();
+      if (!activeStudentIds.has(sid)) return sum;
+      const pDate = new Date(p.payment_date || p.created_at);
+      if (pDate.getUTCMonth() === prevMonthDate.getUTCMonth() && pDate.getUTCFullYear() === prevMonthDate.getUTCFullYear()) {
+        const amt = parseFloat(p.amount);
+        return sum + (isNaN(amt) ? getStudentMonthlyFee(targetStudents.find(x => String(x.id).toLowerCase() === sid)) : amt);
+      }
+      return sum;
+    }, 0);
 
     const rawRate =
       totalPotential > 0 ? (paidRevenue / totalPotential) * 100 : 0;
@@ -7997,46 +7856,61 @@ $("e-batch-time").value = getStudentBatchTime(s);
           }
         }
 
-        // Only create a payment record if status genuinely CHANGED to Paid (was NOT Paid before)
+// Only create a payment record if status genuinely CHANGED to Paid (was NOT Paid before)
+        // SAFETY: Also check for existing payment in target month to prevent duplicates
         if (oldDynamicPayStatus !== "Paid" && newStatus === "Paid") {
-          try {
-            await apiCall("/api/payments", {
-              method: "POST",
-              body: JSON.stringify({
-                id:
-                  "pay_" +
-                  Date.now() +
-                  "_" +
-                  Math.random().toString(36).substr(2, 9), // Required Primary Key
-                student_id: id,
-                amount: parseFloat(newFee), // Ensure numeric
-                status: "paid",
-                payment_method: "Manual Override",
-                description: "Status updated to Paid via Profile",
-                transaction_id: "PRF-" + Math.floor(Math.random() * 1000000),
-                payment_date:
-                  window.reportMonth !== new Date().getUTCMonth() ||
-                  window.reportYear !== new Date().getUTCFullYear()
-                    ? new Date(
-                        Date.UTC(
-                          window.reportYear,
-                          window.reportMonth,
-                          1,
-                          12,
-                          0,
-                          0,
-                        ),
-                      ).toISOString()
-                    : new Date().toISOString(),
-              }),
-            });
-            sendPaymentReceiptNotification(id, newFee);
-          } catch (pe) {
-            console.warn("Payment logging failed during profile update:", pe);
-            toast(
-              "Warning: Payment record not created. Student status updated though.",
-              "warning",
-            );
+          // Check if payment already exists for this student in target month
+          const targetMonthKey = `${window.reportYear}-${String(window.reportMonth + 1).padStart(2, '0')}`;
+          const existingPayment = (allPayments || []).find(p => {
+            return p.status === "paid" && 
+              String(p.student_id).toLowerCase() === String(id).toLowerCase() &&
+              (p.applied_month === targetMonthKey || 
+               (new Date(p.payment_date || p.created_at).getUTCMonth() === window.reportMonth &&
+                new Date(p.payment_date || p.created_at).getUTCFullYear() === window.reportYear));
+          });
+          
+          if (existingPayment) {
+            toast("Payment already exists for this month. Skipping duplicate.", "info");
+          } else {
+            try {
+              await apiCall("/api/payments", {
+                method: "POST",
+                body: JSON.stringify({
+                  id:
+                    "pay_" +
+                    Date.now() +
+                    "_" +
+                    Math.random().toString(36).substr(2, 9), // Required Primary Key
+                  student_id: id,
+                  amount: parseFloat(newFee), // Ensure numeric
+                  status: "paid",
+                  payment_method: "Manual Override",
+                  description: "Status updated to Paid via Profile",
+                  transaction_id: "PRF-" + Math.floor(Math.random() * 1000000),
+                  payment_date:
+                    window.reportMonth !== new Date().getUTCMonth() ||
+                    window.reportYear !== new Date().getUTCFullYear()
+                      ? new Date(
+                          Date.UTC(
+                            window.reportYear,
+                            window.reportMonth,
+                            1,
+                            12,
+                            0,
+                            0,
+                          ),
+                        ).toISOString()
+                      : new Date().toISOString(),
+                }),
+              });
+              sendPaymentReceiptNotification(id, newFee);
+            } catch (pe) {
+              console.warn("Payment logging failed during profile update:", pe);
+              toast(
+                "Warning: Payment record not created. Student status updated though.",
+                "warning",
+              );
+            }
           }
         }
 
@@ -8808,7 +8682,7 @@ $("m-level").value = "Beginner";
           const err = await res.json().catch(() => ({}));
           toast("Update failed: " + (err.error || "Server error"), "error");
         }
-      } else {
+} else {
         res = await apiCall("/api/coaches", {
           method: "POST",
           body: JSON.stringify(data),
@@ -8826,1546 +8700,10 @@ $("m-level").value = "Beginner";
         }
       }
     } catch (e) {
-      console.error("Save coach error:", e);
-      toast("Technical error: " + e.message, "error");
+      console.error("saveCoach failed:", e);
+      toast("Failed to save coach", "error");
     }
   }
-
-  window.confirmDeleteCoach = function (id, name) {
-    $("delete-item-type").textContent = "Coach";
-    $("delete-item-name").textContent = name;
-    $("delete-item-id").value = id;
-    $("delete-type").value = "coach";
-    openModal("delete-confirm-modal");
-  };
-
-  async function deleteCoach(id) {
-    try {
-      const res = await apiCall(`/api/coaches?id=${id}`, { method: "DELETE" });
-      if (res.ok) {
-        toast("Coach deleted from academy", "success");
-        loadAllData(true);
-      }
-    } catch (e) {
-      toast("Delete failed", "error");
-    }
-  }
-
-  // ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═
-  // MASTER SCHEDULE MATRIX
-  // ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═
-
-  const COACH_COLORS = [
-    '#3b5998', '#27ae60', '#8e44ad', '#d35400',
-    '#2ecc71', '#f39c12', '#16a085', '#7f8c8d',
-    '#e74c3c', '#9b59b6', '#1abc9c', '#e67e22'
-  ];
-
-  window.openMasterSchedule = function () {
-    const container = $("master-schedule-container");
-    if (!container) return;
-
-    const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    const DAY_FULL  = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-
-    // Build coach → batch mapping
-    const coachMap = new Map();
-    (allCoaches || []).forEach((c, idx) => {
-      coachMap.set(String(c.id), {
-        coach: c,
-        name: getCoachName(c),
-        color: COACH_COLORS[idx % COACH_COLORS.length],
-        slug: getCoachName(c).toLowerCase().replace(/[^a-z]/g, '').slice(0, 8),
-        batches: []
-      });
-    });
-
-    // Assign batches to coaches
-    (allBatches || []).filter(b => b.status === 'active').forEach(b => {
-      const entry = coachMap.get(String(b.coach_id));
-      if (entry) {
-        entry.batches.push(b);
-      }
-    });
-
-    // Also map students from allStudents to coaches if no batches exist
-    // Build schedule from student batch_time and batch_type
-    const coachStudentMap = new Map();
-    (allStudents || []).filter(s => s.status === 'active').forEach(s => {
-      const cid = String(s.coach_id);
-      if (!coachStudentMap.has(cid)) coachStudentMap.set(cid, []);
-      coachStudentMap.get(cid).push(s);
-    });
-
-    // Parse days from batch "days" field (e.g., "Mon, Wed, Fri" or "Saturday, Sunday")
-    function parseDays(daysStr) {
-      if (!daysStr) return [];
-      const lower = daysStr.toLowerCase();
-      const result = [];
-      DAY_FULL.forEach((full, i) => {
-        const abbr = DAY_NAMES[i].toLowerCase();
-        if (lower.includes(full) || lower.includes(abbr)) {
-          result.push(i);
-        }
-      });
-      // Also check for "weekend" / "weekday"
-      if (lower.includes("weekend")) {
-        if (!result.includes(5)) result.push(5);
-        if (!result.includes(6)) result.push(6);
-      }
-      return result;
-    }
-
-    // Build the table rows
-    let rowsHtml = '';
-
-    coachMap.forEach((entry) => {
-      const { name, color, batches, coach } = entry;
-      const coachLevel = coach.specialization || coach.level || 'General';
-      const students = coachStudentMap.get(String(coach.id)) || [];
-
-      // Build day cells
-      const dayCells = new Array(7).fill(null).map(() => []);
-
-      if (batches.length > 0) {
-        // Use batch data
-        batches.forEach((b, bIdx) => {
-          const batchDays = parseDays(b.days);
-          const studentNames = (b.student_ids || []).map(sid => {
-            const st = allStudents.find(s => String(s.id) === String(sid));
-            return st ? getStudentName(st).split(' ')[0] : '';
-          }).filter(Boolean);
-
-          batchDays.forEach(dayIdx => {
-            dayCells[dayIdx].push({
-              batchName: b.name || `Batch ${bIdx + 1}`,
-              timeSlot: b.time_slot || '',
-              students: studentNames.join(', ') || 'No students',
-              color
-            });
-          });
-        });
-      } else if (students.length > 0) {
-        // Fallback: derive schedule from student batch_time/batch_type
-        const grouped = {};
-        students.forEach(s => {
-          const time = s.batch_time || '7:00 PM';
-          const type = s.batch_type || 'Evening';
-          const key = `${type}|${time}`;
-          if (!grouped[key]) grouped[key] = { students: [], time, type };
-          grouped[key].students.push(getStudentName(s).split(' ')[0]);
-        });
-
-        Object.values(grouped).forEach((g, gIdx) => {
-          // Infer days from batch_type
-          let days = [];
-          const t = g.type.toLowerCase();
-          if (t.includes('weekend') || t.includes('sat')) days = [5, 6];
-          else if (t.includes('morning')) days = [1, 3]; // Tue, Thu
-          else if (t.includes('evening')) days = [2, 4]; // Wed, Fri
-          else days = [2, 4]; // default
-
-          days.forEach(d => {
-            dayCells[d].push({
-              batchName: `Batch ${gIdx + 1}`,
-              timeSlot: g.time,
-              students: g.students.join(', '),
-              color
-            });
-          });
-        });
-      }
-
-      // Render cells
-      const cellsHtml = dayCells.map(blocks => {
-        if (blocks.length === 0) {
-          return `<td style="padding:4px;vertical-align:middle;text-align:center;background:#1a1e2e;border-radius:3px;height:56px;color:#2c3242;font-size:11px;">—</td>`;
-        }
-        const blocksHtml = blocks.map(bl => `
-          <div style="display:block;padding:3px 4px;margin:2px 0;border-radius:3px;background:${bl.color};color:#fff;font-weight:600;font-size:7pt;line-height:1.15;">
-            ${escapeHtml(bl.batchName)}
-            <span style="display:block;font-size:6.2pt;opacity:0.85;margin-top:1px;font-weight:normal;">${escapeHtml(bl.timeSlot)}</span>
-            <span style="display:block;font-size:6.2pt;font-style:italic;opacity:0.95;font-weight:normal;margin-top:1px;border-top:1px solid rgba(255,255,255,0.15);padding-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(bl.students)}</span>
-          </div>
-        `).join('');
-        return `<td style="padding:3px;vertical-align:middle;text-align:center;background:#1a1e2e;border-radius:3px;height:auto;">${blocksHtml}</td>`;
-      }).join('');
-
-      rowsHtml += `
-        <tr>
-          <td style="font-weight:bold;font-size:8pt;text-align:center;padding:4px;line-height:1.25;background:#1a1e2e;border-radius:3px;border-left:4px solid ${color};">
-            ${escapeHtml(name)}<br>
-            <span style="font-size:6.5pt;font-weight:normal;color:#8a90a6;">${escapeHtml(coachLevel)}</span>
-          </td>
-          ${cellsHtml}
-        </tr>
-      `;
-    });
-
-    // Build full table
-    container.innerHTML = `
-      <style>
-        #ms-matrix { width:100%; border-collapse:separate; border-spacing:3px; table-layout:fixed; }
-        #ms-matrix th {
-          background-color:#1c2030; color:#a4b0cb; font-weight:600;
-          padding:6px; text-align:center; text-transform:uppercase;
-          letter-spacing:0.5px; border-radius:3px; font-size:8pt;
-        }
-        #ms-matrix th.coach-hdr { width:11%; }
-      </style>
-      <table id="ms-matrix">
-        <thead>
-          <tr>
-            <th class="coach-hdr">Coach</th>
-            ${DAY_NAMES.map(d => `<th>${d}</th>`).join('')}
-          </tr>
-        </thead>
-        <tbody>
-          ${rowsHtml || '<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--ivory-dim);">No coaches or batches configured yet. Create batches in the Batch Manager first.</td></tr>'}
-        </tbody>
-      </table>
-    `;
-
-    openModal("master-schedule-modal");
-  };
-
-  function renderEvents() {
-    const gridEl = $("ev-grid");
-    const loadingEl = $("ev-loading");
-    if (!gridEl) return;
-
-    if (loadingEl) loadingEl.style.display = "none";
-
-    // Filter out archived/deleted events for parents, show all for admin
-    const visibleEvents = eventsData.filter((e) => {
-      if (role === "admin" || role === "master") return true;
-      return e.status !== "archived" && e.archived !== true;
-    });
-
-    if (!visibleEvents || visibleEvents.length === 0) {
-      gridEl.style.display = "grid";
-      gridEl.innerHTML =
-        '<div class="empty-state" style="grid-column:1/-1"><span class="empty-icon">📅</span><p>No events scheduled</p></div>';
-      return;
-    }
-
-    const isAdmin = role === "admin" || role === "master";
-
-    gridEl.style.display = "grid";
-    gridEl.innerHTML = visibleEvents
-      .map((e) => {
-        const maxSpots = e.max_participants || 50;
-        const regCount =
-          e.registrations_count || e.registered_students?.length || 0;
-        const spotsLeft = maxSpots - regCount;
-        const isArchived = e.archived === true || e.status === "archived";
-        const evDate = new Date(e.date || e.event_date);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        let statusTag = "";
-        if (isArchived) {
-          statusTag =
-            '<span class="badge" style="background:var(--ivory3);color:var(--obsidian)">[ARCHIVED]</span>';
-        } else if (evDate < today) {
-          statusTag =
-            '<span class="badge" style="background:var(--slate);color:#fff">[COMPLETED]</span>';
-        } else if (spotsLeft <= 0) {
-          statusTag =
-            '<span class="badge" style="background:var(--danger);color:#fff">[FULL]</span>';
-        } else {
-          statusTag =
-            '<span class="badge" style="background:var(--success);color:#fff">[UPCOMING]</span>';
-        }
-
-        return `<div class="ev-card" ${isArchived ? 'style="opacity:0.7"' : ""}>
-         ${e.img_url ? `<img src="${e.img_url}" class="ev-poster" alt="Event Poster">` : ""}
-         <div class="ev-header">
-           <span class="ev-type-badge">${escapeHtml(getEventType(e))}</span>
-           <span class="ev-date-badge">${e.date ? new Date(e.date).toLocaleDateString() : ""}</span>
-           ${statusTag}
-         </div>
-         <div class="ev-body">
-           <div class="ev-title">${escapeHtml(e.title)}</div>
-           <div class="ev-meta">
-             <span class="ev-meta-item ev-time">${escapeHtml(getEventTime(e))}</span>
-             <span class="ev-meta-item ev-loc">${escapeHtml(e.location || "TBD")}</span>
-             ${e.prize_pool ? `<span class="ev-meta-item ev-prize">${escapeHtml(e.prize_pool)}</span>` : ""}
-           </div>
-           ${e.map_url ? `<a href="${e.map_url}" target="_blank" class="ev-map-link">📍 View on Map</a>` : ""}
-           ${e.description ? `<div class="ev-desc">${escapeHtml(e.description)}</div>` : ""}
-         </div>
-         <div class="ev-progress-wrap">
-           <div class="ev-progress-label">
-             <span>Registrations</span>
-             <span>${regCount}/${maxSpots}</span>
-           </div>
-           <div class="ev-progress-track">
-             <div class="ev-progress-bar" style="width:${(regCount / maxSpots) * 100}%"></div>
-           </div>
-         </div>
-         <div class="ev-footer">
-           <div class="ev-spots"><strong>${spotsLeft}</strong> spots left</div>
-           ${role === "parent" ? (e.registered_students?.includes(currentStudent?.id) ? '<span class="badge badge-success">✓ Registered</span>' : `<button class="btn-register" onclick="registerForEvent('${e.id}')">Register</button>`) : ""}
-           ${
-             isAdmin
-               ? `
-             <div style="display:flex;gap:8px;margin-left:auto">
-               <button class="btn btn-outline-grey btn-sm" onclick="editEvent('${e.id}')">Edit</button>
-               <button class="btn btn-gold btn-sm" onclick="openEventManagement('${e.id}')">Manage</button>
-               <button class="btn btn-outline btn-sm" onclick="archiveEvent('${e.id}')">${isArchived ? "Unarchive" : "Archive"}</button>
-               <button class="btn btn-danger btn-sm" onclick="confirmDeleteEvent('${e.id}', '${escapeHtml(e.title).replace(/'/g, "\\'")}')">Delete</button>
-             </div>
-           `
-               : ""
-           }
-         </div>
-       </div>`;
-      })
-      .join("");
-  }
-
-  function openEventModal() {
-    $("ev-id").value = "";
-    $("ev-title").value = "";
-    $("ev-date").value = "";
-    $("ev-time").value = "10:00";
-    $("ev-type").value = "Tournament";
-    $("ev-max").value = "50";
-    $("ev-prize").value = "";
-    $("ev-fee").value = "0";
-    $("ev-loc").value = "";
-    $("ev-desc").value = "";
-    $("ev-img-url").value = "";
-    $("ev-map-url").value = "";
-    $("ev-img-preview").style.display = "none";
-    $("ev-img-file").value = "";
-    $("ev-modal-title").textContent = "Create Event";
-    openModal("ev-modal");
-  }
-
-  function editEvent(id) {
-    const e = eventsData.find((x) => String(x.id) === String(id));
-    if (!e) {
-      toast("Event not found", "error");
-      return;
-    }
-    $("ev-id").value = e.id;
-    $("ev-title").value = e.title || "";
-    $("ev-date").value = e.date || "";
-    $("ev-time").value = e.time || "10:00";
-    $("ev-type").value = e.type || "Tournament";
-    $("ev-max").value = e.max_participants || 0;
-    $("ev-prize").value = e.prize_pool || "";
-    $("ev-fee").value = e.fee || 0;
-    $("ev-loc").value = e.location || "";
-    $("ev-desc").value = e.description || "";
-    $("ev-img-url").value = e.img_url || "";
-    $("ev-map-url").value = e.map_url || "";
-    if (e.img_url) {
-      $("ev-img-preview").src = e.img_url;
-      $("ev-img-preview").style.display = "block";
-    } else {
-      $("ev-img-preview").style.display = "none";
-    }
-    $("ev-modal-title").textContent = "Edit Event";
-    openModal("ev-modal");
-  }
-
-  function archiveEvent(id) {
-    const e = eventsData.find((x) => String(x.id) === String(id));
-    if (!e) {
-      toast("Event not found", "error");
-      return;
-    }
-    const newStatus =
-      e.archived || e.status === "archived" ? "active" : "archived";
-    logAudit("events", id, "archived", e.archived, newStatus);
-    apiCall(`/api/events?id=${id}`, {
-      method: "PUT",
-      body: JSON.stringify({
-        archived: newStatus === "archived",
-        status: newStatus,
-      }),
-    })
-      .then(() => {
-        toast(
-          `Event ${newStatus === "archived" ? "archived" : "unarchived"}!`,
-          "success",
-        );
-        loadAllData(true);
-      })
-      .catch(() => toast("Failed to update", "error"));
-  }
-
-  function deleteEvent(id, title) {
-    $("delete-item-type").textContent = "Event";
-    $("delete-item-name").textContent = title;
-    $("delete-item-id").value = id;
-    $("delete-type").value = "event";
-    openModal("delete-confirm-modal");
-  }
-  const confirmDeleteEvent = deleteEvent;
-
-  function generateClientId() {
-    return typeof crypto.randomUUID === "function"
-      ? crypto.randomUUID()
-      : "c" + Date.now() + Math.random().toString(36).substr(2, 9);
-  }
-
-  async function saveEvent() {
-    const id = $("ev-id").value;
-    const fileInput = $("ev-img-file");
-    const urlInput = $("ev-img-url");
-    let img_url = urlInput ? urlInput.value : "";
-
-    if (fileInput && fileInput.files && fileInput.files[0]) {
-      toast("Uploading event poster...", "info");
-      const uploaded = await uploadToImgbb(fileInput.files[0]);
-      if (uploaded) img_url = uploaded;
-    }
-
-    const data = {
-      id: id || generateClientId(),
-      title: $("ev-title").value,
-      event_date: $("ev-date").value,
-      event_time: $("ev-time").value,
-      type: $("ev-type").value,
-      max_participants: parseInt($("ev-max").value) || 0,
-      prize_pool: $("ev-prize").value,
-      fee: parseFloat($("ev-fee").value) || 0,
-      location: $("ev-loc").value,
-      map_url: $("ev-map-url").value,
-      description: $("ev-desc").value,
-      img_url: img_url,
-    };
-
-    if (!data.title) {
-      toast("Event title is required", "error");
-      return;
-    }
-    if (!data.event_date) {
-      toast("Event date is required", "error");
-      return;
-    }
-    if (data.event_date && new Date(data.event_date) < new Date()) {
-      toast("Event date cannot be in the past", "error");
-      return;
-    }
-
-    try {
-      let res;
-      if (id) {
-        const existing = eventsData.find((x) => String(x.id) === String(id));
-        logAudit("events", id, "update", existing, data);
-        res = await apiCall(`/api/events?id=${id}`, {
-          method: "PUT",
-          body: JSON.stringify(data),
-        });
-      } else {
-        res = await apiCall("/api/events", {
-          method: "POST",
-          body: JSON.stringify(data),
-        });
-      }
-
-      if (res.ok) {
-        toast(id ? "Event updated!" : "Event created!", "success");
-        closeModals();
-        loadAllData(true);
-      } else {
-        const err = await res.json().catch(() => ({}));
-        console.error("Event save error:", err);
-        toast(
-          "Failed to save event: " + (err.error || "Server error"),
-          "error",
-        );
-      }
-    } catch (e) {
-      console.error("Save event error:", e);
-      toast("Technical error: " + e.message, "error");
-    }
-  }
-
-  // ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═
-  // BATCH MANAGEMENT
-  // ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═
-
-  window.renderBatchesGrid = function () {
-    const grid = $("batches-grid");
-    if (!grid) return;
-
-    if (!allBatches || allBatches.length === 0) {
-      grid.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1; padding: 40px; text-align: center; color: var(--ivory-dim);">No batches found.</div>';
-      return;
-    }
-
-    const searchTerm = ($("batch-search-input") ? $("batch-search-input").value.toLowerCase() : "");
-    const statusFilter = ($("batch-status-filter") ? $("batch-status-filter").value : "active");
-
-    const filteredBatches = allBatches.filter((b) => {
-      const matchName = b.name.toLowerCase().includes(searchTerm);
-      const matchStatus = statusFilter === "all" || b.status === statusFilter;
-      return matchName && matchStatus;
-    });
-
-    if (filteredBatches.length === 0) {
-      grid.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1; padding: 40px; text-align: center; color: var(--ivory-dim);">No batches match your filters.</div>';
-      return;
-    }
-
-    grid.innerHTML = filteredBatches
-      .map((b) => {
-        const coach = allCoaches.find((c) => String(c.id) === String(b.coach_id));
-        const coachName = coach ? getCoachName(coach) : '<span class="text-danger">Unassigned</span>';
-        const stCount = Array.isArray(b.student_ids) ? b.student_ids.length : 0;
-        
-        const badgeClass = b.status === "active" ? "badge-success" : b.status === "inactive" ? "badge-danger" : "badge-outline";
-
-        return `
-        <div class="card" style="padding: 24px; position: relative; display: flex; flex-direction: column; gap: 16px;">
-          ${b.chessable_url ? `<a href="${escapeHtml(b.chessable_url)}" target="_blank" title="Open Chessable Classroom" style="position: absolute; top: 20px; right: 20px; background: rgba(218,163,62,0.1); border-radius: 50%; padding: 8px; color: var(--gold); text-decoration: none; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; transition: all 0.2s; border: 1px solid rgba(218,163,62,0.2);"><span class="ico" style="font-size: 18px; margin: 0;">🎓</span></a>` : ''}
-          
-          <div>
-            <h3 style="color: var(--gold); font-size: 18px; margin: 0 0 6px 0; max-width: 85%;">${escapeHtml(b.name)}</h3>
-            <span class="badge ${badgeClass}">${capitalizeFirst(b.status || "active")}</span>
-          </div>
-          
-          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 14px;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span class="ico" style="opacity: 0.6">👨‍🏫</span>
-              <span style="color: var(--ivory)">${coachName}</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span class="ico" style="opacity: 0.6">🕒</span>
-              <span style="color: var(--ivory-dim)">${escapeHtml(b.days || "N/A")} • ${escapeHtml(b.time_slot || "N/A")}</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span class="ico" style="opacity: 0.6">📊</span>
-              <span style="color: var(--ivory-dim)">Level: <strong style="color:var(--ivory)">${escapeHtml(b.level || "Any")}</strong></span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span class="ico" style="opacity: 0.6">👥</span>
-              <span style="color: var(--ivory-dim)">${stCount} Students enrolled</span>
-            </div>
-          </div>
-          
-          <div style="display: flex; gap: 8px; margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border);">
-            <button class="btn btn-outline" style="flex: 1;" onclick="openCreateBatchModal('${b.id}')">Edit</button>
-            <button class="btn btn-outline text-danger" style="flex: 1;" onclick="deleteBatch('${b.id}')">Delete</button>
-          </div>
-        </div>
-      `;
-      })
-      .join("");
-  };
-
-  window.openCreateBatchModal = function (id = null) {
-    $("eb-id").value = id || "";
-
-    // Populate Coach Dropdown
-    const coachSel = $("eb-coach");
-    coachSel.innerHTML =
-      '<option value="">-- Select Coach --</option>' +
-      allCoaches
-        .map(
-          (c) =>
-            `<option value="${c.id}">${escapeHtml(getCoachName(c))}</option>`,
-        )
-        .join("");
-
-    // Populate Students (Checkboxes)
-    const activeStudents = allStudents
-      .filter((s) => s.status !== "archived")
-      .sort((a, b) => getStudentName(a).localeCompare(getStudentName(b)));
-
-    let existingStudentIds = [];
-
-    if (id) {
-      const b = allBatches.find((x) => String(x.id) === String(id));
-      if (b) {
-        $("eb-name").value = b.name || "";
-        $("eb-coach").value = b.coach_id || "";
-        $("eb-level").value = b.level || "Beginner";
-        $("eb-status").value = b.status || "active";
-        $("eb-days").value = b.days || "";
-        $("eb-time").value = b.time_slot || "";
-        $("eb-notes").value = b.notes || "";
-        if ($("eb-chessable")) $("eb-chessable").value = b.chessable_url || "";
-        $("eb-modal-title").textContent = "Edit Batch";
-        existingStudentIds = Array.isArray(b.student_ids)
-          ? b.student_ids.map(String)
-          : [];
-      }
-    } else {
-      $("eb-name").value = "";
-      $("eb-coach").value = "";
-      $("eb-level").value = "Beginner";
-      $("eb-status").value = "active";
-      $("eb-days").value = "";
-      $("eb-time").value = "";
-      $("eb-notes").value = "";
-      if ($("eb-chessable")) $("eb-chessable").value = "";
-      $("eb-modal-title").textContent = "Create New Batch";
-    }
-
-    const stList = $("eb-student-list");
-    stList.innerHTML = activeStudents
-      .map((s) => {
-        const isChecked = existingStudentIds.includes(String(s.id))
-          ? "checked"
-          : "";
-        return `
-        <label style="display:flex;align-items:center;gap:8px;padding:6px;border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer">
-          <input type="checkbox" class="batch-st-cb" value="${s.id}" ${isChecked} onchange="updateBatchStudentCount()">
-          <span>${escapeHtml(getStudentName(s))} <span style="opacity:0.5;font-size:10px">(${s.level || "Beginner"})</span></span>
-        </label>
-      `;
-      })
-      .join("");
-
-    window.updateBatchStudentCount();
-    openModal("edit-batch-modal");
-  };
-
-  window.updateBatchStudentCount = function () {
-    const count = document.querySelectorAll(".batch-st-cb:checked").length;
-    $("eb-student-count").textContent = `${count} selected`;
-  };
-
-  window.saveBatch = async function () {
-    const id = $("eb-id").value;
-    const name = $("eb-name").value.trim();
-    if (!name) return toast("Batch Name is required.", "error");
-    if (!$("eb-coach").value) return toast("Please assign a Coach.", "error");
-
-    const selectedStudents = Array.from(
-      document.querySelectorAll(".batch-st-cb:checked"),
-    ).map((cb) => cb.value);
-
-    const payload = {
-      name,
-      coach_id: $("eb-coach").value,
-      level: $("eb-level").value,
-      status: $("eb-status").value,
-      days: $("eb-days").value,
-      time_slot: $("eb-time").value,
-      notes: $("eb-notes").value,
-      chessable_url: $("eb-chessable") ? $("eb-chessable").value : "",
-      student_ids: selectedStudents,
-    };
-
-    try {
-      const btn = document.querySelector("#edit-batch-modal .btn-gold");
-      const origText = btn.textContent;
-      btn.textContent = "Saving...";
-      btn.disabled = true;
-
-      const res = await apiCall(id ? `/api/batches?id=${id}` : "/api/batches", {
-        method: id ? "PUT" : "POST",
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        toast("Batch saved successfully", "success");
-        closeModal("edit-batch-modal");
-        await loadAllData(true);
-        if (window.renderBatchesGrid) window.renderBatchesGrid();
-      } else {
-        const err = await res.json().catch(() => ({}));
-        toast(
-          "Failed to save batch: " + (err.error || "Unknown Error"),
-          "error",
-        );
-      }
-      btn.textContent = origText;
-      btn.disabled = false;
-    } catch (e) {
-      toast("Network error: " + e.message, "error");
-      document.querySelector("#edit-batch-modal .btn-gold").disabled = false;
-    }
-  };
-
-  window.deleteBatch = async function (id) {
-    if (
-      !confirm(
-        "Are you sure you want to delete this batch? This will NOT delete the students inside it.",
-      )
-    )
-      return;
-    try {
-      const res = await apiCall(`/api/batches?id=${id}`, { method: "DELETE" });
-      if (res.ok) {
-        toast("Batch deleted", "success");
-        await loadAllData(true);
-        if (window.renderBatchesGrid) window.renderBatchesGrid();
-      } else {
-        toast("Error deleting batch", "error");
-      }
-    } catch (e) {
-      toast("Network Error", "error");
-    }
-  };
-
-  function renderFame() {
-    const gridEl = $("fame-grid");
-    const contentEl = $("fame-content");
-    const loadingEl = $("fame-loading");
-    if (!gridEl || !contentEl) return;
-
-    if (loadingEl) loadingEl.style.display = "none";
-    contentEl.style.display = "grid";
-
-    // 1. Render Leaderboard
-    const leaderboardEl = $("fame-leaderboard");
-    if (leaderboardEl) {
-      // Filter out guests/pending, sort by rating descending, get top 10
-      const topPlayers = [...allStudents]
-        .filter((s) => s.status === "active" && s.rating > 800)
-        .sort((a, b) => (b.rating || 0) - (a.rating || 0))
-        .slice(0, 10);
-
-      if (topPlayers.length === 0) {
-        leaderboardEl.innerHTML =
-          '<div style="text-align:center; padding: 20px; color:var(--slate);">No rated players yet</div>';
-      } else {
-        leaderboardEl.innerHTML = topPlayers
-          .map((s, index) => {
-            let rankColor = "var(--ivory-dim)";
-            let rankBadge = `${index + 1}`;
-            if (index === 0) {
-              rankColor = "#d4af37";
-              rankBadge = "🥇";
-            } // Gold
-            else if (index === 1) {
-              rankColor = "#c0c0c0";
-              rankBadge = "🥈";
-            } // Silver
-            else if (index === 2) {
-              rankColor = "#cd7f32";
-              rankBadge = "🥉";
-            } // Bronze
-
-            return `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding: 12px 10px; border-bottom: 1px solid var(--border);">
-              <div style="display:flex; align-items:center; gap: 12px;">
-                <span style="font-size:18px; font-weight:bold; color:${rankColor}; width:24px; text-align:center;">${rankBadge}</span>
-                <div>
-                  <div style="color:var(--ivory); font-weight:600; font-size:14px;">${escapeHtml(getStudentName(s))}</div>
-                  <div style="color:var(--slate); font-size:11px;">Level: ${escapeHtml(s.level || "Beginner")}</div>
-                </div>
-              </div>
-              <div style="background:var(--bg3); padding:4px 8px; border-radius:6px; font-weight:700; color:var(--gold); border: 1px solid var(--border);">
-                ${s.rating || 0}
-              </div>
-            </div>
-          `;
-          })
-          .join("");
-      }
-    }
-
-    // 2. Render Achievements Gallery
-    if (!achievementsData || achievementsData.length === 0) {
-      gridEl.innerHTML =
-        '<div class="empty-state" style="grid-column:1/-1"><span class="empty-icon">🏆</span><p>No achievements recorded yet</p></div>';
-      return;
-    }
-
-    const isAdmin = role === "admin" || role === "master";
-    gridEl.innerHTML = achievementsData
-      .sort(
-        (a, b) =>
-          new Date(b.date_achieved || b.created_at) -
-          new Date(a.date_achieved || a.created_at),
-      )
-      .map((a) => {
-        const student = allStudents.find(
-          (s) => String(s.id) === String(a.student_id),
-        );
-        const studentName = student
-          ? getStudentName(student)
-          : "Unknown Student";
-
-        const bgImg = a.img_url
-          ? a.img_url
-          : "https://i.ibb.co/R2W7kZY/placeholder-trophy.jpg";
-
-        return `
-         <div class="ach-card" style="position:relative; height: 360px; border-radius: 16px; overflow: hidden; box-shadow: 0 15px 35px rgba(0,0,0,0.6); transition: transform 0.3s ease; border: 1px solid rgba(212, 175, 55, 0.3);">
-           <!-- Background Image -->
-           <div style="position:absolute; inset:0; background: url('${bgImg}') center/cover no-repeat; transition: transform 0.5s ease;" class="ach-poster-bg"></div>
-           
-           <!-- Gradient Overlay -->
-           <div style="position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(15, 23, 42, 0.2) 0%, rgba(15, 23, 42, 0.8) 60%, rgba(15, 23, 42, 0.95) 100%); display:flex; flex-direction:column; justify-content:flex-end; padding: 24px;">
-             
-             <!-- Content -->
-             <div style="text-transform: uppercase; font-size: 10px; letter-spacing: 2.5px; color: var(--gold); margin-bottom: 8px; font-weight: 800; display:flex; align-items:center; gap:6px;">
-               <span style="font-size:14px;">🏆</span> Achievement
-             </div>
-             
-             <div style="font-family: var(--font-head), 'Playfair Display', serif; font-size: 26px; font-weight: 800; color: #fff; line-height: 1.1; margin-bottom: 12px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">
-               ${escapeHtml(a.title)}
-             </div>
-             
-             <div style="display:flex; justify-content:space-between; align-items:flex-end; border-top: 1px solid rgba(212, 175, 55, 0.3); padding-top: 14px; margin-top: 6px;">
-                <div>
-                  <div style="font-size:11px; color:var(--ivory-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:2px;">Champion</div>
-                  <div style="font-size:18px; font-weight:bold; color: var(--gold);">${escapeHtml(studentName)}</div>
-                </div>
-                <div style="text-align:right;">
-                  <div style="font-size:10px; color:var(--ivory-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:2px;">Date</div>
-                  <div style="font-size:14px; color: #fff; font-weight: 600;">${a.date_achieved ? new Date(a.date_achieved).toLocaleDateString() : ""}</div>
-                </div>
-             </div>
-           </div>
-
-           <!-- Action Buttons overlay (top right) -->
-           ${
-             isAdmin
-               ? `
-             <div style="position: absolute; top: 12px; right: 12px; display:flex; gap: 8px; background: rgba(15, 23, 42, 0.75); padding: 6px 8px; border-radius: 10px; backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); z-index:10;">
-               <button onclick="editAchievement('${a.id}')" style="background:transparent; border:none; color:var(--gold); cursor:pointer; font-size:14px; padding:0 4px;" title="Edit">✏️</button>
-               <div style="width:1px; background:rgba(255,255,255,0.2); height:16px; align-self:center;"></div>
-               <button onclick="confirmDeleteAchievement('${a.id}', '${escapeHtml(a.title).replace(/'/g, "\\'")}')" style="background:transparent; border:none; color:var(--danger); cursor:pointer; font-size:14px; padding:0 4px;" title="Delete">🗑️</button>
-             </div>
-           `
-               : ""
-           }
-         </div>
-       `;
-      })
-      .join("");
-  }
-
-  function editAchievement(id) {
-    const a = achievementsData.find((x) => String(x.id) === String(id));
-    if (!a) {
-      toast("Achievement not found", "error");
-      return;
-    }
-    $("award-sid").value = a.id;
-    $("award-student").value = a.student_id || "";
-    $("award-title").value = a.title || "";
-    $("award-img-url").value = a.img_url || "";
-    openModal("award-modal");
-  }
-
-  function confirmDeleteAchievement(id, title) {
-    $("delete-item-type").textContent = "Achievement";
-    $("delete-item-name").textContent = title;
-    $("delete-item-id").value = id;
-    $("delete-type").value = "achievement";
-    openModal("delete-confirm-modal");
-  }
-
-  async function deleteAchievement(id) {
-    try {
-      const res = await apiCall(`/api/achievements?id=${id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        toast("Achievement deleted!", "success");
-        loadAllData(true);
-      }
-    } catch (e) {
-      toast("Delete failed", "error");
-    }
-  }
-
-  function openAwardModal() {
-    $("award-sid").value = "";
-    $("award-student").value = "";
-    $("award-title").value = "";
-    $("award-img-url").value = "";
-    openModal("award-modal");
-  }
-
-  function onAwardStudentChange() {
-    const sid = $("award-student").value;
-    const s = allStudents.find((x) => String(x.id) === String(sid));
-    if (s) {
-      console.log("Student selected for award:", s.full_name);
-    }
-  }
-
-  async function uploadToImgbb(file) {
-    if (!file) return null;
-    try {
-      // 1. Convert file to Base64 for the proxy
-      const base64 = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result.split(",")[1]);
-        reader.readAsDataURL(file);
-      });
-
-      // 2. Call our secure proxy
-      const response = await apiCall("/api/upload", {
-        method: "POST",
-        body: JSON.stringify({ image: base64 }),
-      });
-      const data = await response.json();
-      if (data.success) return data.data.url;
-
-      console.error("Imgbb API Error Data:", data);
-      throw new Error(data.error?.message || data.error || "Upload failed");
-    } catch (e) {
-      console.error("Imgbb upload error:", e);
-      return null;
-    }
-  }
-
-  async function saveAward() {
-    const id = $("award-sid").value;
-    const fileInput = $("award-img-file");
-    const urlInput = $("award-img-url");
-    let img_url = urlInput ? urlInput.value : "";
-
-    if (fileInput && fileInput.files && fileInput.files[0]) {
-      toast("Uploading image...", "info");
-      const uploadedUrl = await uploadToImgbb(fileInput.files[0]);
-      if (uploadedUrl) img_url = uploadedUrl;
-      else {
-        toast("Upload failed", "error");
-        return;
-      }
-    }
-
-    const data = {
-      student_id: $("award-student").value,
-      title: $("award-title").value,
-      img_url: img_url,
-      date_achieved: new Date().toISOString().split("T")[0],
-    };
-
-    if (!data.student_id || !data.title) {
-      toast("Please fill all fields", "error");
-      return;
-    }
-
-    try {
-      let res;
-      if (id && id.length > 20) {
-        // Existing UUID
-        res = await apiCall(`/api/achievements?id=${id}`, {
-          method: "PUT",
-          body: JSON.stringify(data),
-        });
-      } else {
-        res = await apiCall("/api/achievements", {
-          method: "POST",
-          body: JSON.stringify(data),
-        });
-      }
-      if (res.ok) {
-        toast("Achievement saved!", "success");
-        closeModals();
-        loadAllData(true);
-      }
-    } catch (e) {
-      toast("Error saving achievement", "error");
-    }
-  }
-
-  function sendPaymentReceiptNotification(studentId, amount) {
-    const s = allStudents.find((x) => String(x.id) === String(studentId));
-    if (!s) return;
-    const coach = allCoaches.find((c) => String(c.id) === String(s.coach_id));
-    const coachName = coach ? getCoachName(coach) : "N/A";
-    const receiptUrl = `${window.location.origin}/receipt.html?id=${studentId}&name=${encodeURIComponent(getStudentName(s))}&amount=${amount}&date=${new Date().toISOString()}&level=${encodeURIComponent(getStudentLevel(s))}&coach=${encodeURIComponent(coachName)}`;
-
-    const ordinalText = (n) => {
-      const s = ["th", "st", "nd", "rd"];
-      const v = n % 100;
-      return n + (s[(v - 20) % 10] || s[v] || s[0]);
-    };
-    const now = new Date();
-    const formattedDate = `${ordinalText(now.getDate())} ${now.toLocaleString("en-IN", { month: "long" })} ${now.getFullYear()}`;
-    const billingMonthName = new Date(
-      window.reportYear,
-      window.reportMonth,
-    ).toLocaleString("en-IN", { month: "long" });
-    const billingCycleStr = `${billingMonthName} ${window.reportYear}`;
-
-    const message = `${EMOJI.check} PAYMENT RECEIVED \u{2014} RECEIPT CONFIRMED ${EMOJI.receipt}${EMOJI.sparkle}
-
-Hello Sir/Madam ${EMOJI.wave},
-
-We are happy to inform you that we have successfully received and recorded your chess class fee payment for ${cleanText(getStudentName(s))}! ${EMOJI.card}${EMOJI.party}
-
-${EMOJI.receipt} PAYMENT DETAILS:
-${EMOJI.cash} Amount Paid: \u{20B9}${parseFloat(amount).toLocaleString()}
-${EMOJI.spiral_calendar} Billing Cycle: ${billingCycleStr}
-${EMOJI.tear_calendar} Confirmed On: ${formattedDate}
-
-${EMOJI.link} Download Your Official Receipt:
-${receiptUrl}
-
-Thank you for your prompt payment and continued support of Chesskidoo Academy! ${EMOJI.grad}${EMOJI.trophy}
-
-Best regards,
-– Chesskidoo Academy ${EMOJI.knight}`;
-
-    const studentPhone = getStudentPhone(s);
-    const parsed = parseStoredPhone(studentPhone);
-    if (parsed.localNumber) {
-      const inferredCountry =
-        parsed.countryCode && parsed.countryCode !== "IN"
-          ? parsed.countryCode
-          : s.country_code || "IN";
-      const country = getCountryByCode(inferredCountry);
-      const dialCode = country ? country.dial.replace(/\D/g, "") : "91";
-      openWhatsApp(dialCode, parsed.localNumber, message);
-    }
-  }
-  window.sendPaymentReceiptNotification = sendPaymentReceiptNotification;
-
-  window.togglePaymentStatus = async function (id, name, fee) {
-    const s = allStudents.find((x) => String(x.id) === String(id));
-    if (!s) return;
-
-    const currentStatus = getStudentPaymentStatus(s);
-    const isCurrentlyPaid = currentStatus === "Paid";
-    const action = isCurrentlyPaid ? "unpaid" : "paid";
-    const confirmMsg = isCurrentlyPaid
-      ? `Mark ${name} as Unpaid? This will remove this month's payment record and revert status to Pending.`
-      : `Mark ${name} as Paid? This will create a payment record for this month.`;
-
-    if (!confirm(confirmMsg)) return;
-
-    const targetMonth = window.reportMonth;
-    const targetYear = window.reportYear;
-    const originalPayments = [...window.allPayments];
-
-    // --- Optimistic Local Updates ---
-    let mockPayment = null;
-    let removedPayments = [];
-    if (isCurrentlyPaid) {
-      removedPayments = window.allPayments.filter(
-        (p) =>
-          String(p.student_id) === String(id) &&
-          p.status === "paid" &&
-          new Date(p.payment_date || p.created_at).getUTCMonth() ===
-            targetMonth &&
-          new Date(p.payment_date || p.created_at).getUTCFullYear() ===
-            targetYear,
-      );
-      window.allPayments = window.allPayments.filter(
-        (p) => !removedPayments.includes(p),
-      );
-    } else {
-      mockPayment = {
-        id: "pay_toggle_temp_" + Date.now(),
-        student_id: id,
-        amount: parseFloat(fee),
-        status: "paid",
-        payment_method: "Manual Toggle",
-        description: "Status toggled to Paid via Dashboard",
-        transaction_id: "TGL-" + Math.floor(Math.random() * 1000000),
-        payment_date:
-          window.reportMonth !== new Date().getUTCMonth() ||
-          window.reportYear !== new Date().getUTCFullYear()
-            ? new Date(
-                Date.UTC(window.reportYear, window.reportMonth, 1, 12, 0, 0),
-              ).toISOString()
-            : new Date().toISOString(),
-      };
-      window.allPayments.unshift(mockPayment);
-    }
-
-    if (dataCache) dataCache.payments = window.allPayments;
-
-    const pMap = {};
-    const seenMonths = new Set();
-    window.allPayments.forEach((p) => {
-      if (p.status === "paid") {
-        const sid = String(p.student_id || "")
-          .trim()
-          .toLowerCase();
-        if (!sid) return;
-        const pDate = new Date(p.payment_date || p.created_at);
-        const mKey = `${sid}_${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`;
-        if (seenMonths.has(mKey)) return;
-        seenMonths.add(mKey);
-        pMap[sid] = (pMap[sid] || 0) + 1;
-      }
-    });
-    window.totalPaymentsMap = pMap;
-
-    const active = document.querySelector(".page.active")?.id;
-    if (active === "page-dash") renderDash();
-    else if (active === "page-stud") renderStudents();
-    else if (active === "page-bills") renderBills();
-
-    // --- Background Sync with Database ---
-    try {
-      if (isCurrentlyPaid) {
-        for (const p of removedPayments) {
-          if (!p.id.startsWith("pay_toggle_temp_")) {
-            await apiCall(`${API_BASE}/payments?id=${p.id}`, {
-              method: "DELETE",
-            });
-          }
-        }
-
-        await apiCall(`${API_BASE}/students?id=${id}`, {
-          method: "PUT",
-          body: JSON.stringify({ payment_status: "Pending" }),
-        });
-
-        toast(
-          `Marked Unpaid. ${removedPayments.length} payment record(s) removed.`,
-          "info",
-        );
-      } else {
-        const paymentData = {
-          id:
-            "pay_toggle_" +
-            Date.now() +
-            "_" +
-            Math.random().toString(36).substr(2, 9),
-          student_id: id,
-          amount: parseFloat(fee),
-          status: "paid",
-          payment_method: "Manual Toggle",
-          description: "Status toggled to Paid via Dashboard",
-          transaction_id: "TGL-" + Math.floor(Math.random() * 1000000),
-          payment_date: mockPayment.payment_date,
-        };
-
-        const res = await apiCall(`${API_BASE}/payments`, {
-          method: "POST",
-          body: JSON.stringify(paymentData),
-        });
-
-        if (res.ok) {
-          await apiCall(`${API_BASE}/students?id=${id}`, {
-            method: "PUT",
-            body: JSON.stringify({ payment_status: "Paid" }),
-          });
-          toast("Marked as Paid with transaction record", "success");
-          if (window.sendPaymentReceiptNotification) {
-            sendPaymentReceiptNotification(id, fee);
-          }
-        } else {
-          throw new Error("POST failed");
-        }
-      }
-
-      loadAllData(true);
-    } catch (e) {
-      console.error("Toggle status sync failed, rolling back:", e);
-      toast("Sync failed, rolling back UI...", "error");
-      window.allPayments = originalPayments;
-      if (dataCache) dataCache.payments = window.allPayments;
-
-      const rollMap = {};
-      const rollSeen = new Set();
-      window.allPayments.forEach((p) => {
-        if (p.status === "paid") {
-          const sid = String(p.student_id || "")
-            .trim()
-            .toLowerCase();
-          if (!sid) return;
-          const pDate = new Date(p.payment_date || p.created_at);
-          const mKey = `${sid}_${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`;
-          if (rollSeen.has(mKey)) return;
-          rollSeen.add(mKey);
-          rollMap[sid] = (rollMap[sid] || 0) + 1;
-        }
-      });
-      window.totalPaymentsMap = rollMap;
-
-      if (active === "page-dash") renderDash();
-      else if (active === "page-stud") renderStudents();
-      else if (active === "page-bills") renderBills();
-    }
-  };
-  async function markPaid(
-    id,
-    amount,
-    method = "Cash",
-    desc = "Monthly Tuition Fee",
-  ) {
-    try {
-      const s = allStudents.find((x) => String(x.id) === String(id));
-      const amt = amount || (s ? getStudentMonthlyFee(s) : 0);
-
-      // 1. Update Student Status & Roll Due Date
-      const updates = { payment_status: "Paid" };
-      // Due date is now automatically rolled over by the backend when the payment is created.
-
-      await apiCall(`${API_BASE}/students?id=${id}`, {
-        method: "PUT",
-        body: JSON.stringify(updates),
-      });
-
-      // 2. Create Transaction Record (Increments Credit Count)
-      await apiCall(`${API_BASE}/payments`, {
-        method: "POST",
-        body: JSON.stringify({
-          id:
-            "pay_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9), // Required Primary Key
-          student_id: id,
-          amount: parseFloat(amt), // Ensure numeric
-          status: "paid",
-          payment_method: method,
-          description: desc,
-          transaction_id: "MAN-" + Math.floor(Math.random() * 1000000),
-          payment_date:
-            window.reportMonth !== new Date().getUTCMonth() ||
-            window.reportYear !== new Date().getUTCFullYear()
-              ? new Date(
-                  Date.UTC(window.reportYear, window.reportMonth, 1, 12, 0, 0),
-                ).toISOString()
-              : new Date().toISOString(),
-        }),
-      });
-
-      toast("Payment logged and due date advanced!", "success");
-
-      // FIX #3: Invalidate payment cache before reload
-      window.totalPaymentsMap = null;
-
-      // SYNC: Force fresh data fetch and re-render dashboard
-      await loadAllData(true);
-      renderDash();
-      renderBills();
-
-      // 3. Auto-Notify Parent with Receipt Link
-      if (window.sendPaymentReceiptNotification) {
-        sendPaymentReceiptNotification(id, amt);
-      }
-    } catch (e) {
-      console.error("markPaid failed:", e);
-      toast("Failed to process payment", "error");
-    }
-  }
-
-  async function markUnpaid(id) {
-    if (
-      !confirm(
-        "Revert status to Due? This will NOT delete the transaction record. You must delete the payment from History to reduce credits.",
-      )
-    )
-      return;
-    try {
-      await apiCall(`${API_BASE}/students?id=${id}`, {
-        method: "PUT",
-        body: JSON.stringify({ payment_status: "Due" }),
-      });
-      toast("Status reverted to Due", "info");
-      await loadAllData(true);
-      renderDash();
-      renderBills();
-    } catch (e) {
-      console.error("markUnpaid failed:", e);
-      toast("Error reverting status", "error");
-    }
-  }
-  // ============================================
-  // FEATURE 1: INFORM PARENT (Pending/Due)
-  // ============================================
-  window.informParent = function (id, name, fee) {
-    const s = allStudents.find((x) => String(x.id) === String(id));
-    if (!s) return;
-
-    const targetMonth = window.reportMonth;
-    const targetYear = window.reportYear;
-    const enrollDateStr = getStudentDate(s);
-    const baseline = new Date(Date.UTC(2026, 3, 1));
-    const enrollDate = enrollDateStr ? new Date(enrollDateStr) : baseline;
-    const effectiveEnroll = (function () {
-      var _a = window.getBillingAnchor && window.getBillingAnchor(s, baseline);
-      return _a
-        ? new Date(Date.UTC(_a.year, _a.month, 1))
-        : enrollDate < baseline
-          ? baseline
-          : enrollDate;
-    })();
-    const monthsRequired =
-      (targetYear - effectiveEnroll.getUTCFullYear()) * 12 +
-      (targetMonth - effectiveEnroll.getUTCMonth()) +
-      1;
-
-    const sid = String(s.id).toLowerCase();
-    const paidMonthsSet = new Set();
-    (window.allPayments || []).forEach((p) => {
-      if (p.status === "paid" && String(p.student_id).toLowerCase() === sid) {
-        const pDate = new Date(p.payment_date || p.created_at);
-        const mKey = `${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`;
-        paidMonthsSet.add(mKey);
-      }
-    });
-    const totalDue = Math.max(
-      0,
-      monthsRequired * fee - fee * paidMonthsSet.size,
-    );
-
-    // Populate modal
-    $("inform-student-name").textContent = name;
-    $("inform-amount").textContent = formatStudentFee(s, totalDue);
-    $("inform-custom-msg").value = "";
-
-    // Store student ID in modal data attribute
-    const modal = $("inform-modal");
-    if (modal) modal.dataset.studentId = id;
-
-    openModal("inform-modal");
-  };
-
-  window.sendInform = async function () {
-    const modal = $("inform-modal");
-    const studentId = modal.dataset.studentId;
-    const s = allStudents.find((x) => String(x.id) === String(studentId));
-    if (!s) {
-      toast("Student not found", "error");
-      closeModals();
-      return;
-    }
-
-    const channel =
-      (document.querySelector('input[name="notify-channel"]:checked') || {})
-        .value || "whatsapp";
-    const customMsg = $("#inform-custom-msg")?.value || "";
-
-    const studentName = getStudentName(s);
-    const fee = getStudentMonthlyFee(s);
-    const phone = getStudentPhone(s).replace(/\D/g, "");
-    const parentName = s.parent_name || "Parent";
-    const parentEmail = s.email || "";
-
-    // Calculate exact pending amount
-    const targetMonth = window.reportMonth;
-    const targetYear = window.reportYear;
-    const enrollDateStr = getStudentDate(s);
-    const baseline = new Date(Date.UTC(2026, 3, 1));
-    const enrollDate = enrollDateStr ? new Date(enrollDateStr) : baseline;
-    const effectiveEnroll = (function () {
-      var _a = window.getBillingAnchor && window.getBillingAnchor(s, baseline);
-      return _a
-        ? new Date(Date.UTC(_a.year, _a.month, 1))
-        : enrollDate < baseline
-          ? baseline
-          : enrollDate;
-    })();
-    const monthsRequired =
-      (targetYear - effectiveEnroll.getUTCFullYear()) * 12 +
-      (targetMonth - effectiveEnroll.getUTCMonth()) +
-      1;
-
-    const sid = String(s.id).toLowerCase();
-    const paidMonthsSet = new Set();
-    (window.allPayments || []).forEach((p) => {
-      if (p.status === "paid" && String(p.student_id).toLowerCase() === sid) {
-        const pDate = new Date(p.payment_date || p.created_at);
-        const mKey = `${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`;
-        paidMonthsSet.add(mKey);
-      }
-    });
-    let totalDue = Math.max(0, monthsRequired * fee - fee * paidMonthsSet.size);
-
-    const coach = allCoaches.find((c) => String(c.id) === String(s.coach_id));
-    const coachName = coach ? coach.name || "" : "";
-    const dueCfg = getStudentDueConfig(s, coachName, targetMonth, targetYear);
-    if (dueCfg.feeOverride !== null) {
-      totalDue = dueCfg.feeOverride;
-    }
-
-    const getOrdinal = (n) => {
-      const s = ["th", "st", "nd", "rd"];
-      const v = n % 100;
-      return n + (s[(v - 20) % 10] || s[v] || s[0]);
-    };
-    const monthName = new Date(targetYear, targetMonth).toLocaleString(
-      "en-IN",
-      { month: "long" },
-    );
-    const dueDateStr = `${getOrdinal(dueCfg.day)} ${monthName} ${targetYear}`;
-
-    const payStatus = getStudentPaymentStatus(s);
-    const isDueOrOverdue = payStatus === "Due" || payStatus === "Overdue";
-    if (totalDue <= 0) {
-      totalDue = fee || 1500;
-    }
-
-    // Build notification content
-    let message = customMsg ? `${customMsg}\n\n` : "";
-    message += buildFeeMessage(
-      s,
-      studentName,
-      totalDue,
-      dueDateStr,
-      isDueOrOverdue,
-    );
-
-    try {
-      let sent = false;
-
-      if (channel === "whatsapp") {
-        const parsed = parseStoredPhone(phone);
-        const inferredCountry =
-          parsed.countryCode && parsed.countryCode !== "IN"
-            ? parsed.countryCode
-            : s.country_code || "IN";
-        const country = getCountryByCode(inferredCountry);
-        const dialCode = country ? country.dial.replace(/\D/g, "") : "91";
-        openWhatsApp(dialCode, parsed.localNumber, message);
-        sent = true;
-      } else if (channel === "sms") {
-        const parsed = parseStoredPhone(phone);
-        window.location.href = `sms:${parsed.localNumber}?body=${encodeURIComponent(message)}`;
-        sent = true;
-      } else if (channel === "email") {
-        if (!parentEmail) {
-          toast("No email address on file for this student", "error");
-          return;
-        }
-        const period = new Date(targetYear, targetMonth).toLocaleDateString(
-          "en-IN",
-          { month: "long", year: "numeric" },
-        );
-        const subject = `Fee Reminder - ${studentName} (${period})`;
-        window.location.href = `mailto:${parentEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
-        sent = true;
-      } else if (channel === "push") {
-        await apiCall(`${API_BASE}/messages`, {
-          method: "POST",
-          body: JSON.stringify({
-            sender_type: "system",
-            receiver_type: "parent",
-            subject: `Fee Reminder - ${studentName}`,
-            message: message,
-            priority: "high",
-          }),
-        });
-        sent = true;
-      }
-
-      // Log audit regardless of channel
-      await apiCall(`${API_BASE}/audit`, {
-        method: "POST",
-        body: JSON.stringify({
-          table_name: "students",
-          record_id: studentId,
-          action: "INFORM_PARENT",
-          new_value: {
-            channel,
-            amount: totalDue,
-            student: studentName,
-            method: "frontend",
-          },
-        }),
-      });
-
-      if (sent) {
-        toast(`Notification sent via ${channel}`, "success");
-        closeModals();
-      }
-    } catch (e) {
-      console.error("Notify failed:", e);
-      toast("Failed to send notification", "error");
-    }
-  };
-
-  // ============================================
-  // FEATURE 2: TOGGLE PAID/UNPAID STATUS
-  // ============================================
-  window.togglePaymentStatus = async function (id, name, fee) {
-    const s = allStudents.find((x) => String(x.id) === String(id));
-    if (!s) return;
-
-    const currentStatus = getStudentPaymentStatus(s);
-    const isCurrentlyPaid = currentStatus === "Paid";
-    const action = isCurrentlyPaid ? "unpaid" : "paid";
-    const confirmMsg = isCurrentlyPaid
-      ? `Mark ${name} as Unpaid? This will remove this month's payment record and revert status to Pending.`
-      : `Mark ${name} as Paid? This will create a payment record for this month.`;
-
-    if (!confirm(confirmMsg)) return;
-
-    try {
-      const targetMonth = window.reportMonth;
-      const targetYear = window.reportYear;
-
-      if (isCurrentlyPaid) {
-        // === MARK AS UNPAID ===
-        // Find current month payments
-        const monthPayments = (window.allPayments || []).filter(
-          (p) =>
-            String(p.student_id) === String(id) &&
-            p.status === "paid" &&
-            new Date(p.payment_date || p.created_at).getUTCMonth() ===
-              targetMonth &&
-            new Date(p.payment_date || p.created_at).getUTCFullYear() ===
-              targetYear,
-        );
-
-        // Delete each payment record
-        for (const p of monthPayments) {
-          await apiCall(`${API_BASE}/payments?id=${p.id}`, {
-            method: "DELETE",
-          });
-        }
-
-        // Update student to Pending (they paid previous months but not current)
-        await apiCall(`${API_BASE}/students?id=${id}`, {
-          method: "PUT",
-          body: JSON.stringify({ payment_status: "Pending" }),
-        });
-
-        toast(
-          `Marked Unpaid. ${monthPayments.length} payment record(s) removed.`,
-          "info",
-        );
-      } else {
-        // === MARK AS PAID ===
-        const paymentData = {
-          id:
-            "pay_toggle_" +
-            Date.now() +
-            "_" +
-            Math.random().toString(36).substr(2, 9),
-          student_id: id,
-          amount: parseFloat(fee),
-          status: "paid",
-          payment_method: "Manual Toggle",
-          description: "Status toggled to Paid via Dashboard",
-          transaction_id: "TGL-" + Math.floor(Math.random() * 1000000),
-          payment_date:
-            window.reportMonth !== new Date().getUTCMonth() ||
-            window.reportYear !== new Date().getUTCFullYear()
-              ? new Date(
-                  Date.UTC(window.reportYear, window.reportMonth, 1, 12, 0, 0),
-                ).toISOString()
-              : new Date().toISOString(),
-        };
-
-        const res = await apiCall(`${API_BASE}/payments`, {
-          method: "POST",
-          body: JSON.stringify(paymentData),
-        });
-
-        if (res.ok) {
-          await apiCall(`${API_BASE}/students?id=${id}`, {
-            method: "PUT",
-            body: JSON.stringify({ payment_status: "Paid" }),
-          });
-          toast("Marked as Paid with transaction record", "success");
-          sendPaymentReceiptNotification(id, fee);
-        }
-      }
-
-      // Invalidate cache and refresh
-      window.totalPaymentsMap = null;
-      await loadAllData(true);
-      renderDash();
-      renderBills();
-    } catch (e) {
-      console.error("Toggle status failed:", e);
-      toast("Error updating status", "error");
-    }
-  };
 
   window.viewPaymentHistory = async function (studentId) {
     const s = allStudents.find((x) => String(x.id) === String(studentId));
@@ -10715,11 +9053,17 @@ Best regards,
     const fBillSearch = $("f-bill-search")?.value.trim().toLowerCase() || "";
     const fBillCoach = $("f-bill-coach")?.value || "";
 
-    let filteredStudents = allStudents;
+let filteredStudents = allStudents;
     if (fBillStatus) {
-      filteredStudents = filteredStudents.filter(
-        (s) => statusCache.get(s.id) === fBillStatus,
-      );
+      filteredStudents = filteredStudents.filter((s) => {
+        const status = statusCache.get(s.id);
+        // Only include Pending/Due/Overdue for Active students
+        if (status === "Pending" || status === "Due" || status === "Overdue") {
+          const enrollStatus = getStudentStatus(s);
+          return enrollStatus === "active";
+        }
+        return status === fBillStatus;
+      });
     }
     if (fBillSearch) {
       filteredStudents = filteredStudents.filter((s) =>
@@ -10843,7 +9187,7 @@ Best regards,
       .forEach((cb) => (cb.checked = checked));
   };
 
-  async function bulkMarkPaid() {
+async function bulkMarkPaid() {
     const checked = document.querySelectorAll(".stud-check:checked");
     if (checked.length === 0) {
       toast("Please select students first", "warning");
@@ -10857,6 +9201,21 @@ Best regards,
       const studentId = cb.dataset.id;
       const s = allStudents.find((x) => String(x.id) === String(studentId));
       const amt = s ? getStudentMonthlyFee(s) : 5000;
+
+      // SAFETY: Check if payment already exists for this student in target month
+      const targetMonthKey = `${window.reportYear}-${String(window.reportMonth + 1).padStart(2, '0')}`;
+      const hasExistingPayment = (allPayments || []).some(p => {
+        return p.status === "paid" && 
+          String(p.student_id).toLowerCase() === String(studentId).toLowerCase() &&
+          (p.applied_month === targetMonthKey || 
+           (new Date(p.payment_date || p.created_at).getUTCMonth() === window.reportMonth &&
+            new Date(p.payment_date || p.created_at).getUTCFullYear() === window.reportYear));
+      });
+      
+      if (hasExistingPayment) {
+        toast(`Student ${getStudentName(s)} already paid this month. Skipping.`, "info");
+        continue;
+      }
 
       // Update student status and advance due date - Fix #26
       const updates = { payment_status: "Paid" };
@@ -11301,7 +9660,267 @@ Best regards,
         if (processingEl) processingEl.style.display = "none";
       }, 3000);
     }
+};
+
+  // ============================================
+  // FEATURE 2: TOGGLE PAID/UNPAID STATUS
+  // ============================================
+  window.togglePaymentStatus = async function (id, name, fee) {
+    const s = allStudents.find((x) => String(x.id) === String(id));
+    if (!s) return;
+
+    const currentStatus = getStudentPaymentStatus(s);
+    const isCurrentlyPaid = currentStatus === "Paid";
+
+    // SAFETY: Check if there's already a payment record for this month before allowing toggle
+    const targetMonthKey = `${window.reportYear}-${String(window.reportMonth + 1).padStart(2, '0')}`;
+    const hasExistingPayment = (window.allPayments || []).some(p => {
+      return p.status === "paid" && 
+        String(p.student_id).toLowerCase() === String(id).toLowerCase() &&
+        (p.applied_month === targetMonthKey || 
+         (new Date(p.payment_date || p.created_at).getUTCMonth() === window.reportMonth &&
+          new Date(p.payment_date || p.created_at).getUTCFullYear() === window.reportYear));
+    });
+    
+    // If not currently marked as Paid but has payment record, refresh data first
+    if (!isCurrentlyPaid && hasExistingPayment) {
+      toast("Payment record exists. Refreshing status...", "info");
+      await loadAllData(true);
+      return;
+    }
+    
+    const action = isCurrentlyPaid ? "unpaid" : "paid";
+    const confirmMsg = isCurrentlyPaid
+      ? `Mark ${name} as Unpaid? This will remove this month's payment record and revert status to Pending.`
+      : `Mark ${name} as Paid? This will create a payment record for this month.`;
+
+    if (!confirm(confirmMsg)) return;
+
+    const targetMonth = window.reportMonth;
+    const targetYear = window.reportYear;
+    const originalPayments = [...window.allPayments];
+
+    // --- Optimistic Local Updates ---
+    let mockPayment = null;
+    let removedPayments = [];
+    if (isCurrentlyPaid) {
+      removedPayments = window.allPayments.filter(
+        (p) =>
+          String(p.student_id) === String(id) &&
+          p.status === "paid" &&
+          new Date(p.payment_date || p.created_at).getUTCMonth() ===
+            targetMonth &&
+          new Date(p.payment_date || p.created_at).getUTCFullYear() ===
+            targetYear,
+      );
+      window.allPayments = window.allPayments.filter(
+        (p) => !removedPayments.includes(p),
+      );
+    } else {
+      mockPayment = {
+        id: "pay_toggle_temp_" + Date.now(),
+        student_id: id,
+        amount: parseFloat(fee),
+        status: "paid",
+        payment_method: "Manual Toggle",
+        description: "Status toggled to Paid via Dashboard",
+        transaction_id: "TGL-" + Math.floor(Math.random() * 1000000),
+        payment_date:
+          window.reportMonth !== new Date().getUTCMonth() ||
+          window.reportYear !== new Date().getUTCFullYear()
+            ? new Date(
+                Date.UTC(window.reportYear, window.reportMonth, 1, 12, 0, 0),
+              ).toISOString()
+            : new Date().toISOString(),
+      };
+      window.allPayments.unshift(mockPayment);
+    }
+
+    if (dataCache) dataCache.payments = window.allPayments;
+
+    const pMap = {};
+    const seenMonths = new Set();
+    window.allPayments.forEach((p) => {
+      if (p.status === "paid") {
+        const sid = String(p.student_id || "")
+          .trim()
+          .toLowerCase();
+        if (!sid) return;
+        const pDate = new Date(p.payment_date || p.created_at);
+        const mKey = `${sid}_${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`;
+        if (seenMonths.has(mKey)) return;
+        seenMonths.add(mKey);
+        pMap[sid] = (pMap[sid] || 0) + 1;
+      }
+    });
+    window.totalPaymentsMap = pMap;
+
+    const active = document.querySelector(".page.active")?.id;
+    if (active === "page-dash") renderDash();
+    else if (active === "page-stud") renderStudents();
+    else if (active === "page-bills") renderBills();
+
+    // --- Background Sync with Database ---
+    try {
+      if (isCurrentlyPaid) {
+        for (const p of removedPayments) {
+          if (!p.id.startsWith("pay_toggle_temp_")) {
+            await apiCall(`${API_BASE}/payments?id=${p.id}`, {
+              method: "DELETE",
+            });
+          }
+        }
+
+        await apiCall(`${API_BASE}/students?id=${id}`, {
+          method: "PUT",
+          body: JSON.stringify({ payment_status: "Pending" }),
+        });
+
+        toast(
+          `Marked Unpaid. ${removedPayments.length} payment record(s) removed.`,
+          "info",
+        );
+      } else {
+        const paymentData = {
+          id:
+            "pay_toggle_" +
+            Date.now() +
+            "_" +
+            Math.random().toString(36).substr(2, 9),
+          student_id: id,
+          amount: parseFloat(fee),
+          status: "paid",
+          payment_method: "Manual Toggle",
+          description: "Status toggled to Paid via Dashboard",
+          transaction_id: "TGL-" + Math.floor(Math.random() * 1000000),
+          payment_date: mockPayment.payment_date,
+        };
+
+        const res = await apiCall(`${API_BASE}/payments`, {
+          method: "POST",
+          body: JSON.stringify(paymentData),
+        });
+
+        if (res.ok) {
+          await apiCall(`${API_BASE}/students?id=${id}`, {
+            method: "PUT",
+            body: JSON.stringify({ payment_status: "Paid" }),
+          });
+          toast("Marked as Paid with transaction record", "success");
+          if (window.sendPaymentReceiptNotification) {
+            sendPaymentReceiptNotification(id, fee);
+          }
+        }
+      }
+
+      // Invalidate cache and refresh
+      window.totalPaymentsMap = null;
+      await loadAllData(true);
+      renderDash();
+      renderBills();
+    } catch (e) {
+      console.error("Toggle status sync failed, rolling back:", e);
+      toast("Sync failed, rolling back UI...", "error");
+      window.allPayments = originalPayments;
+      if (dataCache) dataCache.payments = window.allPayments;
+
+      const rollMap = {};
+      const rollSeen = new Set();
+      window.allPayments.forEach((p) => {
+        if (p.status === "paid") {
+          const sid = String(p.student_id || "")
+            .trim()
+            .toLowerCase();
+          if (!sid) return;
+          const pDate = new Date(p.payment_date || p.created_at);
+          const mKey = `${sid}_${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`;
+          if (rollSeen.has(mKey)) return;
+          rollSeen.add(mKey);
+          rollMap[sid] = (rollMap[sid] || 0) + 1;
+        }
+      });
+      window.totalPaymentsMap = rollMap;
+
+      if (active === "page-dash") renderDash();
+      else if (active === "page-stud") renderStudents();
+      else if (active === "page-bills") renderBills();
+    }
   };
+
+  // ============================================
+  // MARK PAID FUNCTION (with duplicate protection)
+  // ============================================
+  async function markPaid(
+    id,
+    amount,
+    method = "Cash",
+    desc = "Monthly Tuition Fee",
+  ) {
+    try {
+      const s = allStudents.find((x) => String(x.id) === String(id));
+      const amt = amount || (s ? getStudentMonthlyFee(s) : 0);
+
+      // SAFETY: Check if payment already exists for this student in target month
+      const targetMonthKey = `${window.reportYear}-${String(window.reportMonth + 1).padStart(2, '0')}`;
+      const existingPayment = (allPayments || []).find(p => {
+        return p.status === "paid" && 
+          String(p.student_id).toLowerCase() === String(id).toLowerCase() &&
+          (p.applied_month === targetMonthKey || 
+           (new Date(p.payment_date || p.created_at).getUTCMonth() === window.reportMonth &&
+            new Date(p.payment_date || p.created_at).getUTCFullYear() === window.reportYear));
+      });
+      
+      if (existingPayment) {
+        toast("Payment already exists for this month. Skipping duplicate.", "info");
+      } else {
+        // 1. Update Student Status & Roll Due Date
+        const updates = { payment_status: "Paid" };
+        await apiCall(`${API_BASE}/students?id=${id}`, {
+          method: "PUT",
+          body: JSON.stringify(updates),
+        });
+
+        // 2. Create Transaction Record (Increments Credit Count)
+        await apiCall(`${API_BASE}/payments`, {
+          method: "POST",
+          body: JSON.stringify({
+            id:
+              "pay_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9), // Required Primary Key
+            student_id: id,
+            amount: parseFloat(amt), // Ensure numeric
+            status: "paid",
+            payment_method: method,
+            description: desc,
+            transaction_id: "MAN-" + Math.floor(Math.random() * 1000000),
+            payment_date:
+              window.reportMonth !== new Date().getUTCMonth() ||
+              window.reportYear !== new Date().getUTCFullYear()
+                ? new Date(
+                    Date.UTC(window.reportYear, window.reportMonth, 1, 12, 0, 0),
+                  ).toISOString()
+                : new Date().toISOString(),
+          }),
+        });
+        toast("Payment logged and due date advanced!", "success");
+      }
+
+      // FIX #3: Invalidate payment cache before reload
+      window.totalPaymentsMap = null;
+
+      // SYNC: Force fresh data fetch and re-render dashboard
+      await loadAllData(true);
+      renderDash();
+      renderBills();
+
+      // 3. Auto-Notify Parent with Receipt Link
+      if (window.sendPaymentReceiptNotification) {
+        sendPaymentReceiptNotification(id, amt);
+      }
+    } catch (e) {
+      console.error("markPaid failed:", e);
+      toast("Failed to process payment", "error");
+    }
+  }
 
   // =========================================================================
   // Live Payment Security & Gateway Log Telemetry Stream (Vanilla Virtualizer)
@@ -11348,7 +9967,32 @@ Best regards,
     if (bufferLabel) {
       bufferLabel.textContent = `Buffer: ${window.gatewaySecurityLogs.length.toLocaleString()} items cached`;
     }
-  };
+};
+
+  // ============================================
+  // MARK UNPAID FUNCTION
+  // ============================================
+  async function markUnpaid(id) {
+    if (
+      !confirm(
+        "Revert status to Due? This will NOT delete the transaction record. You must delete the payment from History to reduce credits.",
+      )
+    )
+      return;
+    try {
+      await apiCall(`${API_BASE}/students?id=${id}`, {
+        method: "PUT",
+        body: JSON.stringify({ payment_status: "Due" }),
+      });
+      toast("Status reverted to Due", "info");
+      await loadAllData(true);
+      renderDash();
+      renderBills();
+    } catch (e) {
+      console.error("markUnpaid failed:", e);
+      toast("Error reverting status", "error");
+    }
+  }
 
   window.initGatewayMonitorVirtualizer = function () {
     const scrollContainer = document.getElementById(
@@ -13448,29 +12092,41 @@ Best regards,
         Date.UTC(targetYear, targetMonth + 1, 0, 23, 59, 59),
       );
 
-      const targetStudents = allStudents.filter((s) => {
+const targetStudents = allStudents.filter((s) => {
         const enrollStr = getStudentDate(s);
         const enrollDate = enrollStr
           ? new Date(enrollStr)
           : new Date(Date.UTC(2026, 3, 1));
         const sStatus = getStudentStatus(s);
-        const payStatus = getStudentPaymentStatus(s, targetMonth, targetYear);
+        // ONLY count active students who have started billing
+        if (sStatus !== "active") return false;
+        // Check if billing has started for this target month
+        const billingAnchor = getBillingAnchor(s);
+        const monthsSinceAnchor = (targetYear - billingAnchor.year) * 12 + (targetMonth - billingAnchor.month);
+        if (monthsSinceAnchor < 0) return false;
         if (enrollDate > targetMonthEnd) return false;
-        if (
-          ["archived", "pending", "waitlist", "upcoming", "inactive"].includes(
-            sStatus,
-          ) &&
-          payStatus === "Pending"
-        )
-          return false;
         return true;
       });
 
-      const collected = targetStudents
-        .filter(
-          (s) => getStudentPaymentStatus(s, targetMonth, targetYear) === "Paid",
-        )
-        .reduce((a, s) => a + getStudentMonthlyFee(s), 0);
+// Calculate collected revenue from actual payments (not theoretical fees)
+      const activeStudentIds = new Set(targetStudents.map(s => String(s.id).toLowerCase()));
+      const seenPaymentMonths = new Set();
+      const collected = (allPayments || []).reduce((sum, p) => {
+        if (p.status !== "paid") return sum;
+        const sid = String(p.student_id || "").toLowerCase();
+        if (!activeStudentIds.has(sid)) return sum;
+        const pDate = new Date(p.payment_date || p.created_at);
+        // Deduplicate: 1 payment per student per month
+        const monthKey = `${sid}_${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`;
+        if (seenPaymentMonths.has(monthKey)) return sum;
+        if (pDate.getUTCMonth() === targetMonth && pDate.getUTCFullYear() === targetYear) {
+          seenPaymentMonths.add(monthKey);
+          const amt = parseFloat(p.amount);
+          return sum + (isNaN(amt) ? 0 : amt);
+        }
+        return sum;
+      }, 0);
+      
       const pending = targetStudents
         .filter(
           (s) => getStudentPaymentStatus(s, targetMonth, targetYear) !== "Paid",
@@ -13483,7 +12139,7 @@ Best regards,
         ["Issued", new Date().toLocaleString()],
         [],
         ["Metric", "Value", "Context"],
-        ["Total Cadets", allStudents.length, "Active Roster"],
+        ["Total Cadets", targetStudents.length, "Active Roster"],
         ["Revenue Potential", `₹${totalPotential}`, "Gross Capacity"],
         ["Revenue Realized", `₹${collected}`, "Liquidity"],
         ["Revenue Pending", `₹${pending}`, "Risk Exposure"],
@@ -13492,9 +12148,9 @@ Best regards,
           `${((collected / totalPotential) * 100).toFixed(1)}%`,
           "Operational Efficiency",
         ],
-        [
+[
           "ARPU",
-          `₹${(collected / allStudents.filter((s) => s.status === "active").length || 1).toFixed(0)}`,
+          `₹${(collected / targetStudents.length || 1).toFixed(0)}`,
           "Yield Per Cadet",
         ],
       ];
