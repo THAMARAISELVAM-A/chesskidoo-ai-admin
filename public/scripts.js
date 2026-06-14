@@ -2526,9 +2526,9 @@ function getStudentPaymentStatus(
     const st = getStudentStatus(s);
     if (st !== "active") return "Not Enrolled";
 
-    const targetMonth = monthOverride !== null ? monthOverride : today.getUTCMonth();
-    const targetYear = yearOverride !== null ? yearOverride : today.getUTCFullYear();
-    const isCurrentMonth = targetMonth === today.getUTCMonth() && targetYear === today.getUTCFullYear();
+    const targetMonth = monthOverride !== null ? monthOverride : new Date().getUTCMonth();
+    const targetYear = yearOverride !== null ? yearOverride : new Date().getUTCFullYear();
+    const isCurrentMonth = targetMonth === new Date().getUTCMonth() && targetYear === new Date().getUTCFullYear();
 
     // Check late-join grace day
     const enrollDateStr = getStudentDate(s);
@@ -8142,11 +8142,19 @@ $("m-level").value = "Beginner";
     }
   }
 
-  async function deleteStudent(id, name) {
+async function deleteStudent(id, name) {
     $("delete-item-type").textContent = "Student";
     $("delete-item-name").textContent = name;
     $("delete-item-id").value = id;
     $("delete-type").value = "student";
+    openModal("delete-confirm-modal");
+  }
+
+  async function deleteCoach(id, name) {
+    $("delete-item-type").textContent = "Coach";
+    $("delete-item-name").textContent = name;
+    $("delete-item-id").value = id;
+    $("delete-type").value = "coach";
     openModal("delete-confirm-modal");
   }
 
@@ -8225,7 +8233,7 @@ $("m-level").value = "Beginner";
              <button class="btn btn-outline-grey btn-sm" onclick="viewCoach('${c.id}')" title="View Profile">View</button>
              <button class="btn btn-outline-grey btn-sm" onclick="openCoachModal('${c.id}')" title="Edit Coach">Edit</button>
              <button class="btn btn-gold btn-sm" onclick="informCoachFees('${c.id}')" title="Inform Fees">Inform</button>
-             <button class="btn btn-outline-grey btn-sm" onclick="confirmDeleteCoach('${c.id}', '${escapeHtml(getCoachName(c)).replace(/'/g, "\\'")}')" title="Delete Coach">Delete</button>
+             <button class="btn btn-outline-grey btn-sm" onclick="deleteCoach('${c.id}', '${escapeHtml(getCoachName(c)).replace(/'/g, "\\'")}')" title="Delete Coach">Delete</button>
            </div>
            <div style="display:flex; gap:8px; margin-top:12px;">
              <button class="btn btn-outline btn-sm" style="flex:1" onclick="toggleCoachStudents('${c.id}')" id="coach-toggle-${c.id}">👥 Students (${studentCount})</button>
