@@ -1,4 +1,4 @@
-import { checkRateLimit } from '../batches/rate_limit.js'
+import { checkRateLimit } from './rate_limit.js'
 
 const ADMIN_ROLES = new Set(['admin', 'master', 'coach'])
 const HOMEWORK_BUCKET = 'homework-submissions'

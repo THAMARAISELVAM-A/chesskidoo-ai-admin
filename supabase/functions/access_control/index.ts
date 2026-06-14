@@ -1,4 +1,4 @@
-import { checkRateLimit } from '../auth/rate_limit.js';
+import { checkRateLimit } from './rate_limit.js';
 
 Deno.serve(async (req) => {
   const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
   }
 
   // Verify requester is a master admin using JWT claims (not client-controlled headers)
-  const { validateAuth } = await import('../auth/rate_limit.js')
+  const { validateAuth } = await import('./rate_limit.js')
   const auth = await validateAuth(req, supabase)
   if (!auth.allowed) {
     return corsResponse({ error: auth.error }, 401, origin);
