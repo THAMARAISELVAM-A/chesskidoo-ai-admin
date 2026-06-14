@@ -9,9 +9,12 @@ const ALLOWED_MIME_TYPES = new Set([
   'image/png',
   'image/webp',
   'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'text/plain',
+  'application/x-chess-pgn',
+  'text/x-chess-pgn'
 ])
-const ALLOWED_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.doc', '.docx'])
+const ALLOWED_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.doc', '.docx', '.pgn'])
 
 Deno.serve(async (req) => {
   const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
@@ -202,6 +205,34 @@ Deno.serve(async (req) => {
       .slice(0, 120) || 'homework-file'
   }
 
+  async function uploadQuestionsFiles(files: File[], assignmentId: string) {
+    const uploaded: Record<string, unknown>[] = []
+    for (const file of files) {
+      const extension = safeFileExtension(file.name)
+      if (!ALLOWED_EXTENSIONS.has(extension)) {
+        throw new Error(`Unsupported file type: ${file.name}`)
+      }
+      if (!ALLOWED_MIME_TYPES.has(file.type) && !file.type.startsWith('image/')) {
+        throw new Error(`Unsupported file type: ${file.name}`)
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        throw new Error(`File too large: ${file.name}`)
+      }
+      const path = `questions/${assignmentId}/${crypto.randomUUID()}-${safeFileName(file.name)}`
+      const { data, error } = await supabase.storage
+        .from(HOMEWORK_BUCKET)
+        .upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: false })
+      if (error) throw error
+      uploaded.push({
+        file_name: file.name,
+        file_path: path,
+        mime_type: file.type || 'application/octet-stream',
+        file_size: file.size
+      })
+    }
+    return uploaded
+  }
+
   async function fetchAssignments(query: any) {
     const { data, error } = await query
     if (error) throw error
@@ -287,12 +318,26 @@ Deno.serve(async (req) => {
     return data || []
   }
 
-  async function signFiles(files: Record<string, unknown>[]) {
+async function signFiles(files: Record<string, unknown>[]) {
     const signedFiles: Record<string, unknown>[] = []
     for (const file of files) {
       const path = String(file.file_path || '')
       if (!path) continue
       const { data, error } = await supabase.storage.from(HOMEWORK_BUCKET).createSignedUrl(path, 7 * 24 * 60 * 60)
+      signedFiles.push({
+        ...file,
+        file_url: error ? '' : data?.signedUrl || ''
+      })
+    }
+    return signedFiles
+  }
+
+  async function signQuestionsFiles(files: Record<string, unknown>[]) {
+    const signedFiles: Record<string, unknown>[] = []
+    for (const file of files) {
+      const path = String(file.file_path || '')
+      if (!path) continue
+      const { data, error } = await supabase.storage.from(HOMEWORK_BUCKET).createSignedUrl(path, 14 * 24 * 60 * 60)
       signedFiles.push({
         ...file,
         file_url: error ? '' : data?.signedUrl || ''
@@ -371,6 +416,7 @@ return {
       created_by: assignment.created_by || '',
       created_at: assignment.created_at,
       updated_at: assignment.updated_at,
+      questions_files: assignment.questions_files || [],
       student_name: student?.name || '',
       batch_name: batch?.name || '',
       target_label: targetLabel,
@@ -395,7 +441,7 @@ return {
     }
   }
 
-  async function enrichAssignments(
+async function enrichAssignments(
     assignments: Record<string, unknown>[],
     auth: { role: string; studentId: string },
     options: { completions?: Record<string, unknown>[], students?: Map<string, Record<string, unknown>>, batches?: Map<string, Record<string, unknown>> } = {}
@@ -413,6 +459,8 @@ return {
       for (const completion of completionsWithFiles) {
         completion.submission_files = await signFiles(Array.isArray(completion.submission_files) ? completion.submission_files : [])
       }
+      // Sign questions files URLs
+      item.questions_files = await signQuestionsFiles(Array.isArray(item.questions_files) ? item.questions_files : [])
     }
     return enriched
   }
@@ -937,7 +985,7 @@ const targetType = normalizeTargetType(body.target_type ?? body.targetType)
         resolvedCoachId = batchData?.coach_id ? String(batchData.coach_id) : null;
       }
 
-      const now = new Date().toISOString()
+const now = new Date().toISOString()
       const newAssignment: Record<string, unknown> = {
         id: crypto.randomUUID(),
         target_type: targetType,
@@ -962,6 +1010,47 @@ const targetType = normalizeTargetType(body.target_type ?? body.targetType)
 
       if (error) throw error
 
+      // Handle questions files upload
+      const questionsFiles = Array.isArray(body.questions_files) ? body.questions_files as Record<string, unknown>[] : []
+      if (questionsFiles.length > 0 && data?.id) {
+        const uploadedFiles: Record<string, unknown>[] = []
+        for (const qf of questionsFiles) {
+          const base64 = String(qf.base64 || '')
+          const name = String(qf.name || 'question-file')
+          const mimeType = String(qf.mime_type || qf.type || 'application/pdf')
+          const size = Number(qf.size || 0)
+
+          if (base64) {
+            try {
+              const binaryString = atob(base64)
+              const bytes = new Uint8Array(binaryString.length)
+              for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i)
+              const extension = safeFileExtension(name)
+              const path = `questions/${data.id}/${crypto.randomUUID()}-${safeFileName(name)}`
+              const { error: uploadError } = await supabase.storage
+                .from(HOMEWORK_BUCKET)
+                .upload(path, bytes, { contentType: mimeType, upsert: false })
+              if (!uploadError) {
+                uploadedFiles.push({
+                  file_name: name,
+                  file_path: path,
+                  mime_type: mimeType,
+                  file_size: size
+                })
+              }
+            } catch (e) {
+              console.warn('Failed to upload question file:', e.message)
+            }
+          }
+        }
+        if (uploadedFiles.length > 0) {
+          await supabase
+            .from('homework_assignments')
+            .update({ questions_files: uploadedFiles, updated_at: now })
+            .eq('id', data.id)
+        }
+      }
+
       return json({ success: true, data: await enrichAssignments([data], auth) }, 201)
     }
 
@@ -981,8 +1070,40 @@ const targetType = normalizeTargetType(body.target_type ?? body.targetType)
         const maxMarks = Math.max(1, Math.min(100, parseNumber(body.max_marks) || 100))
         updateData.max_marks = maxMarks
       }
-      if (body.status !== undefined) {
+if (body.status !== undefined) {
         updateData.status = normalizeStatus(body.status, ['active', 'completed', 'archived'], 'active')
+      }
+      if (body.questions_files !== undefined) {
+        const questionsFiles = Array.isArray(body.questions_files) ? body.questions_files as Record<string, unknown>[] : []
+        let uploadedFiles: Record<string, unknown>[] = []
+        for (const qf of questionsFiles) {
+          const base64 = String(qf.base64 || '')
+          const name = String(qf.name || 'question-file')
+          const mimeType = String(qf.mime_type || qf.type || 'application/pdf')
+          const size = Number(qf.size || 0)
+          if (base64) {
+            try {
+              const binaryString = atob(base64)
+              const bytes = new Uint8Array(binaryString.length)
+              for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i)
+              const path = `questions/${id}/${crypto.randomUUID()}-${safeFileName(name)}`
+              const { error: uploadError } = await supabase.storage
+                .from(HOMEWORK_BUCKET)
+                .upload(path, bytes, { contentType: mimeType, upsert: false })
+              if (!uploadError) {
+                uploadedFiles.push({
+                  file_name: name,
+                  file_path: path,
+                  mime_type: mimeType,
+                  file_size: size
+                })
+              }
+            } catch (e) {
+              console.warn('Failed to upload question file:', e.message)
+            }
+          }
+        }
+        updateData.questions_files = uploadedFiles
       }
 if (body.target_type !== undefined || body.targetType !== undefined) {
         const targetType = normalizeTargetType(body.target_type ?? body.targetType)
@@ -1002,6 +1123,33 @@ if (body.target_type !== undefined || body.targetType !== undefined) {
           resolvedCoachId = batchData?.coach_id ? String(batchData.coach_id) : null;
         }
         updateData.coach_id = resolvedCoachId ? resolvedCoachId : null
+      }
+
+      // Handle delete_question_file action
+      if (String(body.action) === 'delete_question_file') {
+        const filePath = sanitize(String(body.file_path || ''))
+        if (!filePath) return json({ error: 'file_path is required' }, 400)
+
+        const { data: assignment } = await supabase
+          .from('homework_assignments')
+          .select('questions_files')
+          .eq('id', id)
+          .single()
+
+        if (assignment) {
+          const existingFiles = Array.isArray(assignment.questions_files) ? assignment.questions_files : []
+          const remainingFiles = existingFiles.filter((f: Record<string, unknown>) => String(f.file_path || '') !== filePath)
+          await supabase.storage.from(HOMEWORK_BUCKET).remove(filePath)
+          const { data: updated, error: updateError } = await supabase
+            .from('homework_assignments')
+            .update({ questions_files: remainingFiles, updated_at: new Date().toISOString() })
+            .eq('id', id)
+            .select()
+            .single()
+          if (updateError) throw updateError
+          return json({ success: true, data: await enrichAssignments([updated], auth) })
+        }
+        return json({ success: true })
       }
 
       const { data: assignment, error: updateError } = await supabase

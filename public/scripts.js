@@ -1565,11 +1565,94 @@
     updateAttStats();
   };
 
-  window.markAllAbsent = function () {
+window.markAllAbsent = function () {
     document
       .querySelectorAll(".att-status")
       .forEach((s) => (s.value = "absent"));
     updateAttStats();
+  };
+
+  window.filterAttendanceByMonth = function () {
+    const monthFilter = $("att-month-filter")?.value || "";
+    window.attendanceCurrentMonth = monthFilter;
+    window.renderAttendanceList?.();
+  };
+
+  window.navigateAttendanceMonth = function (delta) {
+    const monthInput = $("att-month-filter");
+    if (!monthInput) return;
+    const currentValue = monthInput.value || "";
+    let year = parseInt(currentValue.slice(0, 4) || new Date().getFullYear());
+    let month = parseInt(currentValue.slice(5, 7) || (new Date().getMonth() + 1));
+    month += delta;
+    if (month > 12) { month = 1; year++; }
+    if (month < 1) { month = 12; year--; }
+    monthInput.value = `${year}-${String(month).padStart(2, '0')}`;
+    window.renderAttendanceList?.();
+  };
+
+  // Calendar view for attendance
+  window.renderAttendanceCalendar = async function () {
+    const body = $("att-calendar-body");
+    if (!body) return;
+    try {
+      await window.loadAttendanceForCurrentContext?.();
+      const monthFilter = $("att-month-filter")?.value || "";
+      if (!monthFilter) {
+        body.innerHTML = '<div class="empty-state">Select a month to view calendar</div>';
+        return;
+      }
+      const students = allStudents.filter(s => s.status === "active");
+      const daysInMonth = new Date(parseInt(monthFilter.slice(0,4)), parseInt(monthFilter.slice(5,7)), 0).getDate();
+      const firstDay = new Date(parseInt(monthFilter.slice(0,4)), parseInt(monthFilter.slice(5,7)) - 1, 1).getDay();
+
+      let html = '<tr><th style="width:120px">Student</th>';
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${monthFilter}-${String(d).padStart(2, '0')}`;
+        const dayRecords = allAttendance.filter(a => a.date === dateStr);
+        const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(dateStr).getDay()];
+        const hasRecords = dayRecords.length > 0;
+        html += `<th style="width:32px;font-size:11px">${dayName}<br>${d}</th>`;
+      }
+      html += '</tr>';
+
+      students.forEach(student => {
+        html += `<tr><td style="font-size:12px">${getStudentName(student)}</td>`;
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dateStr = `${monthFilter}-${String(d).padStart(2, '0')}`;
+          const record = allAttendance.find(a => String(a.student_id) === String(student.id) && a.date === dateStr);
+          const status = record?.status || "";
+          const color = status === "present" ? "var(--success)" : status === "absent" ? "var(--danger)" : status === "late" ? "var(--gold)" : status === "excused" ? "var(--info)" : "var(--border)";
+          html += `<td style="width:32px;text-align:center;font-size:12px;color:${color}">${status ? "●" : ""}</td>`;
+        }
+        html += '</tr>';
+      });
+
+      body.innerHTML = html;
+    } catch (e) {
+      body.innerHTML = `<div class="empty-state" style="color:var(--danger)">${escapeHtml(e.message || "Failed to load calendar")}</div>`;
+    }
+  };
+
+  window.showAttendanceView = function (view) {
+    const listView = $("att-list-view");
+    const calendarView = $("att-calendar-view");
+    const monthInput = $("att-month-filter");
+    const dateInput = $("att-date");
+
+    if (view === "calendar") {
+      listView.style.display = "none";
+      calendarView.style.display = "block";
+      if (!monthInput?.value) {
+        const now = new Date();
+        monthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      }
+      window.renderAttendanceCalendar?.();
+    } else {
+      listView.style.display = "block";
+      calendarView.style.display = "none";
+      window.renderAttendanceList?.();
+    }
   };
 
   async function saveBatchAttendance() {
@@ -2348,11 +2431,11 @@
     );
   }
 
-  // Joins on/after this day get the remaining days of the join month as a free
-  // grace period — billing starts the FOLLOWING month. Handles the common case
-  // of "joined May 29, first paid cycle is June" so a late-month join doesn't
-  // get charged a full month for a few days and mis-attribute the first payment.
-  const LATE_JOIN_GRACE_DAY = 26;
+// Joins on/after this day get the remaining days of the join month as a free
+// grace period — billing starts the FOLLOWING month. Handles the common case
+// of "joined May 28, first paid cycle is June" so a late-month join doesn't
+// get charged a full month for a few days and mis-attribute the first payment.
+const LATE_JOIN_GRACE_DAY = 28;
 
   // Returns the first BILLED month {year, month} for a student (0-indexed month),
   // applying the late-join grace rule and the academy baseline.
@@ -5119,13 +5202,23 @@
     if (navEl) navEl.classList.add("active");
     if ($("p-title")) $("p-title").textContent = PAGE_TITLES[p] || "";
     
-    // Page Initializers
+// Page Initializers
     if (p === "attendance" && window.renderAttendanceList) {
       const dateEl = $("att-date");
       if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().split("T")[0];
+      const monthEl = $("att-month-filter");
+      if (monthEl && !monthEl.value) {
+        const now = new Date();
+        monthEl.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      }
       window.renderAttendanceList();
     }
     if (p === "homework" && window.renderHomeworkAdmin) {
+      const monthEl = $("homework-calendar-filter");
+      if (monthEl && !monthEl.value) {
+        const now = new Date();
+        monthEl.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      }
       window.renderHomeworkAdmin?.();
     }
 
@@ -5967,33 +6060,12 @@
   }
   window.cycleRevenue = cycleRevenue;
 
-  // Collected-revenue view mode: 'cycle' (default — fee counted in the billing
-  // cycle it covers) or 'cash' (fee counted in the calendar month the payment
-  // was received). Persisted so the admin's choice sticks.
-  window.revenueViewMode = localStorage.getItem("revenue_view_mode") || "cash";
+// Revenue for (current month): cash-based calculation
   function revenueFor(year, month) {
-    return window.revenueViewMode === "cash"
-      ? calculateSlotRevenue(year, month)
-      : cycleRevenue(year, month);
+    return calculateSlotRevenue(year, month);
   }
-  window.toggleRevenueView = function () {
-    window.revenueViewMode =
-      window.revenueViewMode === "cash" ? "cycle" : "cash";
-    localStorage.setItem("revenue_view_mode", window.revenueViewMode);
-    try {
-      renderDash();
-    } catch (e) {}
-    if (window.toast)
-      window.toast(
-        "Revenue view: " +
-          (window.revenueViewMode === "cash"
-            ? "Cash (received this month)"
-            : "Cycle (billed for this month)"),
-        "info",
-      );
-  };
 
-function calculateSlotRevenue(year, month) {
+  function calculateSlotRevenue(year, month) {
     if (!allPayments) return 0;
     return allPayments.reduce((sum, p) => {
       if (p.status !== "paid") return sum;
@@ -6182,12 +6254,14 @@ function calculateSlotRevenue(year, month) {
       const sid = String(s.id).toLowerCase();
       const totalCredits = s_id_map[sid] || 0;
 
-      const totalMonthsUnpaid = Math.max(0, monthsRequired - totalCredits);
+const totalMonthsUnpaid = Math.max(0, monthsRequired - totalCredits);
       if (totalMonthsUnpaid > 0) {
         const isPaidThisMonth = status === "Paid";
         // Historical arrears = unpaid months strictly BEFORE the current month
         // current month unpaid amount goes to currMonthPending, not arrears
-        const histMonths = Math.max(0, isPaidThisMonth ? totalMonthsUnpaid : totalMonthsUnpaid - 1);
+        // If paid this month, no historical arrears (current month is covered)
+        // If not paid this month, historical = totalMonthsUnpaid - 1 (excluding current)
+        const histMonths = isPaidThisMonth ? 0 : Math.max(0, totalMonthsUnpaid - 1);
 
         if (histMonths > 0) {
           totalArrears += fee * histMonths;
@@ -6230,9 +6304,8 @@ function calculateSlotRevenue(year, month) {
           ? "100"
           : "0";
 
-    // Update UI
+// Update UI
     if ($("s-rev")) $("s-rev").textContent = "₹" + paidRevenue.toLocaleString();
-    if ($("s-rev-mode")) $("s-rev-mode").textContent = window.revenueViewMode;
     if ($("s-last-month-collected")) $("s-last-month-collected").textContent = "₹" + prevRevenue.toLocaleString();
     if ($("s-total-revenue"))
       $("s-total-revenue").textContent = "₹" + totalPotential.toLocaleString();
@@ -7105,13 +7178,15 @@ function calculateSlotRevenue(year, month) {
     if ($("hw-session-schedule-field")) $("hw-session-schedule-field").style.display = "none";
   };
 
-  window.openHomeworkModal = function (studentId = "") {
+window.openHomeworkModal = function (studentId = "") {
     populateHomeworkTargetSelectors();
     $("hw-id").value = "";
     $("homework-modal-title").textContent = "Assign Homework";
     $("hw-due-date").value = "";
     $("hw-title").value = "";
     $("hw-description").value = "";
+    const hwQuestionsFile = $("hw-questions-file");
+    if (hwQuestionsFile) hwQuestionsFile.value = "";
     if (studentId) {
       $("hw-target-type").value = "student";
       $("hw-student-id").value = studentId;
@@ -7143,20 +7218,22 @@ function calculateSlotRevenue(year, month) {
       $("hw-due-date").value = item.due_date || "";
       $("hw-max-marks").value = item.max_marks ?? 100;
 
-      if (item.target_type === "batch" && item.batch_id) {
+if (item.target_type === "batch" && item.batch_id) {
         if (item.coach_id) {
           $("hw-coach-id").value = item.coach_id;
         } else {
           const { data: batch } = await apiCall(`/api/batches`);
-          const foundBatch = batch?.data?.find(b => String(b.id) === String(item.batch_id));
+const foundBatch = batch?.data?.find(b => String(b.id) === String(item.batch_id));
           if (foundBatch?.coach_id) {
             $("hw-coach-id").value = foundBatch.coach_id;
           }
         }
         await window.onHomeworkCoachChange();
         $("hw-batch-id").value = item.batch_id;
-        await window.onHomeworkBatchChange();
       }
+
+      // Show existing questions files
+      window.renderExistingQuestionsFiles(item.questions_files, item.id);
 
       window.syncHomeworkTargetSelectors();
       openModal("homework-modal");
@@ -7165,20 +7242,90 @@ function calculateSlotRevenue(year, month) {
     }
   };
 
+  // Render existing questions files in edit mode
+  window.renderExistingQuestionsFiles = function (files, assignmentId) {
+    const container = $("hw-existing-questions");
+    const list = $("hw-existing-questions-list");
+    if (!container || !list) return;
+
+    if (!files || files.length === 0) {
+      container.style.display = "none";
+      return;
+    }
+
+    container.style.display = "block";
+    list.innerHTML = files.map((file, index) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:rgba(59,130,246,0.05);border-radius:4px">
+        <a href="${escapeAttr(file.file_url || file.url || '#')}" target="_blank" rel="noopener" style="color:var(--gold);font-size:12px;flex:1;text-decoration:none">${escapeHtml(file.file_name || file.name || 'Question file')}</a>
+        <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteQuestionFile('${escapeAttr(assignmentId)}', '${escapeAttr(file.file_path || '')}', ${index})" title="Delete file">🗑</button>
+      </div>
+    `).join("");
+  };
+
+  window.deleteQuestionFile = async function (assignmentId, filePath, index) {
+    if (!confirm("Delete this question file?")) return;
+
+    try {
+      // Update the questions_files array in the assignment (backend handles storage removal)
+      const res = await apiCall("/api/homework", {
+        method: "PUT",
+        body: JSON.stringify({ id: assignmentId, action: "delete_question_file", file_path: filePath })
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || "Failed to delete file");
+
+      toast("Question file deleted", "success");
+      await window.loadHomeworkForCurrentContext(true);
+      window.renderHomeworkAdmin?.();
+    } catch (error) {
+      toast(error.message || "Failed to delete file", "error");
+    }
+  };
+
   window.saveHomeworkAssignment = async function () {
     const title = $("hw-title").value.trim();
     if (!title) return toast("Homework title is required.", "error");
 
     const targetType = $("hw-target-type").value;
-    const studentId = targetType === "student" ? $("hw-student-id").value : "";
-    const batchId = targetType === "batch" ? $("hw-batch-id").value : "";
+    const studentId = targetType === "student" ? ($("hw-student-id")?.value || "") : "";
+    const batchId = targetType === "batch" ? ($("hw-batch-id")?.value || "") : "";
     let coachId = null;
     if (targetType === "batch") {
-      coachId = $("hw-coach-id").value || null;
+      coachId = $("hw-coach-id")?.value || null;
     }
     if (targetType === "student" && !studentId) return toast("Please select a student.", "error");
     if (targetType === "batch" && !coachId) return toast("Please select a coach.", "error");
     if (targetType === "batch" && !batchId) return toast("Please select a batch.", "error");
+
+    // Handle questions file upload - convert to base64 for server-side processing
+    const questionsFileInput = $("hw-questions-file");
+    let questionsFiles = [];
+    if (questionsFileInput && questionsFileInput.files && questionsFileInput.files.length > 0) {
+      for (let i = 0; i < questionsFileInput.files.length; i++) {
+        const file = questionsFileInput.files[i];
+        try {
+          const base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const result = reader.result as string;
+              const base64Data = result.split(",")[1];
+              resolve(base64Data);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+          questionsFiles.push({
+            name: file.name,
+            base64: base64,
+            mime_type: file.type,
+            size: file.size
+          });
+        } catch (e) {
+          console.warn("Failed to read file:", file.name);
+        }
+      }
+    }
 
     const payload = {
       target_type: targetType,
@@ -7186,12 +7333,13 @@ function calculateSlotRevenue(year, month) {
       batch_id: targetType === "batch" ? batchId : null,
       coach_id: coachId,
       title,
-      description: $("hw-description").value.trim(),
-      due_date: $("hw-due-date").value || null,
+      description: $("hw-description")?.value.trim() || "",
+      due_date: $("hw-due-date")?.value || null,
       max_marks: parseFloat($("hw-max-marks")?.value || "100") || 100,
+      questions_files: questionsFiles.length > 0 ? questionsFiles : []
     };
 
-    const id = ($("hw-id").value || "").trim();
+    const id = ($("hw-id")?.value || "").trim();
     const verb = id ? "Update" : "Save";
     const okMsg = id ? "Homework updated" : "Homework assigned successfully";
 
@@ -7217,7 +7365,7 @@ function calculateSlotRevenue(year, month) {
       toast(error.message || "Failed to save homework", "error");
     } finally {
       const btn = document.querySelector("#homework-modal .btn-gold");
-      btn.textContent = "Save";
+      btn.textContent = "Save Assignment";
       btn.disabled = false;
     }
   };
@@ -7225,10 +7373,20 @@ function calculateSlotRevenue(year, month) {
   window.renderHomeworkAdmin = async function () {
     const body = $("homework-admin-body");
     if (!body) return;
-    try {
+try {
       await window.loadHomeworkForCurrentContext();
       const filter = $("homework-admin-filter")?.value || "all";
+      const monthFilter = $("homework-calendar-filter")?.value || "";
       let homework = (allHomework || []).filter((item) => (item.status || "active") !== "archived");
+
+      // Apply month filter
+      if (monthFilter) {
+        homework = homework.filter((item) => {
+          const dueDate = item.due_date ? String(item.due_date).slice(0, 7) : "";
+          const createdDate = item.created_at ? String(item.created_at).slice(0, 7) : "";
+          return dueDate === monthFilter || createdDate === monthFilter;
+        });
+      }
 
       if (filter === "active") homework = homework.filter((item) => (item.status || "active") === "active");
       if (filter === "completed") homework = homework.filter((item) => item.completion_summary?.total_students > 0 && item.completion_summary?.done_count >= item.completion_summary?.total_students);
@@ -7320,7 +7478,8 @@ function calculateSlotRevenue(year, month) {
                 <button class="btn btn-outline-danger btn-sm" onclick="deleteHomeworkAssignment('${escapeAttr(item.id)}')">Archive</button>
               </div>
             </div>
-            <p style="color:var(--ivory-dim);font-size:13px;line-height:1.6;white-space:pre-wrap;margin-bottom:14px">${escapeHtml(item.description || "No instructions provided.")}</p>
+<p style="color:var(--ivory-dim);font-size:13px;line-height:1.6;white-space:pre-wrap;margin-bottom:14px">${escapeHtml(item.description || "No instructions provided.")}</p>
+            ${item.questions_files && item.questions_files.length > 0 ? `<div style="margin-bottom:14px;padding:12px;background:rgba(16,185,129,0.05);border-radius:8px;border-left:3px solid var(--success)"><div style="font-size:12px;color:var(--success);font-weight:700;margin-bottom:6px">Questions / Reference Material</div>${homeworkSubmissionFilesHtml(item.questions_files)}</div>` : ""}
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
               <span class="badge ${item.target_type === "batch" ? "badge-level" : "badge-due"}">${item.target_type === "batch" ? "Batch assignment" : escapeHtml(item.completion_status || "pending")}</span>
               <span class="badge">${summary.done_count || 0} done / ${summary.total_students || 0} students</span>
@@ -7331,9 +7490,27 @@ function calculateSlotRevenue(year, month) {
           </div>
         `;
       }).join("");
-    } catch (error) {
+} catch (error) {
       body.innerHTML = `<div class="empty-state" style="grid-column:1/-1;color:var(--danger)">${escapeHtml(error.message || "Failed to load homework")}</div>`;
     }
+  };
+
+  window.filterHomeworkByMonth = function () {
+    window.homeworkCurrentMonth = $("homework-calendar-filter")?.value || "";
+    window.renderHomeworkAdmin?.();
+  };
+
+  window.navigateHomeworkMonth = function (delta) {
+    const monthInput = $("homework-calendar-filter");
+    if (!monthInput) return;
+    const currentValue = monthInput.value || "";
+    let year = parseInt(currentValue.slice(0, 4) || new Date().getFullYear());
+    let month = parseInt(currentValue.slice(5, 7) || (new Date().getMonth() + 1));
+    month += delta;
+    if (month > 12) { month = 1; year++; }
+    if (month < 1) { month = 12; year--; }
+    monthInput.value = `${year}-${String(month).padStart(2, '0')}`;
+    window.renderHomeworkAdmin?.();
   };
 
   window.deleteHomeworkAssignment = async function (id) {
@@ -7441,7 +7618,8 @@ function calculateSlotRevenue(year, month) {
               ${statusBadge}${revisionBadge}${nextBadge}${closedBadge}
             </div>
             </div>
-            <p style="color:var(--ivory-dim);font-size:13px;line-height:1.7;white-space:pre-wrap;margin-bottom:14px">${escapeHtml(item.description || "No instructions provided.")}</p>
+<p style="color:var(--ivory-dim);font-size:13px;line-height:1.7;white-space:pre-wrap;margin-bottom:14px">${escapeHtml(item.description || "No instructions provided.")}</p>
+            ${item.questions_files && item.questions_files.length > 0 ? `<div style="margin:10px 0;padding:12px;background:rgba(16,185,129,0.05);border-radius:8px;border-left:3px solid var(--success)"><div style="font-size:12px;color:var(--success);font-weight:700;margin-bottom:6px">Questions / Reference Material</div>${homeworkSubmissionFilesHtml(item.questions_files)}</div>` : ""}
             ${files.length ? `<div style="margin:10px 0;padding:12px;background:rgba(59,130,246,0.05);border-radius:8px"><div style="font-size:12px;color:var(--gold);font-weight:700;margin-bottom:6px">Submitted files</div>${homeworkSubmissionFilesHtml(files)}</div>` : ""}
             ${isGraded || completion?.coach_review ? `<div style="margin:10px 0;padding:12px;background:rgba(16,185,129,0.05);border-radius:8px"><div style="font-size:12px;color:var(--gold);font-weight:700;margin-bottom:6px">Coach feedback</div><div style="font-size:13px;color:var(--ivory-dim);white-space:pre-wrap">${escapeHtml(completion?.coach_review || "No written review yet.")}</div></div>` : ""}
             ${nextAction && !isClosed ? `<div style="margin:10px 0;padding:12px;background:rgba(218,163,62,0.08);border-radius:8px"><div style="font-size:12px;color:var(--gold);font-weight:700;margin-bottom:6px">Revision requested</div><div style="font-size:13px;color:var(--ivory-dim)">Please revise and resubmit.</div></div>` : ""}

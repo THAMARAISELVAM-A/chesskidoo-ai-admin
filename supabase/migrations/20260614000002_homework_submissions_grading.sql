@@ -176,7 +176,10 @@ VALUES (
     'image/png',
     'image/webp',
     'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/plain',
+    'application/x-chess-pgn',
+    'text/x-chess-pgn'
   ]::text[]
 )
 ON CONFLICT (id) DO UPDATE SET

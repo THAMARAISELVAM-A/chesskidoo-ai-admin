@@ -195,7 +195,7 @@
         <div class="card card-clickable" onclick="setPage('stud'); document.getElementById('f-learning-mode').value='offline'; renderStudents();"><div class="stat-label">Offline Students</div><div class="stat-value" style="color:var(--success)" id="s-offline">—</div></div>
       </div>
       <div class="dash-grid" style="margin-bottom:14px">
-        <div class="card card-clickable" onclick="setPage('bills')"><div class="stat-label" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">Collected This Month <span id="s-rev-mode" onclick="event.stopPropagation(); toggleRevenueView()" style="cursor:pointer;font-size:9px;font-weight:700;color:var(--gold);border:1px solid var(--border);border-radius:10px;padding:1px 7px;text-transform:none;letter-spacing:0;">cash</span></div><div class="stat-value text-success" id="s-rev">—</div></div>
+        <div class="card card-clickable" onclick="setPage('bills')"><div class="stat-label">Collected This Month</div><div class="stat-value text-success" id="s-rev">—</div></div>
         <div class="card card-clickable" onclick="setPage('bills')"><div class="stat-label">Collected Last Month</div><div class="stat-value" style="color:var(--blue)" id="s-last-month-collected">—</div></div>
         <div class="card"><div class="stat-label">Collection Rate</div><div class="stat-value" style="color:var(--blue)" id="s-rate">—</div></div>
       </div>
@@ -381,12 +381,17 @@
     </div>
 
     <!-- Attendance Manager Page -->
-    <div id="page-attendance" class="page admin-only">
+<div id="page-attendance" class="page admin-only">
       <div class="filter-main-row" style="display:flex; gap:12px; margin-bottom:12px; align-items:center; width:100%; flex-wrap:wrap">
         <div style="display:flex; align-items:center; gap:8px">
           <label style="color:var(--ivory-dim); font-size:14px">Date:</label>
-          <input type="date" id="att-date" style="padding:10px 14px; background:var(--bg3); border:1px solid var(--border); color:var(--ivory); border-radius:8px" onchange="renderAttendanceList()">
+          <input type="date" id="att-date" style="padding:10px 14px; background:var(--bg3); border:1px solid var(--border); color:var(--ivory); border-radius:8px" onchange="showAttendanceView('list');renderAttendanceList()">
         </div>
+        <input type="month" id="att-month-filter" class="input-field" onchange="showAttendanceView('calendar');renderAttendanceCalendar()" style="width: auto;">
+        <button class="btn btn-outline-grey btn-sm" onclick="navigateAttendanceMonth(-1)">← Prev</button>
+        <button class="btn btn-outline-grey btn-sm" onclick="navigateAttendanceMonth(1)">Next →</button>
+        <button class="btn btn-outline-grey btn-sm" onclick="showAttendanceView('list')">List View</button>
+        <button class="btn btn-outline-grey btn-sm" onclick="showAttendanceView('calendar')">Calendar View</button>
         <select id="att-coach-filter" style="padding:10px 14px; background:var(--bg3); border:1px solid var(--border); color:var(--ivory); border-radius:8px" onchange="renderAttendanceList()">
           <option value="">All Coaches</option>
         </select>
@@ -397,27 +402,42 @@
         </select>
       </div>
 
-      <div id="att-stats" style="text-align:center;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;margin-bottom:16px;font-size:14px;font-weight:600;color:var(--gold);">
+<div id="att-stats" style="text-align:center;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;margin-bottom:16px;font-size:14px;font-weight:600;color:var(--gold);">
         <!-- Stats populated by JS -->
       </div>
-      
-      <div style="display:flex;gap:12px;margin-bottom:16px;justify-content:space-between">
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-outline-grey" onclick="markAllPresent()">✅ Mark All Present</button>
-          <button class="btn btn-outline-grey" onclick="markAllAbsent()">❌ Mark All Absent</button>
+
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="btn btn-outline-grey btn-sm" onclick="showAttendanceView('list')">List View</button>
+        <button class="btn btn-outline-grey btn-sm" onclick="showAttendanceView('calendar')">Calendar View</button>
+</div>
+
+      <div id="att-list-view">
+        <div style="display:flex;gap:12px;margin-bottom:16px;justify-content:space-between">
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-outline-grey" onclick="markAllPresent()">✅ Mark All Present</button>
+            <button class="btn btn-outline-grey" onclick="markAllAbsent()">❌ Mark All Absent</button>
+          </div>
+          <button class="btn btn-gold" onclick="saveBatchAttendance()" style="padding: 10px 24px; font-weight:700">💾 Save Attendance</button>
         </div>
-        <button class="btn btn-gold" onclick="saveBatchAttendance()" style="padding: 10px 24px; font-weight:700">💾 Save Attendance</button>
+
+        <div class="table-wrap">
+          <table style="font-size:14px">
+            <thead><tr>
+              <th style="width:200px">Student</th>
+              <th style="width:150px">Status</th>
+              <th>Classwork & Homework</th>
+            </tr></thead>
+            <tbody id="att-marking-body"><tr><td colspan="3"><div class="loading-state"><span class="spinner"></span> Select date/coach to load students</div></td></tr></tbody>
+          </table>
+        </div>
       </div>
-      
-      <div class="table-wrap">
-        <table style="font-size:14px">
-          <thead><tr>
-            <th style="width:200px">Student</th>
-            <th style="width:150px">Status</th>
-            <th>Classwork & Homework</th>
-          </tr></thead>
-          <tbody id="att-marking-body"><tr><td colspan="3"><div class="loading-state"><span class="spinner"></span> Select date/coach to load students</div></td></tr></tbody>
-        </table>
+
+      <div id="att-calendar-view" style="display:none">
+        <div class="table-wrap" style="max-height:500px;overflow:auto">
+          <table style="font-size:11px">
+            <tbody id="att-calendar-body"><tr><td><div class="empty-state">Select a month to view calendar</div></td></tr></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -436,7 +456,7 @@
         </button>
       </div>
 
-      <div class="card" style="padding: 18px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+<div class="card" style="padding: 18px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
           <select id="homework-admin-filter" class="input-field" onchange="renderHomeworkAdmin()" style="width: auto;">
             <option value="all">All Assignments</option>
@@ -446,6 +466,9 @@
             <option value="student">Student Assignments</option>
             <option value="batch">Batch Assignments</option>
           </select>
+          <input type="month" id="homework-calendar-filter" class="input-field" onchange="filterHomeworkByMonth()" style="width: auto;">
+          <button class="btn btn-outline-grey" onclick="navigateHomeworkMonth(-1)">← Prev</button>
+          <button class="btn btn-outline-grey" onclick="navigateHomeworkMonth(1)">Next →</button>
           <button class="btn btn-outline-grey" onclick="renderHomeworkAdmin()">🔄 Refresh</button>
         </div>
         <div style="font-size: 12px; color: var(--ivory-dim);">
@@ -2834,7 +2857,7 @@
             </select>
           </div>
         </div>
-        <div class="form-group" id="hw-student-field">
+<div class="form-group" id="hw-student-field">
           <label>Student</label>
           <select id="hw-student-id"></select>
         </div>
@@ -2861,6 +2884,15 @@
         <div class="form-group">
           <label>Instructions</label>
           <textarea id="hw-description" rows="5" placeholder="Describe the practice task, pages, puzzles, games to review, or expected outcome..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Homework Questions / Reference Material</label>
+          <input type="file" id="hw-questions-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.pgn,application/pdf,image/*,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" multiple style="margin-bottom:8px">
+          <div style="font-size:11px;color:var(--ivory-dim)">Upload PDF, images, PGN files, or documents with the homework questions for students to complete</div>
+          <div id="hw-existing-questions" style="margin-top:8px;display:none">
+            <div style="font-size:11px;color:var(--gold);margin-bottom:6px">Current files:</div>
+            <div id="hw-existing-questions-list" style="display:flex;flex-direction:column;gap:4px"></div>
+          </div>
         </div>
         <div class="modal-grid">
           <div class="form-group">
@@ -3420,3 +3452,4 @@
       </div>
   </body>
 </html>
+
