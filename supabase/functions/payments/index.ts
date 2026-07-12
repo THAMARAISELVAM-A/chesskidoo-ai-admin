@@ -214,8 +214,6 @@ Deno.serve(async (req) => {
             .update({ 
               due_date: newDueDate,
               payment_status: 'paid',
-              status: 'active',
-              account_status: 'active',
               updated_at: new Date().toISOString()
             })
             .eq('id', studentId);

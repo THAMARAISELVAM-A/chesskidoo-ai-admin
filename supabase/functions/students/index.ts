@@ -421,17 +421,8 @@ Deno.serve(async (req) => {
         const pstatus = String(rawBody.payment_status);
         updateData.payment_status = pstatus;
         
-        // Convenience: sync status for backwards compatibility if needed (only if status is not explicitly set)
-        if (updateData.status === undefined) {
-          const lowStatus = pstatus.toLowerCase();
-          if (lowStatus === 'paid') {
-            updateData.status = 'active';
-            updateData.account_status = 'active';
-          } else if (lowStatus === 'pending') {
-            updateData.status = 'pending';
-            updateData.account_status = 'pending';
-          }
-        }
+        // Removed the block that forced `status` to sync with `payment_status` 
+        // to prevent unintentional changes to enrollment status.
       }
       if (rawBody.coach_id !== undefined) updateData.coach_id = rawBody.coach_id ? sanitizeString(String(rawBody.coach_id), 50) : null;
       if (rawBody.rating !== undefined || rawBody.current_rating !== undefined) {

@@ -175,6 +175,12 @@
       if (res.status === 401) {
         res.clone().text().then(txt => {
           console.warn(`[Auth] 401 Unauthorized for ${endpoint}. Body: ${txt}`);
+          if (txt.includes('UNAUTHORIZED_ASYMMETRIC_JWT') || txt.includes('Invalid JWT')) {
+            console.warn('[Auth] Stale JWT detected. Clearing auth tokens and reloading.');
+            localStorage.removeItem('sb-access-token');
+            localStorage.removeItem('sb-refresh-token');
+            window.location.reload();
+          }
         }).catch(() => {
           console.warn(`[Auth] 401 Unauthorized for ${endpoint}. Possible token expiry.`);
         });
@@ -6141,14 +6147,37 @@ Best regards,
           });
 
           if (res.ok) {
+            let updatePayload = {
+               payment_status: 'Paid',
+               status: s.status // Preserve enrollment status
+            };
+          
+            // Advance due date by 1 month
+            if (s.due_date) {
+               const d = new Date(s.due_date);
+               if (!isNaN(d.valueOf())) {
+                  let year = d.getUTCFullYear();
+                  let month = d.getUTCMonth() + 1;
+                  let day = d.getUTCDate();
+                  if (month > 11) { month = 0; year++; }
+                  const daysInNewMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+                  if (day > daysInNewMonth) day = daysInNewMonth;
+                  updatePayload.due_date = new Date(Date.UTC(year, month, day)).toISOString().split('T')[0];
+               }
+            } else {
+               const now = new Date();
+               let year = now.getUTCFullYear();
+               let month = now.getUTCMonth() + 1;
+               if (month > 11) { month = 0; year++; }
+               updatePayload.due_date = new Date(Date.UTC(year, month, 5)).toISOString().split('T')[0];
+            }
+          
             await apiCall(`${API_BASE}/students?id=${id}`, {
               method: 'PUT',
-              body: JSON.stringify({ payment_status: 'Paid' })
+              body: JSON.stringify(updatePayload)
             });
-            toast('Marked as Paid with transaction record', 'success');
-            if (window.sendPaymentReceiptNotification) {
-              sendPaymentReceiptNotification(id, fee);
-            }
+            toast('Marked as Paid with transaction record', 'success'); sendPaymentReceiptNotification(id, fee);
+          }
           } else {
             throw new Error('POST failed');
           }
@@ -6458,13 +6487,37 @@ Best regards,
          });
 
          if (res.ok) {
+           let updatePayload = {
+              payment_status: 'Paid',
+              status: s.status // Preserve enrollment status
+           };
+         
+           // Advance due date by 1 month
+           if (s.due_date) {
+              const d = new Date(s.due_date);
+              if (!isNaN(d.valueOf())) {
+                 let year = d.getUTCFullYear();
+                 let month = d.getUTCMonth() + 1;
+                 let day = d.getUTCDate();
+                 if (month > 11) { month = 0; year++; }
+                 const daysInNewMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+                 if (day > daysInNewMonth) day = daysInNewMonth;
+                 updatePayload.due_date = new Date(Date.UTC(year, month, day)).toISOString().split('T')[0];
+              }
+           } else {
+              const now = new Date();
+              let year = now.getUTCFullYear();
+              let month = now.getUTCMonth() + 1;
+              if (month > 11) { month = 0; year++; }
+              updatePayload.due_date = new Date(Date.UTC(year, month, 5)).toISOString().split('T')[0];
+           }
+         
            await apiCall(`${API_BASE}/students?id=${id}`, {
              method: 'PUT',
-             body: JSON.stringify({ payment_status: 'Paid' })
+             body: JSON.stringify(updatePayload)
            });
            toast('Marked as Paid with transaction record', 'success'); sendPaymentReceiptNotification(id, fee);
          }
-       }
 
        // Invalidate cache and refresh
        window.totalPaymentsMap = null;
@@ -6876,8 +6929,30 @@ Best regards,
       const amt = s ? getStudentMonthlyFee(s) : 5000;
 
       // Update student status and advance due date - Fix #26
-      const updates = { payment_status: 'Paid' };
-      // Due date is now automatically rolled over by the backend when the payment is created.
+      const updates = { 
+         payment_status: 'Paid',
+         status: s.status // Preserve status to prevent backend from rewriting it
+      };
+      
+      // Advance due date by 1 month locally
+      if (s.due_date) {
+         const d = new Date(s.due_date);
+         if (!isNaN(d.valueOf())) {
+            let year = d.getUTCFullYear();
+            let month = d.getUTCMonth() + 1;
+            let day = d.getUTCDate();
+            if (month > 11) { month = 0; year++; }
+            const daysInNewMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+            if (day > daysInNewMonth) day = daysInNewMonth;
+            updates.due_date = new Date(Date.UTC(year, month, day)).toISOString().split('T')[0];
+         }
+      } else {
+         const now = new Date();
+         let year = now.getUTCFullYear();
+         let month = now.getUTCMonth() + 1;
+         if (month > 11) { month = 0; year++; }
+         updates.due_date = new Date(Date.UTC(year, month, 5)).toISOString().split('T')[0];
+      }
 
       try {
         await apiCall(`${API_BASE}/students?id=${studentId}`, {
