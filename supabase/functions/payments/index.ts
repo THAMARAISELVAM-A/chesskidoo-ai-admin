@@ -1,0 +1,271 @@
+import { checkRateLimit } from './rate_limit.js'
+
+// Helper function for input validation - must be defined before use
+function sanitizeString(str: unknown, maxLength = 255): string {
+  if (typeof str !== 'string') return ''
+  return str.slice(0, maxLength).replace(/[<>"'`;]/g, '').trim()
+}
+
+Deno.serve(async (req) => {
+  const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
+  
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  
+  if (!supabaseUrl || !supabaseKey) {
+    return new Response(JSON.stringify({ error: 'Server configuration error' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    })
+  }
+  
+  const supabase = createClient(supabaseUrl, supabaseKey)
+  
+  const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || '*'
+  
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
+  }
+  
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+  
+  // --- Rate Limiting ---
+  const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
+  const rateLimitResult = await checkRateLimit(ip, 'payments')
+  
+  if (!rateLimitResult.allowed) {
+    return new Response(JSON.stringify({ 
+      error: 'Rate limit exceeded',
+      retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
+    }), { 
+      status: 429, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    })
+  }
+
+  // --- Authentication ---
+  const { validateAuth } = await import('./rate_limit.js')
+  const auth = await validateAuth(req, supabase)
+  if (!auth.allowed) {
+    return new Response(JSON.stringify({ error: auth.error }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+  }
+  
+  function transformPayment(p: Record<string, unknown>) {
+    return {
+      id: p.id,
+      student_id: p.student_id,
+      amount: parseFloat(p.amount || 0),
+      status: p.status || 'pending',
+      payment_method: p.payment_method || '',
+      description: p.description || '',
+      transaction_id: p.transaction_id || null,
+      payment_date: p.payment_date || p.created_at || new Date().toISOString(),
+      created_at: p.created_at || new Date().toISOString()
+    }
+  }
+  
+  try {
+    const url = new URL(req.url)
+    const id = url.searchParams.get('id')
+    const method = req.method
+    const studentId = url.searchParams.get('student_id')
+    
+    // GET - List payments with pagination
+    if (method === 'GET') {
+      const page = Math.max(1, parseInt(url.searchParams.get('page') || '1'))
+      const limit = Math.min(1000, Math.max(1, parseInt(url.searchParams.get('limit') || '100')))
+      const offset = (page - 1) * limit
+      
+      let query = supabase
+        .from('payments')
+        .select('*', { count: 'exact' })
+        .order('payment_date', { ascending: false })
+        .range(offset, offset + limit - 1)
+      
+      if (studentId) {
+        query = query.eq('student_id', studentId)
+      }
+      
+      const { data: payments, error, count } = await query
+      
+      if (error) {
+        return new Response(JSON.stringify({ error: error.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+      
+      const transformed = (payments || []).map(transformPayment)
+      
+      return new Response(JSON.stringify({
+        data: transformed,
+        pagination: {
+          page,
+          limit,
+          total: count || transformed.length,
+          total_pages: count ? Math.ceil(count / limit) : 1
+        }
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+    
+    // POST - Create new payment
+    if (method === 'POST') {
+      let rawBody: Record<string, unknown> = {}
+      try { rawBody = await req.json() } catch (_e) {}
+      
+      const studentId = String(rawBody.student_id || '').trim()
+      if (!studentId) {
+        return new Response(JSON.stringify({ error: 'Student ID is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+      
+      const amount = parseFloat(String(rawBody.amount || 0))
+      if (isNaN(amount) || amount <= 0) {
+        return new Response(JSON.stringify({ error: 'Amount must be greater than zero' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+      
+      const newPayment: Record<string, unknown> = {
+        id: rawBody.id || `pay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        student_id: studentId,
+        amount: amount,
+        status: 'paid',
+        payment_method: sanitizeString(rawBody.payment_method || 'Online', 50),
+        description: sanitizeString(rawBody.description || 'Monthly Tuition Fee', 200),
+        transaction_id: rawBody.transaction_id || `TXN-${Date.now()}-${Math.floor(Math.random() * 1000000)}`,
+        payment_date: rawBody.payment_date ? String(rawBody.payment_date) : new Date().toISOString(),
+        created_at: new Date().toISOString()
+      }
+      
+      const { data: insertedPayment, error: insertError } = await supabase
+        .from('payments')
+        .insert(newPayment)
+        .select()
+        .single()
+      
+      if (insertError) {
+        return new Response(JSON.stringify({ error: insertError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // --- AUTO-ROLLOVER LOGIC ---
+      try {
+        // 1. Fetch the student's current due_date
+        const { data: student, error: studentErr } = await supabase
+          .from('students')
+          .select('due_date')
+          .eq('id', studentId)
+          .single()
+
+        if (!studentErr && student) {
+          // 2. Calculate the new due date (add exactly 1 month to their specific anchor date)
+          let nextDate: Date;
+          
+          if (student.due_date) {
+            nextDate = new Date(student.due_date);
+          } else {
+             // Fallback if they forgot to set an initial date: set to the 5th of next month
+            const now = new Date();
+            let y = now.getUTCFullYear();
+            let m = now.getUTCMonth() + 1;
+            if (m > 11) { m = 0; y++; }
+            nextDate = new Date(Date.UTC(y, m, 5));
+          }
+          
+          if (student.due_date) {
+            let year = nextDate.getUTCFullYear();
+            let month = nextDate.getUTCMonth() + 1; // increment month
+            let day = nextDate.getUTCDate();
+            
+            if (month > 11) {
+               month = 0;
+               year++;
+            }
+            
+            // Clamp the day to the last valid day of the new month (prevents June 31 -> July 1 overflow)
+            const daysInNewMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+            if (day > daysInNewMonth) {
+               day = daysInNewMonth; 
+            }
+            
+            nextDate = new Date(Date.UTC(year, month, day));
+          }
+          
+          const newDueDate = nextDate.toISOString().split('T')[0];
+
+          // 3. Update the student record
+          await supabase
+            .from('students')
+            .update({ 
+              due_date: newDueDate,
+              payment_status: 'paid',
+              status: 'active',
+              account_status: 'active',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', studentId);
+        }
+      } catch (rolloverErr) {
+        console.error('Auto-rollover failed:', rolloverErr);
+        // We don't fail the payment request if the rollover fails, 
+        // but it's logged for debugging.
+      }
+      
+      return new Response(JSON.stringify(insertedPayment ? transformPayment(insertedPayment) : { success: true }), {
+        status: 201,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+    
+    // DELETE - Remove payment
+    if (method === 'DELETE') {
+      if (!id) {
+        return new Response(JSON.stringify({ error: 'Payment ID is required for deletion' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+      
+      const { error: deleteError } = await supabase
+        .from('payments')
+        .delete()
+        .eq('id', id)
+      
+      if (deleteError) {
+        return new Response(JSON.stringify({ error: deleteError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+      
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+    
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+  }
+})

@@ -1,0 +1,57 @@
+
+[functions.auth]
+verify_jwt = false
+
+[functions.students]
+verify_jwt = false
+
+[functions.coaches]
+verify_jwt = false
+
+[functions.payments]
+verify_jwt = false
+
+[functions.messages]
+verify_jwt = false
+
+[functions.audit]
+verify_jwt = false
+
+[functions.events]
+verify_jwt = false
+
+[functions.resources]
+verify_jwt = false
+
+[functions.attendance]
+verify_jwt = false
+
+[functions.rating_history]
+verify_jwt = false
+
+[functions.achievements]
+verify_jwt = false
+
+[functions.ai]
+verify_jwt = false
+
+[functions.expenditures]
+verify_jwt = false
+
+[functions.security]
+verify_jwt = false
+
+[functions.sessions]
+verify_jwt = false
+
+[functions.user_sessions]
+verify_jwt = false
+
+[functions.upload]
+verify_jwt = false
+
+[functions.payment_cycle]
+verify_jwt = false
+
+[functions.games]
+verify_jwt = false

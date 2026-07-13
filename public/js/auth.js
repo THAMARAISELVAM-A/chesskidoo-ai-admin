@@ -1,0 +1,148 @@
+/**
+ * Chesskidoo Authentication Module
+ * Handles secure backend login, role-based access, and session persistence.
+ */
+
+window.doLogin = async function() {
+    const userEl = document.getElementById('li-user');
+    const passEl = document.getElementById('li-pass');
+    const errEl = document.getElementById('login-err');
+    const loginBtn = document.getElementById('login-submit-btn') || document.querySelector('.login-btn');
+    
+    if (!userEl || !passEl || !errEl) return;
+
+    const user = userEl.value.trim();
+    const pass = passEl.value.trim();
+    errEl.style.display = 'none';
+
+    if (!user || !pass) {
+        errEl.textContent = 'Enter username and password.';
+        errEl.style.display = 'block';
+        return;
+    }
+
+    const setBtnLoading = (loading) => {
+        if (!loginBtn) return;
+        loginBtn.disabled = loading;
+        loginBtn.textContent = loading ? 'Authenticating...' : 'Sign In';
+    };
+
+    setBtnLoading(true);
+    const telemetry = window.extractDeviceTelemetry ? window.extractDeviceTelemetry() : {};
+
+    try {
+        // 1. Auth API - Primary Secure Authentication via Supabase Edge Function
+        const authRes = await apiCall(`${API_BASE}/auth`, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'login', username: user, password: pass })
+        }).catch(err => {
+            console.error('API Auth failed:', err);
+            return null;
+        });
+        
+        if (authRes && authRes.ok) {
+            const data = await authRes.json().catch(() => ({}));
+            if (data.success) {
+                // FIX: write to window.role explicitly. The previous `role = data.role`
+                // was an implicit global that (a) breaks under strict mode and (b) does
+                // not update scripts.js's IIFE-scoped `role` — finishLogin re-syncs it,
+                // but the pattern is fragile.
+                window.role = data.role;
+                // Store both the full auth object and a separate token for API calls
+                localStorage.setItem('chesskidoo_auth', JSON.stringify({
+                    role: data.role,
+                    user: data.user || user,
+                    studentId: data.student_id,
+                    token: data.token
+                }));
+                // Store token separately for API Authorization header
+                localStorage.setItem('sb-access-token', data.token);
+                finishLogin(data.user || user, data.role, data.student_id);
+                toast(`Welcome back, ${data.role}!`, 'success');
+
+                // Log successful login with security telemetry parameters
+                if (window.logAudit) {
+                    window.logAudit('auth', data.role, 'login_success', null, {
+                        user: data.user || user,
+                        role: data.role,
+                        ipAddress: telemetry.ip,
+                        deviceOS: telemetry.os,
+                        browser: telemetry.browser,
+                        countryCode: telemetry.country,
+                        status: 'SUCCESS',
+                        action: 'auth.login.success'
+                    });
+                }
+                return;
+            } else {
+                errEl.textContent = data.details || data.error || 'Invalid credentials.';
+                errEl.style.display = 'block';
+                if (window.logAudit) {
+                    window.logAudit('auth', user, 'login_failed', null, {
+                        username: user,
+                        ipAddress: telemetry.ip,
+                        deviceOS: telemetry.os,
+                        browser: telemetry.browser,
+                        countryCode: telemetry.country,
+                        status: 'FAILED',
+                        action: 'auth.login.failed',
+                        error: data.details || data.error || 'Invalid credentials.'
+                    });
+                }
+                return;
+            }
+        }
+
+        errEl.textContent = 'Invalid credentials or connection error.';
+        errEl.style.display = 'block';
+        if (window.logAudit) {
+            window.logAudit('auth', user, 'login_failed', null, {
+                username: user,
+                ipAddress: telemetry.ip,
+                deviceOS: telemetry.os,
+                browser: telemetry.browser,
+                countryCode: telemetry.country,
+                status: 'FAILED',
+                action: 'auth.login.failed',
+                error: 'Connection or response failure'
+            });
+        }
+        
+    } catch (e) {
+        console.error('Login error:', e);
+        errEl.textContent = 'Server unreachable. Please try again later.';
+        if (window.logAudit) {
+            window.logAudit('auth', user, 'login_failed', null, {
+                username: user,
+                ipAddress: telemetry.ip,
+                deviceOS: telemetry.os,
+                browser: telemetry.browser,
+                countryCode: telemetry.country,
+                status: 'FAILED',
+                action: 'auth.login.failed',
+                error: e.message
+            });
+        }
+    } finally {
+        setBtnLoading(false);
+    }
+};
+
+ window.doLogout = function() {
+     localStorage.removeItem('chesskidoo_auth');
+     localStorage.removeItem('sb-access-token');
+     role = null;
+     if (window.role) window.role = null;
+     
+     document.body.classList.remove('admin-mode', 'parent-mode', 'master-mode');
+     document.body.classList.add('login-mode');
+     
+     const loginScreen = document.getElementById('login-screen');
+     if (loginScreen) loginScreen.style.display = 'flex';
+     
+     const sidebar = document.getElementById('sidebar');
+     if (sidebar) sidebar.classList.remove('active');
+     
+     toast('Logged out safely.', 'info');
+     setTimeout(() => location.reload(), 500); // Reload to clear all state
+   };
