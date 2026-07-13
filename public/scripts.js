@@ -6721,10 +6721,76 @@ Best regards,
     renderBills();
   };
 
-  function renderBills() {
-    renderCoachBills();
-    const tbody = $('bill-body');
-    if (!tbody) return;
+   // Due date for a specific (year, month) for a student, honoring an explicit s.due_date
+   function getDueDateForMonth(s, y, m) {
+     const _ddMatch = String(s.due_date || '').match(/(\d{4})-(\d{2})-(\d{2})/);
+     if (_ddMatch) {
+       const dd = new Date(+_ddMatch[1], +_ddMatch[2] - 1, +_ddMatch[3], 23, 59, 59);
+       if (+_ddMatch[1] === y && (+_ddMatch[2] - 1) === m) return dd;
+       // Stored date belongs to a different month — reuse its day-of-month in the target month
+       return new Date(y, m, +_ddMatch[3], 23, 59, 59);
+     }
+     const coach = allCoaches.find(c => String(c.id) === String(s.coach_id));
+     const coachName = coach ? (coach.name || '') : '';
+     const dueCfg = getStudentDueConfig(s, coachName, m, y);
+     return new Date(y, m, dueCfg.day, 23, 59, 59);
+   }
+
+   // Effective due date used for sorting the registry when a status filter is active:
+   //  - Pending: the upcoming due date for the target month (soonest-upcoming first)
+   //  - Due/Overdue: the oldest unpaid due date (longest-outstanding first)
+   function getStudentEffectiveDueDate(s, targetMonth, targetYear, status) {
+     const baselineDate = new Date(Date.UTC(2026, 3, 1, 0, 0, 0)); // April 1st, 2026 baseline (UTC)
+     const s_id_key = String(s.id || '').trim().toLowerCase();
+     const targetMonthEnd = new Date(Date.UTC(targetYear, targetMonth + 1, 0, 23, 59, 59));
+
+     const paidMonths = new Set();
+     (allPayments || []).forEach(p => {
+       const psid = String(p.student_id || '').trim().toLowerCase();
+       if (psid === s_id_key && p.status === 'paid') {
+         const pDate = new Date(p.payment_date || p.created_at);
+         if (pDate <= targetMonthEnd) {
+           paidMonths.add(`${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`);
+         }
+       }
+     });
+
+      if (status === 'Overdue') {
+        const enrollDateStr = getStudentDate(s);
+        const enrollDate = enrollDateStr ? new Date(enrollDateStr) : null;
+        const effectiveEnroll = (enrollDate && enrollDate >= baselineDate) ? enrollDate : baselineDate;
+        const totalPaidInvoices = paidMonths.size;
+        // First unpaid month in the enrollment sequence: cumulative unpaid months place it at
+        // index === #months already paid (mirrors getStudentPaymentStatus's monthsRequired vs totalPaidInvoices).
+        const unpaidOffset = Math.max(0, totalPaidInvoices);
+        const dueMonthDate = new Date(Date.UTC(effectiveEnroll.getUTCFullYear(), effectiveEnroll.getUTCMonth() + unpaidOffset, 1));
+        return getDueDateForMonth(s, dueMonthDate.getUTCFullYear(), dueMonthDate.getUTCMonth());
+      }
+
+     // Pending / Due -> due date of the target month
+     return getDueDateForMonth(s, targetYear, targetMonth);
+   }
+
+   const BILL_TOTAL_BUCKETS = ['Paid', 'Pending', 'Due', 'Overdue'];
+
+   function renderBillTotalsBar(totals, viewCount) {
+     const el = $('bill-totals-bar');
+     if (!el) return;
+     const fmt = n => '₹' + Math.round(n).toLocaleString();
+     const pill = (cls, label, data) =>
+       `<div class="bill-total-pill ${cls}"><span class="bt-label">${label}</span><span class="bt-val">${data.count} <span class="bt-sep">·</span> ${fmt(data.amt)}</span></div>`;
+     el.innerHTML =
+       pill('bill-total-total', `Total (${viewCount})`, totals.Total) +
+       pill('bill-total-paid', 'Paid', totals.Paid) +
+       pill('bill-total-pending', 'Pending', totals.Pending) +
+       pill('bill-total-due', 'Due', totals.Due) +
+       pill('bill-total-overdue', 'Overdue', totals.Overdue);
+   }
+
+   function renderBills() {
+     renderCoachBills();
+     const tbody = $('bill-body');
+     if (!tbody) return;
 
     // Sync with global report context if filter is empty or just loaded
     const filterEl = $('f-bill-month');
@@ -6739,6 +6805,7 @@ Best regards,
 
     if (!allStudents || allStudents.length === 0) {
       tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state">No payment records found</div></td></tr>';
+      renderBillTotalsBar({ Total: { count: 0, amt: 0 }, Paid: { count: 0, amt: 0 }, Pending: { count: 0, amt: 0 }, Due: { count: 0, amt: 0 }, Overdue: { count: 0, amt: 0 } }, 0);
       return;
     }
 
@@ -6771,15 +6838,47 @@ Best regards,
     const fBillCoach = $('f-bill-coach')?.value || '';
 
     let filteredStudents = allStudents;
-    if (fBillStatus) {
-      filteredStudents = filteredStudents.filter(s => statusCache.get(s.id) === fBillStatus);
-    }
     if (fBillSearch) {
       filteredStudents = filteredStudents.filter(s => getStudentName(s).toLowerCase().includes(fBillSearch));
     }
     if (fBillCoach) {
       filteredStudents = filteredStudents.filter(s => String(s.coach_id) === String(fBillCoach));
     }
+
+    // Base view for the totals bar: same search/coach/month scope but IGNORING the status filter,
+    // so all five buckets (Total/Paid/Pending/Due/Overdue) are always shown.
+    const viewBase = filteredStudents;
+
+    if (fBillStatus) {
+      filteredStudents = filteredStudents.filter(s => statusCache.get(s.id) === fBillStatus);
+    }
+
+    // When a payment-status filter is active, sort by effective due date:
+    //  - Pending -> soonest-upcoming first (ascending due date)
+    //  - Due/Overdue -> longest-outstanding first (oldest date first)
+    // Tiebreaker: student name, so rows with an identical due date stay deterministically ordered
+    // (otherwise the stable sort falls back to raw list order and the registry looks "unsorted").
+    if (fBillStatus) {
+      filteredStudents = filteredStudents.slice().sort((a, b) => {
+        const da = getStudentEffectiveDueDate(a, targetMonth, targetYear, fBillStatus);
+        const db = getStudentEffectiveDueDate(b, targetMonth, targetYear, fBillStatus);
+        if (da - db !== 0) return da - db;
+        return getStudentName(a).localeCompare(getStudentName(b));
+      });
+    }
+
+    // Compute the totals bar from the status-agnostic view
+    const totals = { Total: { count: 0, amt: 0 }, Paid: { count: 0, amt: 0 }, Pending: { count: 0, amt: 0 }, Due: { count: 0, amt: 0 }, Overdue: { count: 0, amt: 0 } };
+    viewBase.forEach(s => {
+      const st = statusCache.get(s.id);
+      if (!BILL_TOTAL_BUCKETS.includes(st)) return; // exclude Not Enrolled from the payment buckets
+      const fee = getStudentMonthlyFee(s) || 0;
+      totals[st].count++;
+      totals[st].amt += fee;
+      totals.Total.count++;
+      totals.Total.amt += fee;
+    });
+    renderBillTotalsBar(totals, viewBase.length);
 
     const now = new Date();
     const currentMonth = now.getUTCMonth();
