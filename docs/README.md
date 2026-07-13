@@ -124,13 +124,13 @@ npm run backup:restore chesskidoo-backup-2024-04-09T10-30-00.json
 
 ### Admin Login
 
-- **Username**: `admin`
-- **Password**: `admin123`
+- **Username**: `Aadmin`
+- **Password**: `admin`
 
 ### Parent Login
 
-- **Username**: Child's full name (e.g., "John Smith")
-- **Password**: Parent's phone number (set during enrollment)
+- **Username**:  full name (e.g., "John Smith")
+- **Password**:  number (set during enrollment)
 
 ### Features
 
