@@ -67,23 +67,31 @@ window.generateReportPDF = async function() {
     const totalStudents = allStudents.length;
     const activeStudents = targetStudents.length;
 
-    // Map total payments per student up to target month end (Deduplicated by month)
+    // Map total payments per student up to target month end (advance-aware)
+    // Uses applied_month metadata when present; falls back to billing anchor + payment date.
     const targetMonthEnd = new Date(Date.UTC(targetYear, targetMonth + 1, 0, 23, 59, 59));
     const totalPaymentsMap = {};
-    const seenMonthsGlobal = new Set();
+    const seenApplied = new Set();
     allPayments.forEach(p => {
-      if (p.status === 'paid') {
-        const sid = String(p.student_id || '').trim().toLowerCase();
-        const pDate = new Date(p.payment_date || p.created_at);
-        if (pDate <= targetMonthEnd) {
-          const mKey = `${sid}_${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`;
-          if (seenMonthsGlobal.has(mKey)) return;
-          seenMonthsGlobal.add(mKey);
-          
-          if (!totalPaymentsMap[sid]) totalPaymentsMap[sid] = 0;
-          totalPaymentsMap[sid]++;
-        }
+      if (p.status !== 'paid') return;
+      const sid = String(p.student_id || '').trim().toLowerCase();
+      if (!sid) return;
+
+      // Primary: applied_month metadata (set by debt-first engine)
+      if (p.applied_month && String(p.applied_month).trim()) {
+        const key = `${sid}_${p.applied_month}`;
+        if (seenApplied.has(key)) return;
+        seenApplied.add(key);
+        totalPaymentsMap[sid] = (totalPaymentsMap[sid] || 0) + 1;
+        return;
       }
+
+      // Fallback: legacy calendar-month counting for old payment records
+      const pDate = new Date(p.payment_date || p.created_at);
+      const mKey = `${sid}_${pDate.getUTCFullYear()}-${String(pDate.getUTCMonth() + 1).padStart(2, '0')}`;
+      if (seenApplied.has(mKey)) return;
+      seenApplied.add(mKey);
+      totalPaymentsMap[sid] = (totalPaymentsMap[sid] || 0) + 1;
     });
 
     // Helper function to match dashboard slot-based revenue calculation
@@ -109,7 +117,7 @@ window.generateReportPDF = async function() {
     }
 
     // Sum actual cash collected matching the dashboard's s-rev calculation
-    const collected = calculateSlotRevenue(targetYear, targetMonth);
+    const collected = (window.cycleRevenue ? window.cycleRevenue(targetYear, targetMonth) : calculateSlotRevenue(targetYear, targetMonth));
     const monthlyPayments = allPayments.filter(p => getYM(p.payment_date || p.created_at) === targetYM && p.status === 'paid');
 
     let lastDueAmount = 0;
@@ -123,12 +131,14 @@ window.generateReportPDF = async function() {
         if (isNaN(enrollDate.getTime())) {
             enrollDate = baseline;
         }
-        const effectiveEnroll = enrollDate < baseline ? baseline : enrollDate;
-        
-        const monthsRequired = ((targetYear - effectiveEnroll.getUTCFullYear()) * 12) + (targetMonth - effectiveEnroll.getUTCMonth()) + 1;
+        // Billing anchor applies the late-join grace rule for consistency with
+        // the registry status (a late-month join's first billed month is next month).
+        const _anchor = window.getBillingAnchor ? window.getBillingAnchor(s, baseline)
+          : { year: (enrollDate < baseline ? baseline : enrollDate).getUTCFullYear(), month: (enrollDate < baseline ? baseline : enrollDate).getUTCMonth() };
+        const monthsRequired = ((targetYear - _anchor.year) * 12) + (targetMonth - _anchor.month) + 1;
         const s_id_key = String(s.id || '').trim().toLowerCase();
         const totalCredits = totalPaymentsMap[s_id_key] || 0;
-        
+
         potential += fee;
         const totalMonthsUnpaid = Math.max(0, monthsRequired - totalCredits);
         if (totalMonthsUnpaid > 0) {
@@ -254,7 +264,7 @@ window.generateReportPDF = async function() {
         let mCollected = 0;
         let mOutstanding = 0;
         
-        mCollected = calculateSlotRevenue(y, m);
+        mCollected = (window.cycleRevenue ? window.cycleRevenue(y, m) : calculateSlotRevenue(y, m));
 
         allStudents.forEach(s => {
             const sStatus = getStudentStatus(s);
@@ -913,25 +923,33 @@ window.generateReportPPT = async function() {
             }, 0);
         }
 
-        const collected = calculateSlotRevenue(targetYear, targetMonth);
+        const collected = (window.cycleRevenue ? window.cycleRevenue(targetYear, targetMonth) : calculateSlotRevenue(targetYear, targetMonth));
 
-        // Deduplication structure for arrears
+        // Deduplication structure for arrears (advance-aware)
         const totalPaymentsMap = {};
-        const seenMonthsGlobal = new Set();
+        const seenApplied = new Set();
         const targetMonthEnd = new Date(Date.UTC(targetYear, targetMonth + 1, 0, 23, 59, 59));
         
         allPayments.forEach(p => {
-            if (p.status === 'paid') {
-                const sid = String(p.student_id || '').trim().toLowerCase();
-                const pDate = new Date(p.payment_date || p.created_at);
-                if (pDate <= targetMonthEnd) {
-                    const mKey = `${sid}_${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`;
-                    if (seenMonthsGlobal.has(mKey)) return;
-                    seenMonthsGlobal.add(mKey);
-                    if (!totalPaymentsMap[sid]) totalPaymentsMap[sid] = 0;
-                    totalPaymentsMap[sid]++;
-                }
+            if (p.status !== 'paid') return;
+            const sid = String(p.student_id || '').trim().toLowerCase();
+            if (!sid) return;
+
+            if (p.applied_month && String(p.applied_month).trim()) {
+                const key = `${sid}_${p.applied_month}`;
+                if (seenApplied.has(key)) return;
+                seenApplied.add(key);
+                if (!totalPaymentsMap[sid]) totalPaymentsMap[sid] = 0;
+                totalPaymentsMap[sid]++;
+                return;
             }
+
+            const pDate = new Date(p.payment_date || p.created_at);
+            const mKey = `${sid}_${pDate.getUTCFullYear()}-${String(pDate.getUTCMonth() + 1).padStart(2, '0')}`;
+            if (seenApplied.has(mKey)) return;
+            seenApplied.add(mKey);
+            if (!totalPaymentsMap[sid]) totalPaymentsMap[sid] = 0;
+            totalPaymentsMap[sid]++;
         });
 
         let lastDueAmount = 0;
@@ -944,8 +962,9 @@ window.generateReportPPT = async function() {
             const enrollDateStr = getStudentDate(s);
             let enrollDate = enrollDateStr ? new Date(enrollDateStr) : baseline;
             if (isNaN(enrollDate.getTime())) enrollDate = baseline;
-            const effectiveEnroll = enrollDate < baseline ? baseline : enrollDate;
-            const monthsRequired = ((targetYear - effectiveEnroll.getUTCFullYear()) * 12) + (targetMonth - effectiveEnroll.getUTCMonth()) + 1;
+            const _anchor = window.getBillingAnchor ? window.getBillingAnchor(s, baseline)
+              : { year: (enrollDate < baseline ? baseline : enrollDate).getUTCFullYear(), month: (enrollDate < baseline ? baseline : enrollDate).getUTCMonth() };
+            const monthsRequired = ((targetYear - _anchor.year) * 12) + (targetMonth - _anchor.month) + 1;
             const s_id_key = String(s.id || '').trim().toLowerCase();
             const totalCredits = totalPaymentsMap[s_id_key] || 0;
             const totalMonthsUnpaid = Math.max(0, monthsRequired - totalCredits);
@@ -1049,7 +1068,7 @@ window.generateReportPPT = async function() {
             const mEnd = new Date(Date.UTC(y, m + 1, 0, 23, 59, 59));
             
             let mPotential = 0;
-            let mCollected = calculateSlotRevenue(y, m);
+            let mCollected = (window.cycleRevenue ? window.cycleRevenue(y, m) : calculateSlotRevenue(y, m));
             let mOutstanding = 0;
             
             allStudents.forEach(s => {

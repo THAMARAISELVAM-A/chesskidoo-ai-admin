@@ -61,8 +61,6 @@ ALTER TABLE rating_history ENABLE ROW LEVEL SECURITY;
 CREATE INDEX IF NOT EXISTS idx_payments_payment_date ON payments (payment_date DESC);
 CREATE INDEX IF NOT EXISTS idx_payments_student_id ON payments (student_id);
 CREATE INDEX IF NOT EXISTS idx_payments_status ON payments (status);
-CREATE INDEX IF NOT EXISTS idx_rate_limits_key ON rate_limits (key);
-CREATE INDEX IF NOT EXISTS idx_rate_limits_timestamp ON rate_limits (timestamp);
 
 -- 10. Cast payments.amount to NUMERIC if it was text
 -- Uncomment and run this if amount column is currently TEXT

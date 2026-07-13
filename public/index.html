@@ -10,7 +10,7 @@
   <!-- Force UTF-8 encoding for all browsers including Edge -->
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
   <link href="/fonts/fonts.css" rel="stylesheet"/>
-  <link rel="stylesheet" href="styles.css?v=20260530_v04"/>
+  <link rel="stylesheet" href="styles.css?v=20260602_v10"/>
 
    <!-- Local Libraries (self-hosted) -->
    <script src="lib/chart.umd.min.js"></script>
@@ -23,7 +23,7 @@
    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
    <!-- Security Hardening - Fully offline-first, only Supabase external -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://html2canvas.hertzen.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://*.supabase.co https://i.ibb.co https://*.ibb.co https://api.imgbb.com https://flagcdn.com https://*.flagcdn.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.imgbb.com https://ipapi.co https://ip-api.com https://ipinfo.io;"/>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://html2canvas.hertzen.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://*.supabase.co https://i.ibb.co https://*.ibb.co https://api.imgbb.com https://flagcdn.com https://*.flagcdn.com https://*.chessable.com https://chessable.com https://*.lichess.org https://lichess.org https://*.chess.com https://chess.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.imgbb.com https://ipapi.co https://ip-api.com https://ipinfo.io https://html2canvas.hertzen.com;"/>
   <meta name="referrer" content="strict-origin-when-cross-origin"/>
   <!-- X-Frame-Options must be an HTTP header, not a meta tag — set in vercel.json -->
 
@@ -58,9 +58,15 @@
 
   <div class="login-box">
     <div class="logo-area">
-      <div class="logo-chess-large">♟</div>
-      <span class="logo-name">CHESSKIDOO</span>
-      <span class="logo-tagline">Premium Chess Academy</span>
+      <!-- Brand logo: gold-knight on dark for the dark theme, dark-knight on light
+           for the light theme. Falls back to the text logo if images are missing. -->
+      <img class="login-logo login-logo-dark" src="/images/logo-dark.png" alt="ChessKidoo — Building Brilliance" onerror="this.closest('.logo-area').classList.add('logo-img-missing')">
+      <img class="login-logo login-logo-light" src="/images/logo-light.png" alt="ChessKidoo — Building Brilliance" onerror="this.closest('.logo-area').classList.add('logo-img-missing')">
+      <div class="logo-fallback">
+        <div class="logo-crest">♞</div>
+        <div class="logo-wordmark"><span class="lw-chess">CHESS</span><span class="lw-kidoo">KIDOO</span></div>
+        <span class="logo-tagline">Building Brilliance</span>
+      </div>
     </div>
 
     <form onsubmit="event.preventDefault(); window.doLogin();">
@@ -111,7 +117,18 @@
     <div class="nav-item admin-only" id="nav-dash" onclick="setPage('dash')"><span class="ico">📊</span> Dashboard</div>
     <div class="nav-item admin-only" id="nav-stud" onclick="setPage('stud')"><span class="ico">👥</span> Students</div>
     <div class="nav-item admin-only" id="nav-coach-mgmt" onclick="setPage('coach-mgmt')"><span class="ico">👨‍🏫</span> Coaches</div>
-    <div class="nav-item admin-only" id="nav-schedules" onclick="setPage('schedules')"><span class="ico">🗓️</span> Schedule Manager</div>
+    
+    <!-- Academy Manager Group -->
+    <div class="nav-item admin-only" onclick="toggleAcademyManager()"><span class="ico">🏢</span> Academy Manager <span style="float:right;font-size:10px" id="academy-mgr-icon">▼</span></div>
+    <div id="academy-manager-group" style="display:none; background:rgba(0,0,0,0.1); border-left: 2px solid var(--border); margin-left: 14px; padding-left: 4px; border-radius: 0 0 8px 0;">
+      <div class="nav-item admin-only" id="nav-batches" onclick="setPage('batches')" style="font-size: 13px; padding: 10px 14px;"><span class="ico">🏫</span> Batch Manager</div>
+      <div class="nav-item admin-only" id="nav-schedules" onclick="setPage('schedules')" style="font-size: 13px; padding: 10px 14px;"><span class="ico">🗓️</span> Schedule Manager</div>
+      <div class="nav-item admin-only" id="nav-events" onclick="setPage('events')" style="font-size: 13px; padding: 10px 14px;"><span class="ico">📅</span> Event Manager</div>
+      <div class="nav-item admin-only" id="nav-attendance" onclick="setPage('attendance')" style="font-size: 13px; padding: 10px 14px;"><span class="ico">✅</span> Attendance Manager</div>
+      <div class="nav-item admin-only" id="nav-homework" onclick="setPage('homework')" style="font-size: 13px; padding: 10px 14px;"><span class="ico">📚</span> Homework Manager</div>
+    </div>
+
+    <div class="nav-item admin-only" id="nav-chessable" onclick="setPage('chessable')"><span class="ico">♟️</span> Chessable Profiles</div>
     <!-- Parent Portal Links -->
     <div class="nav-item parent-only" id="nav-child" onclick="goChildTab('overview')"><span class="ico">📈</span> My Child Profile</div>
     <div class="nav-item parent-only" id="nav-parent-schedule" onclick="goChildTab('schedule')"><span class="ico">🗓️</span> Class Schedule</div>
@@ -120,10 +137,11 @@
     <div class="nav-item parent-only" id="nav-parent-events" onclick="goChildTab('events')"><span class="ico">🎫</span> Upcoming Events</div>
     <div class="nav-item parent-only" id="nav-parent-attendance" onclick="goChildTab('attendance')"><span class="ico">🗓️</span> Attendance Logs</div>
     <div class="nav-item parent-only" id="nav-parent-billing" onclick="goChildTab('billing')"><span class="ico">💰</span> Tuition & Invoices</div>
-
+    <div class="nav-item parent-only" id="nav-parent-reports" onclick="goChildTab('reports')"><span class="ico">📄</span> Academy Reports</div>
+    <div class="nav-item parent-only" id="nav-parent-homework" onclick="goChildTab('homework')"><span class="ico">📚</span> Homework</div>
+    <div class="nav-item parent-only" id="nav-parent-productivity" onclick="goChildTab('productivity')"><span class="ico">📝</span> Daily Tasks</div>
     <div class="nav-item parent-only" id="nav-parent-ai" onclick="setPage('parent-ai')"><span class="ico">🤖</span> Ask TOM AI</div>
     <div class="nav-item" id="nav-fame" onclick="setPage('fame')"><span class="ico">🏆</span> Wall of Fame</div>
-    <div class="nav-item admin-only" id="nav-events" onclick="setPage('events')"><span class="ico">📅</span> Event Manager</div>
     <div class="nav-item admin-only" id="nav-bills" onclick="setPage('bills')"><span class="ico">💳</span> Payments</div>
     <div class="nav-item admin-only" id="nav-exp" onclick="setPage('exp')"><span class="ico">💸</span> Expenditures</div>
     <div class="nav-item admin-only" id="nav-access" onclick="setPage('access')"><span class="ico">🔐</span> Access Control</div>
@@ -132,7 +150,7 @@
   </div>
   <div style="padding:16px;border-top:1px solid var(--border)">
     <div class="nav-item" onclick="toggleTheme()"><span class="ico">🌗</span> Switch Theme</div>
-    <div style="font-size:10px;color:var(--ivory3);text-align:center;margin-top:12px;opacity:0.6;letter-spacing:1px;" id="ui-version">Portal v5.5 (Cached)</div>
+    <div style="font-size:10px;color:var(--ivory3);text-align:center;margin-top:12px;opacity:0.6;letter-spacing:1px;" id="ui-version">Portal v5.10 (Homework Submissions)</div>
   </div>
 </nav>
 
@@ -171,10 +189,12 @@
         <div class="card card-clickable" onclick="setPage('stud')"><div class="stat-label">Total Students</div><div class="stat-value" id="s-total">—</div></div>
         <div class="card"><div class="stat-label">Avg Academy ELO</div><div class="stat-value" id="s-elo">—</div></div>
         <div class="card card-clickable" onclick="setPage('coach-mgmt')"><div class="stat-label">Active Coaches</div><div class="stat-value" id="s-coaches">—</div></div>
+        <div class="card card-clickable" onclick="setPage('stud'); document.getElementById('f-learning-mode').value='online'; renderStudents();"><div class="stat-label">Online Students</div><div class="stat-value" style="color:var(--info)" id="s-online">—</div></div>
+        <div class="card card-clickable" onclick="setPage('stud'); document.getElementById('f-learning-mode').value='offline'; renderStudents();"><div class="stat-label">Offline Students</div><div class="stat-value" style="color:var(--success)" id="s-offline">—</div></div>
       </div>
       <div class="dash-grid" style="margin-bottom:14px">
-        <div class="card card-clickable" onclick="setPage('bills')"><div class="stat-label">Collected Revenue</div><div class="stat-value text-success" id="s-rev">—</div></div>
-        <div class="card card-clickable" onclick="setPage('bills')"><div class="stat-label">Revenue Growth (MoM)</div><div class="stat-value" id="s-due">—</div></div>
+        <div class="card card-clickable" onclick="setPage('bills')"><div class="stat-label">Collected This Month</div><div class="stat-value text-success" id="s-rev">—</div></div>
+        <div class="card card-clickable" onclick="setPage('bills')"><div class="stat-label">Collected Last Month</div><div class="stat-value" style="color:var(--blue)" id="s-last-month-collected">—</div></div>
         <div class="card"><div class="stat-label">Collection Rate</div><div class="stat-value" style="color:var(--blue)" id="s-rate">—</div></div>
       </div>
       <div class="dash-grid" style="margin-bottom:14px">
@@ -213,10 +233,32 @@
 
       <!-- Coach Financial Table -->
       <div style="margin-top:20px">
-        <h3 style="color:var(--gold);margin-bottom:18px;font-family:var(--font-head);letter-spacing:1px">Coach Financial Performance</h3>
+        <h3 style="color:var(--gold);margin-bottom:8px;font-family:var(--font-head);letter-spacing:1px">Coach Financial Performance</h3>
+        <details style="margin-bottom:14px; font-size:12px; color:var(--ivory-dim); background:rgba(232,168,48,0.04); border:1px solid var(--border); border-radius:8px; padding:8px 12px;">
+          <summary style="cursor:pointer; color:var(--gold); font-weight:600; list-style:none;">ⓘ What do these columns mean? (tap to expand)</summary>
+          <div style="padding:10px 2px 2px; line-height:1.8;">
+            <b style="color:var(--ivory)">Students</b> — active students assigned to the coach this month.<br>
+            <b style="color:var(--ivory)">Revenue</b> — fees actually <em>collected</em> from this coach's students this month.<br>
+            <b style="color:var(--ivory)">Pending</b> — fees <em>not yet collected</em> (students still due) this month.<br>
+            <b style="color:var(--ivory)">Salary Cost</b> — the fixed salary you pay this coach per month.<br>
+            <b style="color:var(--ivory)">Net Profit</b> — Revenue − Salary Cost (real profit from this coach right now).<br>
+            <b style="color:var(--ivory)">Potential Net</b> — what Net Profit becomes <em>if every assigned student pays</em>.<br>
+            <b style="color:var(--ivory)">ROI / Pot.ROI</b> — how many times the coach earns back their salary, shown as a multiplier: e.g. <b>3.5×</b> means for every ₹1 of salary the coach brings in ₹3.5. <em>"now"</em> = from collected fees, <em>"max"</em> = if all students pay. <em>Below 1× = the coach costs more than they bring in.</em>
+          </div>
+        </details>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Coach</th><th>Students</th><th>Revenue</th><th>Pending</th><th>Salary Cost</th><th>Net Profit</th><th>Potential Net</th><th>ROI / Pot.ROI</th><th>Action</th></tr></thead>
+            <thead><tr>
+              <th title="Coach name">Coach</th>
+              <th title="Active students assigned to this coach in the selected month">Students</th>
+              <th title="Fees actually COLLECTED from this coach's students this month">Revenue <span style="color:var(--ivory3);font-weight:400">(collected)</span></th>
+              <th title="Fees still UNCOLLECTED — students not yet paid this month">Pending <span style="color:var(--ivory3);font-weight:400">(uncollected)</span></th>
+              <th title="The fixed monthly salary you pay this coach">Salary Cost</th>
+              <th title="Revenue minus Salary Cost — the actual profit from this coach right now">Net Profit</th>
+              <th title="Projected fees (if every student pays) minus Salary Cost — the profit potential">Potential Net</th>
+              <th title="Return on salary investment. Collected÷Salary now / Projected÷Salary at full collection. Above 100% means the coach earns the academy more than their salary.">ROI / Pot.ROI</th>
+              <th>Action</th>
+            </tr></thead>
             <tbody id="coach-finance-body"><tr><td colspan="9"><div class="loading-state"><span class="spinner"></span> Loading…</div></td></tr></tbody>
           </table>
         </div>
@@ -255,7 +297,8 @@
         <input type="number" id="f-min-fee" placeholder="Min Fee ₹" oninput="renderStudents()">
         <input type="number" id="f-max-fee" placeholder="Max Fee ₹" oninput="renderStudents()">
         <button class="btn btn-outline-amber btn-sm" onclick="bulkMarkPaid()">💳 Bulk Pay</button>
-        <button class="btn btn-outline-amber btn-sm" onclick="informAllDueStudents()">📢 Notify Due</button>
+        <button class="btn btn-outline-info btn-sm" onclick="informAllParents('whatsapp')">📢 Notify Due</button>
+        <button class="btn btn-gold btn-sm" onclick="informAllParents('whatsapp')">📲 Inform All Parents</button>
         <button class="btn btn-outline-amber btn-sm" onclick="exportStudentsToCSV()">📤 Export</button>
         <button class="btn btn-outline-danger btn-sm" onclick="bulkDeleteStudents()">🗑️ Bulk Delete</button>
          <div style="display:flex; align-items:center; gap:8px">
@@ -296,6 +339,143 @@
           </thead>
           <tbody id="stud-body"><tr><td colspan="10"><div class="loading-state"><span class="spinner"></span> Loading…</div></td></tr></tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- Chessable Profiles Full Page -->
+    <div id="page-chessable" class="page admin-only">
+      <!-- Stats Cards Row -->
+      <div id="chessable-stats-row" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-bottom:24px;"></div>
+
+      <!-- Search + Filter Row -->
+      <div class="filter-main-row" style="display:flex; gap:12px; margin-bottom:12px; align-items:center; width:100%; flex-wrap:wrap">
+        <input type="text" id="chessable-page-search" placeholder="Search student by name..." oninput="renderChessableProfiles()" style="flex:1; min-width:200px; padding:10px 14px; background:var(--bg3); border:1px solid var(--border); color:var(--ivory); border-radius:8px">
+        <select id="chessable-filter-batch" onchange="renderChessableProfiles()" style="padding:10px 14px; background:var(--bg3); border:1px solid var(--border); color:var(--ivory); border-radius:8px">
+          <option value="">All Batches</option>
+        </select>
+        <select id="chessable-filter-status" onchange="renderChessableProfiles()" style="padding:10px 14px; background:var(--bg3); border:1px solid var(--border); color:var(--ivory); border-radius:8px">
+          <option value="">All Profiles</option>
+          <option value="has">Has Profile</option>
+          <option value="missing">Missing Profile</option>
+        </select>
+      </div>
+
+      <!-- Results Table -->
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:50px">#</th>
+              <th>Student</th>
+              <th>Batch / Coach</th>
+              <th>Chessable Username</th>
+              <th>Profile Link</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="chessable-profiles-body"><tr><td colspan="6"><div class="loading-state"><span class="spinner"></span> Loading…</div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Attendance Manager Page -->
+<div id="page-attendance" class="page admin-only">
+      <div class="filter-main-row" style="display:flex; gap:12px; margin-bottom:12px; align-items:center; width:100%; flex-wrap:wrap">
+        <div style="display:flex; align-items:center; gap:8px">
+          <label style="color:var(--ivory-dim); font-size:14px">Date:</label>
+          <input type="date" id="att-date" style="padding:10px 14px; background:var(--bg3); border:1px solid var(--border); color:var(--ivory); border-radius:8px" onchange="showAttendanceView('list');renderAttendanceList()">
+        </div>
+        <input type="month" id="att-month-filter" class="input-field" onchange="showAttendanceView('calendar');renderAttendanceCalendar()" style="width: auto;">
+        <button class="btn btn-outline-grey btn-sm" onclick="navigateAttendanceMonth(-1)">← Prev</button>
+        <button class="btn btn-outline-grey btn-sm" onclick="navigateAttendanceMonth(1)">Next →</button>
+        <button class="btn btn-outline-grey btn-sm" onclick="showAttendanceView('list')">List View</button>
+        <button class="btn btn-outline-grey btn-sm" onclick="showAttendanceView('calendar')">Calendar View</button>
+        <select id="att-coach-filter" style="padding:10px 14px; background:var(--bg3); border:1px solid var(--border); color:var(--ivory); border-radius:8px" onchange="renderAttendanceList()">
+          <option value="">All Coaches</option>
+        </select>
+        <select id="att-batch-filter" style="padding:10px 14px; background:var(--bg3); border:1px solid var(--border); color:var(--ivory); border-radius:8px" onchange="renderAttendanceList()">
+          <option value="">All Batches</option>
+          <option value="Group">Group Session</option>
+          <option value="Single">1-on-1 Session</option>
+        </select>
+      </div>
+
+<div id="att-stats" style="text-align:center;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;margin-bottom:16px;font-size:14px;font-weight:600;color:var(--gold);">
+        <!-- Stats populated by JS -->
+      </div>
+
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="btn btn-outline-grey btn-sm" onclick="showAttendanceView('list')">List View</button>
+        <button class="btn btn-outline-grey btn-sm" onclick="showAttendanceView('calendar')">Calendar View</button>
+</div>
+
+      <div id="att-list-view">
+        <div style="display:flex;gap:12px;margin-bottom:16px;justify-content:space-between">
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-outline-grey" onclick="markAllPresent()">✅ Mark All Present</button>
+            <button class="btn btn-outline-grey" onclick="markAllAbsent()">❌ Mark All Absent</button>
+          </div>
+          <button class="btn btn-gold" onclick="saveBatchAttendance()" style="padding: 10px 24px; font-weight:700">💾 Save Attendance</button>
+        </div>
+
+        <div class="table-wrap">
+          <table style="font-size:14px">
+            <thead><tr>
+              <th style="width:200px">Student</th>
+              <th style="width:150px">Status</th>
+              <th>Classwork & Homework</th>
+            </tr></thead>
+            <tbody id="att-marking-body"><tr><td colspan="3"><div class="loading-state"><span class="spinner"></span> Select date/coach to load students</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="att-calendar-view" style="display:none">
+        <div class="table-wrap" style="max-height:500px;overflow:auto">
+          <table style="font-size:11px">
+            <tbody id="att-calendar-body"><tr><td><div class="empty-state">Select a month to view calendar</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Homework Manager -->
+    <div id="page-homework" class="page admin-only">
+      <div style="background: linear-gradient(135deg, rgba(218, 163, 62, 0.08) 0%, rgba(218, 163, 62, 0.02) 100%); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px; margin-bottom: 24px; position: relative; overflow: hidden; box-shadow: var(--shadow);">
+        <div style="position: absolute; top: -20px; right: -20px; font-size: 120px; opacity: 0.04; pointer-events: none; font-family: sans-serif;">📚</div>
+        <h2 style="color:var(--gold); margin-bottom: 8px; font-family:var(--font-head); font-size: 26px; display: flex; align-items: center; gap: 10px;">
+          <span>📚</span> Homework Manager
+        </h2>
+        <p style="color:var(--ivory-dim); font-size: 14px; max-width: 720px; line-height: 1.6;">
+          Assign practice tasks to an individual student or an entire batch. Parents can view assignments in the Parent Portal and mark them as completed.
+        </p>
+        <button class="btn btn-gold" onclick="openHomeworkModal()">
+          <span class="ico">➕</span> Assign Homework
+        </button>
+      </div>
+
+<div class="card" style="padding: 18px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+          <select id="homework-admin-filter" class="input-field" onchange="renderHomeworkAdmin()" style="width: auto;">
+            <option value="all">All Assignments</option>
+            <option value="active">Active</option>
+            <option value="review">Review Queue</option>
+            <option value="completed">Completed</option>
+            <option value="student">Student Assignments</option>
+            <option value="batch">Batch Assignments</option>
+          </select>
+          <input type="month" id="homework-calendar-filter" class="input-field" onchange="filterHomeworkByMonth()" style="width: auto;">
+          <button class="btn btn-outline-grey" onclick="navigateHomeworkMonth(-1)">← Prev</button>
+          <button class="btn btn-outline-grey" onclick="navigateHomeworkMonth(1)">Next →</button>
+          <button class="btn btn-outline-grey" onclick="renderHomeworkAdmin()">🔄 Refresh</button>
+        </div>
+        <div style="font-size: 12px; color: var(--ivory-dim);">
+          <span id="homework-admin-count">0 assignments</span>
+        </div>
+      </div>
+
+      <div id="homework-admin-body" class="grid-sidebar-layout" style="gap: 20px;">
+        <div class="loading-state" style="grid-column: 1 / -1;"><span class="spinner"></span> Loading homework…</div>
       </div>
     </div>
 
@@ -350,6 +530,9 @@
                 <span><b>Phone:</b> <span id="c-parent-phone" style="font-family: monospace;">—</span></span>
                 <span><b>Email:</b> <span id="c-parent-email">—</span></span>
               </div>
+              <div class="profile-meta" style="display:flex; flex-wrap:wrap; gap:16px; margin-top:8px;" id="c-chess-links-container">
+                <!-- Populated by JS if usernames exist -->
+              </div>
             </div>
           </div>
           <div class="profile-actions">
@@ -367,6 +550,8 @@
           <button class="tab-link" onclick="setChildTab('growth', this)">Growth</button>
           <button class="tab-link" onclick="setChildTab('learning', this)">Resources</button>
           <button class="tab-link" onclick="setChildTab('events', this)">Events</button>
+          <button class="tab-link" onclick="setChildTab('reports', this)">Reports</button>
+          <button class="tab-link" onclick="setChildTab('homework', this)">Homework</button>
           <button class="tab-link" onclick="setChildTab('billing', this)">Billing & Receipts</button>
           <button class="tab-link" onclick="setChildTab('productivity', this)">Daily Tasks</button>
         </div>
@@ -392,6 +577,46 @@
           <div id="child-overview-ai-insight" class="ai-insight-box" style="margin-top:22px; display:none;">
             <div class="ai-insight-title">🤖 TOM AI Academy Advisor</div>
             <div class="ai-insight-text" id="child-overview-ai-insight-text"></div>
+          </div>
+        </div>
+
+        <!-- REPORTS TAB -->
+        <div id="child-tab-reports" class="child-tab-content">
+          <div class="card" style="padding:24px; margin-bottom:20px;">
+            <h3 style="margin-bottom:16px; color:var(--gold); border-bottom:1px solid var(--border); padding-bottom:10px;">📋 Generate Academy Reports</h3>
+            <p style="color:var(--ivory-dim); font-size:14px; margin-bottom:20px;">Download official reports for your records. Select a month and the type of report you need.</p>
+            
+            <div style="display:flex; gap:16px; align-items:flex-end; flex-wrap:wrap; margin-bottom:24px; background:var(--surface2); padding:16px; border-radius:8px;">
+              <div style="flex:1; min-width:200px;">
+                <label style="display:block; margin-bottom:6px; font-size:12px; color:var(--ivory-dim);">Report Month</label>
+                <input type="month" id="parent-report-month" class="input-field" style="width:100%;" onchange="renderChildReports()">
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px;" id="parent-reports-container">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+        </div>
+
+        <div id="child-tab-homework" class="child-tab-content">
+          <div style="background: linear-gradient(135deg, rgba(218, 163, 62, 0.08) 0%, rgba(218, 163, 62, 0.02) 100%); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 24px; box-shadow: var(--shadow);">
+            <h2 style="color:var(--gold); margin:0 0 8px; font-family:var(--font-head); font-size:24px; display:flex; align-items:center; gap:10px;">
+              <span>📚</span> Assigned Homework
+            </h2>
+            <p style="color:var(--ivory-dim); font-size:14px; line-height:1.6; margin:0;">
+              View homework assigned directly to your child or to their batch. Mark tasks as completed after practice.
+            </p>
+          </div>
+
+          <div class="dash-grid" style="margin-bottom:20px; display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:16px;">
+            <div class="card"><div class="stat-label">Total Assigned</div><div class="stat-value" id="child-hw-total" style="color:var(--gold)">0</div></div>
+            <div class="card"><div class="stat-label">Pending</div><div class="stat-value text-warning" id="child-hw-pending">0</div></div>
+            <div class="card"><div class="stat-label">Completed</div><div class="stat-value text-success" id="child-hw-done">0</div></div>
+          </div>
+
+          <div id="child-homework-body">
+            <div class="loading-state"><span class="spinner"></span> Loading homework…</div>
           </div>
         </div>
 
@@ -569,6 +794,8 @@
                   <th>Date</th>
                   <th>Status</th>
                   <th>Notes</th>
+                  <th>Classwork</th>
+                  <th>Homework</th>
                 </tr>
               </thead>
               <tbody id="child-att-body">
@@ -581,8 +808,20 @@
         <div id="child-tab-growth" class="child-tab-content">
           <div class="dash-grid" style="margin-bottom:22px">
             <div class="card">
-              <h3 style="margin-bottom:16px;color:var(--gold)">Rating Progression</h3>
-              <div style="height:300px"><canvas id="chartChildElo"></canvas></div>
+              <h3 style="margin-bottom:16px;color:var(--gold)">Academy Rating Progression</h3>
+              <div style="height:250px"><canvas id="chartChildElo"></canvas></div>
+            </div>
+            <div class="card" id="lichess-chart-card" style="display:none;">
+              <h3 style="margin-bottom:16px;color:#fff;display:flex;align-items:center;gap:8px;"><span class="ico">♘</span> Lichess Rapid Rating</h3>
+              <div style="height:250px"><canvas id="chartLichessElo"></canvas></div>
+            </div>
+            <div class="card" id="chesscom-chart-card" style="display:none;">
+              <h3 style="margin-bottom:16px;color:#7FA650;display:flex;align-items:center;gap:8px;"><span class="ico">♟️</span> Chess.com Rapid Rating</h3>
+              <div style="height:250px"><canvas id="chartChesscomElo"></canvas></div>
+            </div>
+            <div class="card" id="chessable-chart-card" style="display:none;">
+              <h3 style="margin-bottom:16px;color:#EA580C;display:flex;align-items:center;gap:8px;"><span class="ico">🎓</span> Chessable XP Progression</h3>
+              <div style="height:250px"><canvas id="chartChessableProgress"></canvas></div>
             </div>
             <div class="card">
               <h3 style="margin-bottom:16px;color:var(--gold)">Attendance Overview</h3>
@@ -597,6 +836,17 @@
         </div>
 
         <div id="child-tab-learning" class="child-tab-content">
+          <div style="margin-bottom:24px;">
+            <div class="card card-clickable" onclick="openChildChessable()" style="display:flex;align-items:center;justify-content:space-between;border-left:4px solid var(--emerald);background:linear-gradient(145deg, var(--bg2), rgba(16, 185, 129, 0.04));">
+              <div>
+                <h3 style="margin-bottom:4px;color:var(--emerald);font-size:18px;display:flex;align-items:center;gap:8px">
+                  <img src="https://www.chessable.com/favicon.ico" style="width:20px;height:20px;border-radius:4px" onerror="this.style.display='none'"> Practice on Chessable
+                </h3>
+                <div style="color:var(--ivory-dim);font-size:13px">Interactive opening lines and tactical training</div>
+              </div>
+              <div style="font-size:24px;opacity:0.5">↗</div>
+            </div>
+          </div>
           <div id="resource-grid" class="resource-grid">
             <div class="loading-state"><span class="spinner"></span> Loading Library…</div>
           </div>
@@ -997,6 +1247,41 @@
       </div>
     </div>
 
+    <!-- Classroom / Batch Manager -->
+    <div id="page-batches" class="page admin-only">
+      <div style="background: linear-gradient(135deg, rgba(218, 163, 62, 0.08) 0%, rgba(218, 163, 62, 0.02) 100%); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px; margin-bottom: 24px; position: relative; overflow: hidden; box-shadow: var(--shadow);">
+        <div style="position: absolute; top: -20px; right: -20px; font-size: 120px; opacity: 0.04; pointer-events: none; font-family: sans-serif;">🏫</div>
+        <h2 style="color:var(--gold); margin-bottom: 8px; font-family:var(--font-head); font-size: 26px; display: flex; align-items: center; gap: 10px;">
+          <span>🏫</span> Classroom / Batch Manager
+        </h2>
+        <p style="color:var(--ivory-dim); font-size: 14px; max-width: 600px; line-height: 1.6; margin-bottom: 20px;">
+          Create and manage student batches, assign coaches, and track active classrooms across your academy.
+        </p>
+        <button class="btn btn-gold" onclick="openCreateBatchModal()">
+          <span class="ico">➕</span> New Batch
+        </button>
+      </div>
+
+      <!-- Filters & Controls -->
+      <div class="card" style="padding: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div style="display: flex; gap: 16px; align-items: center;">
+          <div class="search-box">
+            <span class="ico" style="opacity:0.5; margin-left:12px;">🔍</span>
+            <input type="text" id="batch-search-input" placeholder="Search batches..." onkeyup="renderBatchesGrid()" style="background:transparent; border:none; color:var(--ivory); outline:none; padding:8px; width:200px;">
+          </div>
+          <select id="batch-status-filter" class="input-field" onchange="renderBatchesGrid()" style="width: auto;">
+            <option value="active">Active Only</option>
+            <option value="all">All Statuses</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Card Grid Container -->
+      <div id="batches-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px;">
+        <!-- Batches will be rendered here dynamically -->
+      </div>
+    </div>
+
     <!-- Student Schedule Manager -->
     <div id="page-schedules" class="page admin-only">
       <div style="background: linear-gradient(135deg, rgba(218, 163, 62, 0.08) 0%, rgba(218, 163, 62, 0.02) 100%); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px; margin-bottom: 24px; position: relative; overflow: hidden; box-shadow: var(--shadow);">
@@ -1081,6 +1366,25 @@
           <div style="display:flex; gap:12px; margin-top:24px;">
             <button class="btn btn-outline" style="flex:1" onclick="generateSchedulePreview()">Preview Card</button>
             <button class="btn btn-gold" style="flex:1" onclick="saveStudentSchedule()">Save Schedule</button>
+          </div>
+
+          <!-- Group / Batch Class Scheduling -->
+          <div style="margin-top:16px; border-top:1px dashed var(--border); padding-top:16px;">
+            <button class="btn btn-outline" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px;" onclick="toggleScheduleGroup()">
+              👥 Apply this Schedule to a Group / Batch
+            </button>
+            <div id="sch-group-panel" style="display:none; margin-top:14px; background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:12px; padding:14px;">
+              <p style="font-size:11px; color:var(--ivory-dim); margin:0 0 10px; line-height:1.5;">
+                Configure the schedule above, then pick the students who share this group class. The same demo/class timings & coach will be saved to everyone selected.
+              </p>
+              <div style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+                <button class="btn btn-outline-grey btn-sm" style="font-size:11px; padding:4px 10px;" onclick="schGroupSelect('group')">Select all Group students</button>
+                <button class="btn btn-outline-grey btn-sm" style="font-size:11px; padding:4px 10px;" onclick="schGroupSelect('all')">Select all</button>
+                <button class="btn btn-outline-grey btn-sm" style="font-size:11px; padding:4px 10px;" onclick="schGroupSelect('none')">Clear</button>
+              </div>
+              <div id="sch-group-list" style="max-height:220px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; padding:6px; margin-bottom:12px; background:rgba(0,0,0,0.15);"></div>
+              <button class="btn btn-gold" style="width:100%;" onclick="saveScheduleToGroup()">💾 Save Schedule to Selected Group</button>
+            </div>
           </div>
         </div>
 
@@ -1324,6 +1628,39 @@
                   <div class="loading-state"><span class="spinner"></span> Loading users...</div>
                 </td>
               </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Parent Portal Accounts (login = student name + parent phone) -->
+      <div class="card" style="border: 1px solid var(--border); background:var(--bg2); margin-top: 24px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px; flex-wrap:wrap; gap:10px;">
+          <h3 style="color:var(--gold); margin:0; font-family:var(--font-head); display:flex; align-items:center; gap:8px; font-size: 18px;">
+            👪 Parent / Student Portal Accounts
+          </h3>
+          <span id="parent-accounts-count" class="badge badge-level" style="font-size:11px;">0 accounts</span>
+        </div>
+        <p style="font-size: 13px; color: var(--ivory-dim); margin-bottom: 16px; line-height: 1.6;">
+          Parents sign in to the <strong>My Child</strong> portal using their child's <strong>name</strong> and the registered <strong>parent phone number</strong> — these are managed from the Students registry, not as separate admin logins. This is a read-only overview of who can access a parent portal.
+        </p>
+        <div style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
+          <input type="text" id="parent-accounts-search" placeholder="Search parent or student…" oninput="renderParentAccounts()" style="flex:1; min-width:200px; padding:8px 12px; background:var(--bg3); border:1px solid var(--border); color:var(--ivory); border-radius:8px; font-size:13px;">
+        </div>
+        <div class="table-wrap" style="box-shadow: var(--shadow); border-radius: 10px; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; border: 1px solid var(--border);">
+          <table>
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Parent Name</th>
+                <th>Login Phone</th>
+                <th>Coach</th>
+                <th>Status</th>
+                <th style="text-align:center;">Open</th>
+              </tr>
+            </thead>
+            <tbody id="parent-accounts-tbody">
+              <tr><td colspan="6"><div class="loading-state"><span class="spinner"></span> Loading parent accounts…</div></td></tr>
             </tbody>
           </table>
         </div>
@@ -1774,6 +2111,19 @@
       </div>
     </div>
 
+<!-- Bulk "Inform Coaches" queue (reliable click-through, no popup blocking) -->
+<div class="modal" id="bulk-inform-modal">
+  <div class="modal-box" style="max-width:560px">
+    <div class="modal-title">📢 Inform Coaches — Pending Fees</div>
+    <div class="modal-sub" id="bulk-inform-sub">Send each coach a WhatsApp summary of their students' pending fees.</div>
+    <div style="display:flex; gap:8px; margin:14px 0;">
+      <button class="btn btn-gold" style="flex:1" onclick="bulkInformNext()">Send to Next Coach ▶</button>
+      <button class="btn btn-outline-grey" onclick="closeModals()">Done</button>
+    </div>
+    <div id="bulk-inform-list" style="max-height:52vh; overflow-y:auto; display:flex; flex-direction:column; gap:8px;"></div>
+  </div>
+</div>
+
 <!-- Access Control: Create / Edit User Modal -->
 <div class="modal" id="access-user-modal">
   <div class="modal-box" style="max-width:460px">
@@ -1963,6 +2313,27 @@
   </div>
 </div>
 
+<!-- Schedule Datalist Options mapped from Matrix -->
+<datalist id="schedule-options">
+  <option value="Tue, Wed, Sat | 5:00 AM - 5:40 AM"></option>
+  <option value="Wed, Fri | 5:40 AM - 6:20 AM"></option>
+  <option value="Thu, Fri | 6:00 AM - 7:00 AM"></option>
+  <option value="Wed, Fri | 7:00 AM - 8:00 AM"></option>
+  <option value="Sat | 8:00 AM - 9:00 AM & Fri | 6:00 PM - 7:00 PM"></option>
+  <option value="Wed, Fri | 2:45 PM - 3:45 PM"></option>
+  <option value="Mon, Tue | 6:00 PM - 7:00 PM"></option>
+  <option value="Wed, Thu | 6:00 PM - 7:00 PM"></option>
+  <option value="Fri, Sat | 6:00 PM - 7:00 PM"></option>
+  <option value="Mon, Thu | 7:00 PM - 8:00 PM"></option>
+  <option value="Tue, Fri | 7:00 PM - 8:00 PM"></option>
+  <option value="Wed, Thu | 7:00 PM - 8:00 PM"></option>
+  <option value="Fri, Sat | 7:00 PM - 8:00 PM"></option>
+  <option value="Sat, Sun | 7:00 PM - 8:00 PM"></option>
+  <option value="Sat, Sun | 7:30 PM - 8:30 PM"></option>
+  <option value="Mon, Thu | 8:00 PM - 9:00 PM"></option>
+  <option value="Wed, Thu | 8:00 PM - 9:00 PM"></option>
+</datalist>
+
 <!-- Enroll Modal -->
 <div class="modal" id="enroll-modal">
   <div class="modal-box">
@@ -2002,23 +2373,32 @@
       </div>
     </div>
 
-    <div class="modal-grid">
+<div class="modal-grid">
       <div class="form-group">
         <label>Assigned Coach</label>
         <select id="m-coach"><option value="">Loading...</option></select>
       </div>
       <div class="form-group">
-        <label>Batch Type</label>
-        <select id="m-batch-type">
-          <option value="Morning">Morning</option><option value="Evening">Evening</option><option value="Weekend">Weekend</option>
-        </select>
+        <label>Batch Type (Days)</label>
+        <div id="m-batch-days" style="display:flex;flex-wrap:wrap;gap:8px;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px">
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Monday" onchange="updateBatchTypeFromDays('m')"> <span style="font-size:12px">Mon</span></label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Tuesday" onchange="updateBatchTypeFromDays('m')"> <span style="font-size:12px">Tue</span></label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Wednesday" onchange="updateBatchTypeFromDays('m')"> <span style="font-size:12px">Wed</span></label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Thursday" onchange="updateBatchTypeFromDays('m')"> <span style="font-size:12px">Thu</span></label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Friday" onchange="updateBatchTypeFromDays('m')"> <span style="font-size:12px">Fri</span></label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Saturday" onchange="updateBatchTypeFromDays('m')"> <span style="font-size:12px">Sat</span></label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Sunday" onchange="updateBatchTypeFromDays('m')"> <span style="font-size:12px">Sun</span></label>
+        </div>
       </div>
     </div>
+    <input type="hidden" id="m-batch-type">
+
+
 
     <div class="modal-grid">
       <div class="form-group">
         <label>Session Schedule</label>
-        <input type="text" id="m-batch-time" placeholder="e.g. FRI & SAT or 17:00" value="17:00">
+        <input type="text" id="m-batch-time" list="schedule-options" placeholder="e.g. Sat & Sun | 7:00 PM - 8:00 PM">
       </div>
       <div class="form-group">
         <label>Joining Date</label>
@@ -2053,6 +2433,27 @@
           <option value="offline">Offline Student</option>
           <option value="online">Online Student</option>
         </select>
+      </div>
+    </div>
+
+    <div class="modal-grid" style="margin-top: 12px;">
+      <div class="form-group">
+        <label>Lichess Username</label>
+        <input type="text" id="m-lichess" placeholder="e.g. magnuscarlsen">
+      </div>
+      <div class="form-group">
+        <label>Chess.com Username</label>
+        <input type="text" id="m-chesscom" placeholder="e.g. hikaru">
+      </div>
+    </div>
+
+    <div class="modal-grid" style="margin-top: 12px;">
+      <div class="form-group">
+        <label>Chessable Username</label>
+        <input type="text" id="m-chessable" placeholder="e.g. aarav_v">
+      </div>
+      <div class="form-group">
+        <!-- Empty placeholder to balance the grid layout -->
       </div>
     </div>
 
@@ -2102,23 +2503,30 @@
       </div>
     </div>
 
-    <div class="modal-grid">
+<div class="modal-grid">
       <div class="form-group">
         <label>Assigned Coach</label>
         <select id="e-coach"></select>
       </div>
       <div class="form-group">
-        <label>Batch Type</label>
-        <select id="e-batch-type">
-          <option value="Morning">Morning</option><option value="Evening">Evening</option><option value="Weekend">Weekend</option>
-        </select>
+        <label>Batch Type (Days)</label>
+        <div id="e-batch-days" style="display:flex;flex-wrap:wrap;gap:8px;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px">
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Monday" onchange="updateBatchTypeFromDays('e')"> <span style="font-size:12px">Mon</span></label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Tuesday" onchange="updateBatchTypeFromDays('e')"> <span style="font-size:12px">Tue</span></label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Wednesday" onchange="updateBatchTypeFromDays('e')"> <span style="font-size:12px">Wed</span></label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Thursday" onchange="updateBatchTypeFromDays('e')"> <span style="font-size:12px">Thu</span></label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Friday" onchange="updateBatchTypeFromDays('e')"> <span style="font-size:12px">Fri</span></label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Saturday" onchange="updateBatchTypeFromDays('e')"> <span style="font-size:12px">Sat</span></label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="Sunday" onchange="updateBatchTypeFromDays('e')"> <span style="font-size:12px">Sun</span></label>
+        </div>
       </div>
     </div>
+    <input type="hidden" id="e-batch-type">
 
     <div class="modal-grid">
       <div class="form-group">
         <label>Session Schedule</label>
-        <input type="text" id="e-batch-time" placeholder="e.g. FRI & SAT or 17:00">
+        <input type="text" id="e-batch-time" list="schedule-options" placeholder="e.g. Sat & Sun | 7:00 PM - 8:00 PM">
       </div>
       <div class="form-group">
         <label>Join Date</label>
@@ -2168,6 +2576,27 @@
       </select>
     </div>
 
+    <div class="modal-grid">
+      <div class="form-group">
+        <label>Lichess Username</label>
+        <input type="text" id="e-lichess" placeholder="e.g. magnuscarlsen">
+      </div>
+      <div class="form-group">
+        <label>Chess.com Username</label>
+        <input type="text" id="e-chesscom" placeholder="e.g. hikaru">
+      </div>
+    </div>
+
+    <div class="modal-grid" style="margin-top: 12px;">
+      <div class="form-group">
+        <label>Chessable Username</label>
+        <input type="text" id="e-chessable" placeholder="e.g. aarav_v">
+      </div>
+      <div class="form-group">
+        <!-- Empty placeholder to balance the grid layout -->
+      </div>
+    </div>
+
     <div class="form-group">
       <label>Staff Notes</label>
       <input type="text" id="e-notes" placeholder="Notes about student progress, behavior, or special requests...">
@@ -2180,46 +2609,7 @@
   </div>
 </div>
 
-<!-- Attendance Marking Modal -->
-<div class="modal" id="attendance-modal">
-  <div class="modal-box" style="max-width:700px">
-    <div class="modal-title">📅 Mark Attendance</div>
-    <div class="modal-sub">
-      <span style="margin-right:8px">Date:</span>
-      <input type="date" id="att-date" style="display:inline;width:auto;padding:6px 10px" onchange="renderAttendanceList()">
-      <span style="margin:0 8px">Coach:</span>
-      <select id="att-coach-filter" style="display:inline;width:auto;padding:6px 10px" onchange="renderAttendanceList()">
-        <option value="">All Coaches</option>
-      </select>
-      <span style="margin:0 8px">Batch:</span>
-      <select id="att-batch-filter" style="display:inline;width:auto;padding:6px 10px" onchange="renderAttendanceList()">
-        <option value="">All Batches</option>
-        <option value="Group">Group Session</option>
-        <option value="Single">1-on-1 Session</option>
-      </select>
-    </div>
-    
-    <div id="att-stats" style="text-align:center;padding:10px;background:var(--surface2);border-radius:8px;margin-bottom:12px;font-size:13px;font-weight:600">
-      <!-- Stats populated by JS -->
-    </div>
-    
-    <div style="display:flex;gap:8px;margin-bottom:12px">
-      <button class="btn btn-outline-grey btn-sm" onclick="markAllPresent()">✅ Mark All Present</button>
-      <button class="btn btn-outline-grey btn-sm" onclick="markAllAbsent()">❌ Mark All Absent</button>
-    </div>
-    
-    <div class="table-wrap" style="max-height:350px;overflow-y:auto;margin:12px 0">
-      <table style="font-size:13px">
-        <thead><tr><th>Student</th><th>Status</th><th>Notes</th></tr></thead>
-        <tbody id="att-marking-body"></tbody>
-      </table>
-    </div>
-    <div style="display:flex;gap:10px;margin-top:14px">
-      <button class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
-      <button class="btn btn-gold" style="flex:1" onclick="saveBatchAttendance()">💾 Save Attendance</button>
-    </div>
-  </div>
-</div>
+
 
 <!-- Promotion Modal -->
 <div class="modal" id="promote-modal">
@@ -2379,6 +2769,146 @@
       </div>
     </div>
 
+
+
+    <!-- Edit/Create Batch Modal -->
+    <div class="modal" id="edit-batch-modal">
+      <div class="modal-box" style="max-width:500px">
+        <div class="modal-title" id="eb-modal-title">Create New Batch</div>
+        <input type="hidden" id="eb-id">
+        <div class="modal-grid">
+          <div class="form-group">
+            <label>Batch Name</label>
+            <input type="text" id="eb-name" placeholder="e.g. Evening Group A">
+          </div>
+          <div class="form-group">
+            <label>Coach</label>
+            <select id="eb-coach"></select>
+          </div>
+        </div>
+        <div class="modal-grid">
+          <div class="form-group">
+            <label>Level</label>
+            <select id="eb-level">
+              <option value="Beginner">Beginner</option>
+              <option value="Intermediate">Intermediate</option>
+              <option value="Advanced">Advanced</option>
+              <option value="Elite">Elite</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select id="eb-status">
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-grid">
+          <div class="form-group">
+            <label>Days</label>
+            <input type="text" id="eb-days" placeholder="e.g. Mon & Wed">
+          </div>
+          <div class="form-group">
+            <label>Time Slot</label>
+            <input type="text" id="eb-time" placeholder="e.g. 6:00 PM - 7:00 PM">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <input type="text" id="eb-notes" placeholder="Optional notes...">
+        </div>
+        <div class="form-group" style="margin-top:10px;">
+          <label>Chessable URL</label>
+          <input type="url" id="eb-chessable" placeholder="https://www.chessable.com/course/...">
+        </div>
+        
+        <div class="form-group" style="margin-top:10px;">
+          <label style="display:flex;justify-content:space-between;">
+            <span>Assign Students</span>
+            <span style="font-weight:normal;color:var(--ivory-dim);font-size:11px" id="eb-student-count">0 / 10 selected</span>
+          </label>
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;max-height:200px;overflow-y:auto;padding:8px" id="eb-student-list">
+            <!-- Checkboxes populated by JS -->
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:20px; border-top: 1px solid var(--border); padding-top: 20px;">
+          <button class="btn btn-outline" style="flex:1" onclick="closeModal('edit-batch-modal')">Cancel</button>
+          <button class="btn btn-gold" style="flex:1" onclick="saveBatch()">Save Batch</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Homework Assignment Modal -->
+    <div class="modal" id="homework-modal">
+      <div class="modal-box" style="max-width:560px">
+        <div class="modal-title" id="homework-modal-title">Assign Homework</div>
+        <input type="hidden" id="hw-id">
+        <div class="modal-grid">
+          <div class="form-group">
+            <label>Assign To</label>
+            <select id="hw-target-type" onchange="syncHomeworkTargetSelectors()">
+              <option value="student">Individual Student</option>
+              <option value="batch">Batch</option>
+            </select>
+          </div>
+        </div>
+<div class="form-group" id="hw-student-field">
+          <label>Student</label>
+          <select id="hw-student-id"></select>
+        </div>
+        <div class="form-group" id="hw-coach-field" style="display:none">
+          <label>Coach Name</label>
+          <select id="hw-coach-id" onchange="onHomeworkCoachChange()">
+            <option value="">Select Coach</option>
+          </select>
+        </div>
+        <div class="form-group" id="hw-batch-field" style="display:none">
+          <label>Batch Number</label>
+          <select id="hw-batch-id" onchange="onHomeworkBatchChange()">
+            <option value="">Select Batch</option>
+          </select>
+        </div>
+        <div class="form-group" id="hw-session-schedule-field" style="display:none">
+          <label>Session Schedule</label>
+          <input type="text" id="hw-session-schedule" readonly style="background:var(--bg3);cursor:default">
+        </div>
+        <div class="form-group">
+          <label>Title</label>
+          <input type="text" id="hw-title" placeholder="e.g. Tactics: Forks and Pins">
+        </div>
+        <div class="form-group">
+          <label>Instructions</label>
+          <textarea id="hw-description" rows="5" placeholder="Describe the practice task, pages, puzzles, games to review, or expected outcome..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Homework Questions / Reference Material</label>
+          <input type="file" id="hw-questions-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.pgn,application/pdf,image/*,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" multiple style="margin-bottom:8px">
+          <div style="font-size:11px;color:var(--ivory-dim)">Upload PDF, images, PGN files, or documents with the homework questions for students to complete</div>
+          <div id="hw-existing-questions" style="margin-top:8px;display:none">
+            <div style="font-size:11px;color:var(--gold);margin-bottom:6px">Current files:</div>
+            <div id="hw-existing-questions-list" style="display:flex;flex-direction:column;gap:4px"></div>
+          </div>
+        </div>
+        <div class="modal-grid">
+          <div class="form-group">
+            <label>Max Marks</label>
+            <input type="number" id="hw-max-marks" min="1" max="100" step="0.5" value="100">
+          </div>
+          <div class="form-group">
+            <label>Due Date</label>
+            <input type="date" id="hw-due-date">
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:20px">
+          <button class="btn btn-outline" style="flex:1" onclick="closeModal('homework-modal')">Cancel</button>
+          <button class="btn btn-gold" style="flex:1" onclick="saveHomeworkAssignment()">Save Assignment</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Event Expenditure Modal -->
     <div class="modal" id="event-expenditure-modal">
       <div class="modal-content" style="max-width: 400px;">
@@ -2501,11 +3031,45 @@
         <label style="display:block; font-size:12px; text-transform:uppercase; color:var(--ivory-dim); margin-bottom:6px;">Parent Email</label>
         <input type="email" id="spe-email" placeholder="Parent Email Address" style="width:100%; padding:10px; border-radius:6px; background:var(--bg3); border:1px solid var(--border); color:#fff; font-family:inherit;">
       </div>
+      <div>
+        <label style="display:block; font-size:12px; text-transform:uppercase; color:var(--ivory-dim); margin-bottom:6px;">Lichess URL</label>
+        <input type="url" id="spe-lichess" placeholder="https://lichess.org/@/username" style="width:100%; padding:10px; border-radius:6px; background:var(--bg3); border:1px solid var(--border); color:#fff; font-family:inherit;">
+      </div>
+      <div>
+        <label style="display:block; font-size:12px; text-transform:uppercase; color:var(--ivory-dim); margin-bottom:6px;">Chess.com URL</label>
+        <input type="url" id="spe-chesscom" placeholder="https://www.chess.com/member/username" style="width:100%; padding:10px; border-radius:6px; background:var(--bg3); border:1px solid var(--border); color:#fff; font-family:inherit;">
+      </div>
+      <div>
+        <label style="display:block; font-size:12px; text-transform:uppercase; color:var(--ivory-dim); margin-bottom:6px;">Chessable Username</label>
+        <input type="text" id="spe-chessable" placeholder="e.g. aarav_v" style="width:100%; padding:10px; border-radius:6px; background:var(--bg3); border:1px solid var(--border); color:#fff; font-family:inherit;">
+      </div>
     </div>
 
     <div style="display:flex; gap:10px; margin-top:20px;">
       <button class="btn btn-outline" style="flex:1" onclick="closeModals()">Cancel</button>
       <button class="btn btn-gold" style="flex:1" onclick="saveStudentPortalDetails()">Save Details</button>
+    </div>
+  </div>
+</div>
+
+<!-- Chessable Student Redirect Modal -->
+<div class="modal" id="chessable-redirect-modal">
+  <div class="modal-box" style="max-width:550px">
+    <div class="modal-title" style="display:flex; justify-content:space-between; align-items:center;">
+      <span>Chessable Student Profiles</span>
+      <span style="cursor:pointer; font-size:18px;" onclick="closeModals()">✕</span>
+    </div>
+    
+    <div style="margin: 15px 0;">
+      <input type="text" id="chessable-search" placeholder="Search student by name..." oninput="filterChessableStudents()" style="width:100%; padding:10px; border-radius:6px; background:var(--bg3); border:1px solid var(--border); color:#fff; font-family:inherit;">
+    </div>
+
+    <div id="chessable-student-list" style="max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px;">
+      <!-- Dynamic list of students will be rendered here -->
+    </div>
+
+    <div style="display:flex; gap:10px; margin-top:20px; border-top: 1px solid var(--border); padding-top: 15px;">
+      <button class="btn btn-outline" style="flex:1" onclick="closeModals()">Close</button>
     </div>
   </div>
 </div>
@@ -2818,13 +3382,13 @@
 
       <script src="js/telemetry.js?v=1.0" charset="utf-8"></script>
       <script src="js/productivity.js?v=1.2&t=20260601c" charset="utf-8"></script>
-      <script src="js/tournaments.js?v=1.1&t=20260531" charset="utf-8"></script>
-      <script src="js/access.js?v=1.3&t=20260601c"></script>
+      <script src="js/tournaments.js?v=1.3&t=20260611a" charset="utf-8"></script>
+      <script src="js/access.js?v=1.4&t=20260601i"></script>
       <script src="js/tom-brain.js?v=1.0&t=20260601" charset="utf-8"></script>
-      <script src="scripts.js?v=6.9&t=20260601f" charset="utf-8"></script>
+      <script src="scripts.js?v=9.0&t=20260611_v4" charset="utf-8"></script>
       <script src="js/expenditures.js?v=1.1&t=20260601d" charset="utf-8"></script>
       <script src="js/calculator.js?v=1.0" charset="utf-8"></script>
-      <script src="js/reporting.js?v=v11&t=20260601f" charset="utf-8"></script>
+      <script src="js/reporting.js?v=v13&t=20260602c" charset="utf-8"></script>
       <script src="js/ai-assistant.js?v=v4&t=20260601" charset="utf-8"></script>
       <script src="js/auth.js?v=v3&t=20260529" charset="utf-8"></script>
       <script src="js/router.js?v=20260529" charset="utf-8"></script>
@@ -2836,9 +3400,9 @@
       <script src="js/encryption.js?v=20260529" charset="utf-8"></script>
       <script src="js/scripts_patch.js?v=2.3&t=20260529" charset="utf-8"></script>
       <script src="js/automation.js?v=3.9&t=20260529" charset="utf-8"></script>
-      <script src="js/schedule.js?v=1.4&t=20260601c" charset="utf-8"></script>
+      <script src="js/schedule.js?v=2.0&t=20260611a" charset="utf-8"></script>
  
-      <script src="js/attendance_extension.js?v=1.0&t=20260529" charset="utf-8"></script>
+      <script src="js/attendance_extension.js?v=2.0&t=20260611a" charset="utf-8"></script>
 
       <!-- Monthly Attendance Modal -->
       <div class="modal" id="monthly-attendance-modal">
@@ -2870,15 +3434,20 @@
 
       <!-- Master Schedule Modal -->
       <div class="modal" id="master-schedule-modal">
-        <div class="modal-box" style="max-width:800px; width:95%">
-          <div class="modal-title">📋 Coach Master Schedule</div>
-          <div style="max-height:500px;overflow-y:auto;padding-right:10px" id="master-schedule-container">
+        <div class="modal-box" style="max-width:96vw; width:96vw; padding: 20px;">
+          <div style="text-align:center; margin-bottom:12px;">
+            <div class="modal-title" style="font-size:18px; letter-spacing:0.5px;">Chess Academy — Coach Master Schedule Matrix</div>
+            <div style="font-size:11px; color:var(--ivory-dim); margin-top:2px;">Complete Unified Rosters with Strict Chronological Sequencing</div>
+          </div>
+          <div style="overflow-x:auto; overflow-y:auto; max-height:75vh; padding-right:6px;" id="master-schedule-container">
             <!-- Populated by JS -->
           </div>
-          <div style="display:flex;justify-content:flex-end;margin-top:15px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:15px; padding-top:12px; border-top:1px solid var(--border);">
+            <div style="font-size:9px; color:var(--ivory-dim);">Chess Academy Master Matrix • Sync Status: Verified Secure</div>
             <button class="btn btn-outline" onclick="closeModals()">Close</button>
           </div>
         </div>
       </div>
   </body>
 </html>
+

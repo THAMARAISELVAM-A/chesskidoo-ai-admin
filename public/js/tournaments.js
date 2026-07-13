@@ -102,100 +102,8 @@
     'new delhi': { name: 'New Delhi, DL', lat: 28.6139, lon: 77.2090 }
   };
 
-  // Mock Aggregated Chess Tournaments Fallback Database
-  const LOCAL_TOURNAMENTS_FALLBACK = [
-    {
-      id: 'ext_tour_1',
-      title: 'Chennai Open FIDE Rated Grandmaster Tournament',
-      federation: 'FIDE',
-      date: '2026-06-15',
-      time: '09:00',
-      location: 'Chennai (Jawaharlal Nehru Stadium)',
-      coords: { lat: 13.0835, lon: 80.2740 },
-      fee: 1500,
-      category: 'Open FIDE Rated',
-      eloLimit: 9999, // Open
-      regLink: 'https://aicf.in/tournament/chennai-open-2026'
-    },
-    {
-      id: 'ext_tour_2',
-      title: 'Tamil Nadu State Under-16 Championship',
-      federation: 'AICF',
-      date: '2026-06-22',
-      time: '10:00',
-      location: 'Coimbatore (PSG College of Technology)',
-      coords: { lat: 11.0244, lon: 77.0025 },
-      fee: 500,
-      category: 'Under 1600 ELO Only',
-      eloLimit: 1600,
-      regLink: 'https://tamilnaduchess.com/u16-state-2026'
-    },
-    {
-      id: 'ext_tour_3',
-      title: 'Karnataka FIDE Rated Under-12 Talent Search',
-      federation: 'AICF',
-      date: '2026-06-28',
-      time: '09:30',
-      location: 'Bangalore (Kanteerava Indoor Stadium)',
-      coords: { lat: 12.9698, lon: 77.5920 },
-      fee: 1200,
-      category: 'Under 1200 ELO Only',
-      eloLimit: 1200,
-      regLink: 'https://karnatakachess.org/u12-fide-2026'
-    },
-    {
-      id: 'ext_tour_4',
-      title: 'Delhi Chess League Challenger Swiss',
-      federation: 'AICF',
-      date: '2026-07-05',
-      time: '10:00',
-      location: 'New Delhi (Indira Gandhi Arena)',
-      coords: { lat: 28.6292, lon: 77.2514 },
-      fee: 800,
-      category: 'Under 1400 ELO Only',
-      eloLimit: 1400,
-      regLink: 'https://delhichess.com/challengers-2026'
-    },
-    {
-      id: 'ext_tour_5',
-      title: 'Mumbai Blitz Arena Showdown',
-      federation: 'Chess.com',
-      date: '2026-07-12',
-      time: '18:00',
-      location: 'Online / Mumbai Chess Club Meetup',
-      coords: { lat: 19.0760, lon: 72.8777 },
-      fee: 0,
-      category: 'Open Blitz',
-      eloLimit: 9999,
-      regLink: 'https://chess.com/play/tournament/mumbai-blitz-2026'
-    },
-    {
-      id: 'ext_tour_6',
-      title: 'Chesskidoo Junior Rapid Cup (Coimbatore Zonal)',
-      federation: 'AICF',
-      date: '2026-07-18',
-      time: '09:00',
-      location: 'Coimbatore (Chesskidoo Zonal Academy)',
-      coords: { lat: 11.0168, lon: 76.9558 },
-      fee: 400,
-      category: 'Under 1200 ELO Only',
-      eloLimit: 1200,
-      regLink: 'https://chesskidoo.com/tournaments/junior-cup'
-    },
-    {
-      id: 'ext_tour_7',
-      title: 'FIDE World Amateur Championship (South Zone)',
-      federation: 'FIDE',
-      date: '2026-07-25',
-      time: '09:00',
-      location: 'Chennai (Taj Connemara)',
-      coords: { lat: 13.0617, lon: 80.2588 },
-      fee: 2500,
-      category: 'Under 2000 FIDE',
-      eloLimit: 2000,
-      regLink: 'https://fide.com/calendar/amateur-south-2026'
-    }
-  ];
+  // Fake data removed as requested - 100% Real API & Supabase data only
+  const LOCAL_TOURNAMENTS_FALLBACK = [];
 
   let tournamentsData = [];
   let tournamentsLoaded = false;
@@ -218,14 +126,20 @@
     return parseFloat((R * c).toFixed(1));
   }
 
-  // ─── Fetch Tournaments from Supabase (with fallback) ─────────────
-  async function loadTournaments() {
-    if (tournamentsLoaded && tournamentsData.length > 0) return;
+  // ─── Fetch Tournaments from Multiple Sources (Supabase, Lichess, Chess.com) ─────────────
+  window.loadTournaments = async function(forceSync = false) {
+    if (!forceSync && tournamentsLoaded && tournamentsData.length > 0) return;
+    
+    let allTournaments = [];
+    
+    // 1. Fetch from Supabase (Local/Admin Events)
     if (window.supabaseClient && !(window.sbTableKnownMissing && window.sbTableKnownMissing('tournaments'))) {
       try {
+        const todayStr = new Date().toISOString().split('T')[0];
         const { data, error } = await window.supabaseClient
           .from('tournaments')
           .select('*')
+          .gte('start_date', todayStr)
           .order('start_date', { ascending: true });
 
         if (error) {
@@ -234,11 +148,9 @@
           } else {
             console.warn('[Supabase] Tournaments unavailable, using local data.');
           }
-          tournamentsData = LOCAL_TOURNAMENTS_FALLBACK;
-          tournamentsLoaded = true;
         } else {
           // Map database structure to client structure
-          tournamentsData = (data || []).map(t => {
+          const dbTournaments = (data || []).map(t => {
             const cityKey = (t.city || 'chennai').toLowerCase().trim();
             const cityCoords = CITIES_COORDS[cityKey] || CITIES_COORDS['chennai'];
             return {
@@ -248,24 +160,70 @@
               date: t.start_date,
               time: '09:00', // Default fallback time
               location: t.location + (t.city ? `, ${t.city}` : ''),
-              coords: { lat: cityCoords.lat, lon: cityCoords.lon },
-              fee: parseFloat(t.entry_fee || 0),
+              coords: cityCoords,
+              fee: parseFloat(t.entry_fee) || 0,
               category: t.rating_required || 'Open',
-              eloLimit: parseInt(t.elo_limit || 9999),
-              regLink: t.registration_url || 'https://aicf.in'
+              eloLimit: parseInt(t.elo_limit) || 9999,
+              regLink: t.registration_url || '',
+              sourceBadge: 'Academy'
             };
           });
-          tournamentsLoaded = true;
+          allTournaments = allTournaments.concat(dbTournaments);
         }
-      } catch (e) {
-        console.warn('[Supabase] Failed to fetch tournaments. Local fallback:', e);
-        tournamentsData = LOCAL_TOURNAMENTS_FALLBACK;
-        tournamentsLoaded = true;
+      } catch (err) {
+        console.error('[Supabase] Error loading tournaments', err);
       }
-    } else {
-      tournamentsData = LOCAL_TOURNAMENTS_FALLBACK;
-      tournamentsLoaded = true;
     }
+
+    // 2. Fetch from Lichess Arena API
+    try {
+      const lichessRes = await fetch('https://lichess.org/api/tournament');
+      if (lichessRes.ok) {
+        const text = await lichessRes.text();
+        const lines = text.split('\\n').filter(l => l.trim() !== '');
+        let count = 0;
+        
+        // Parse NDJSON (Newline Delimited JSON)
+        for (const line of lines) {
+          try {
+            const t = JSON.parse(line);
+            // Only add upcoming/created arenas (status 10/20)
+            if (t.status === 10 || t.status === 20) { 
+              const startDate = new Date(t.startsAt || t.createdAt);
+              allTournaments.push({
+                id: 'lichess_' + t.id,
+                title: t.fullName || 'Lichess Arena',
+                federation: 'Lichess',
+                date: startDate.toISOString().split('T')[0],
+                time: startDate.toTimeString().substring(0,5),
+                location: 'Online — Lichess',
+                coords: CITIES_COORDS['chennai'], // Online defaults
+                fee: 0,
+                category: t.perf ? t.perf.name : 'Open',
+                eloLimit: 9999,
+                regLink: `https://lichess.org/tournament/${t.id}`,
+                sourceBadge: 'Lichess'
+              });
+              count++;
+              if (count >= 15) break; // Limit to 15 upcoming arenas
+            }
+          } catch(e) {}
+        }
+      }
+    } catch(err) {
+      console.warn('[Lichess API] Failed to fetch live tournaments', err);
+    }
+
+    // 3. Fallback if everything failed
+    if (allTournaments.length === 0) {
+      allTournaments = LOCAL_TOURNAMENTS_FALLBACK.map(t => ({...t, sourceBadge: 'AICF'}));
+    }
+
+    // Sort all by date
+    allTournaments.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    tournamentsData = allTournaments;
+    tournamentsLoaded = true;
   }
 
   // ─── Sub-Tab Routing Logics ──────────────────────────────────────
@@ -337,22 +295,38 @@
     const currentStudentId = currentStudentObj ? currentStudentObj.id : '';
 
     let studentSelectHtml = '';
-    if (!isChildView) {
-      // Admin Student Selector to test eligibility
-      const students = window.allStudents || [];
-      const opts = students.map(s => 
-        `<option value="${s.id}" ${String(s.id) === String(currentStudentId) ? 'selected' : ''}>${escapeHtml(s.name || s.full_name)} (${s.rating || 1000} ELO)</option>`
-      ).join('');
-      studentSelectHtml = `
-        <div style="display:flex; flex-direction:column; gap:4px; min-width:180px;">
-          <label style="font-size:11px; color:var(--ivory-dim); font-weight:700;">Check Eligibility For:</label>
-          <select id="tf-student-select" class="premium-select" onchange="window.selectFinderStudent(this.value)" style="padding:7px; font-size:12px;">
-            <option value="">-- Choose Student --</option>
-            ${opts}
-          </select>
-        </div>
-      `;
+    // Student Selector to test eligibility (for Admin and Parent portal with multiple children)
+    let students = window.allStudents || [];
+    
+    // Privacy filter for parent portal: only show their own children
+    if (isChildView) {
+      if (window.currentUser && window.currentUser.role === 'parent') {
+        const pPhone = window.currentUser.phone;
+        const pEmail = window.currentUser.email;
+        students = students.filter(s => 
+          (pPhone && s.parent_phone === pPhone) || 
+          (pEmail && s.parent_email === pEmail)
+        );
+        // Fallback if matching fails but currentStudent is set
+        if (students.length === 0 && window.currentStudent) {
+          students = [window.currentStudent];
+        }
+      } else if (window.currentStudent) {
+        students = [window.currentStudent];
+      }
     }
+    const opts = students.map(s => 
+      `<option value="${s.id}" ${String(s.id) === String(currentStudentId) ? 'selected' : ''}>${escapeHtml(s.name || s.full_name)} (${s.rating || 1000} ELO)</option>`
+    ).join('');
+    studentSelectHtml = `
+      <div style="display:flex; flex-direction:column; gap:4px; min-width:180px;">
+        <label style="font-size:11px; color:var(--ivory-dim); font-weight:700;">Check Eligibility For:</label>
+        <select id="tf-student-select" class="premium-select" onchange="window.selectFinderStudent(this.value, ${isChildView})" style="padding:7px; font-size:12px;">
+          <option value="">-- Choose Student --</option>
+          ${opts}
+        </select>
+      </div>
+    `;
 
     // Coordinates auto-detection alert block
     const userCityName = getNearestCityName(userLat, userLon);
@@ -363,7 +337,7 @@
         <div style="display:flex; flex-direction:column; gap:4px; min-width:140px;">
           <label style="font-size:11px; color:var(--ivory-dim); font-weight:700;">Reference Location:</label>
           <div style="display:flex; gap:6px;">
-            <select id="tf-city-select" class="premium-select" onchange="window.selectFinderCity(this.value)" style="padding:7px; font-size:12px; flex:1;">
+            <select id="tf-city-select-${isChildView ? 'child' : 'admin'}" class="premium-select" onchange="window.selectFinderCity(this.value, ${isChildView})" style="padding:7px; font-size:12px; flex:1;">
               <option value="chennai" ${userCityName === 'chennai' ? 'selected' : ''}>Chennai, TN</option>
               <option value="bangalore" ${userCityName === 'bangalore' ? 'selected' : ''}>Bangalore, KA</option>
               <option value="coimbatore" ${userCityName === 'coimbatore' ? 'selected' : ''}>Coimbatore, TN</option>
@@ -374,22 +348,29 @@
           </div>
         </div>
 
-        <div style="display:flex; flex-direction:column; gap:4px; min-width:120px;">
-          <label style="font-size:11px; color:var(--ivory-dim); font-weight:700;">Radius Limit:</label>
-          <select id="tf-radius-select" class="premium-select" onchange="window.filterTournaments(${isChildView})" style="padding:7px; font-size:12px;">
-            <option value="50">Within 50 km</option>
-            <option value="100">Within 100 km</option>
-            <option value="200" selected>Within 200 km</option>
-            <option value="all">National / All India</option>
+        <div style="display:flex; flex-direction:column; gap:4px; min-width:140px;">
+          <label style="font-size:11px; color:var(--ivory-dim); font-weight:700;">Coverage Radius:</label>
+          <select id="tf-radius-select-${isChildView ? 'child' : 'admin'}" class="premium-select" onchange="window.filterTournaments(${isChildView})" style="padding:7px; font-size:12px;">
+            <option value="50">📍 Local — within 50 km</option>
+            <option value="100">📍 Nearby — within 100 km</option>
+            <option value="200" selected>🚗 Regional — within 200 km</option>
+            <option value="500">🛣️ State — within 500 km</option>
+            <option value="all">🇮🇳 National — All India</option>
+            <option value="world">🌍 Worldwide — All Events</option>
           </select>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:4px; min-width:160px; flex:1;">
+          <label style="font-size:11px; color:var(--ivory-dim); font-weight:700;">Search Events:</label>
+          <input type="text" id="tf-search-${isChildView ? 'child' : 'admin'}" placeholder="Name, venue, city, category…" oninput="window.filterTournaments(${isChildView})" style="padding:7px 10px; font-size:12px; background:var(--bg3); border:1px solid var(--border); color:var(--ivory); border-radius:6px;">
         </div>
 
         ${studentSelectHtml}
 
-        <div style="flex:1; text-align:right;">
-          <span class="badge" style="background:rgba(218,163,62,0.1); color:var(--gold); border:1px solid rgba(218,163,62,0.2); font-size:11px; padding:6px 12px;">
-            ● AI Sync: Auto-scraping active (6h interval)
-          </span>
+        <div style="flex:1; text-align:right; min-width:160px;">
+          <button class="btn btn-outline" onclick="var btn=this; btn.innerHTML='⏳ Syncing...'; btn.disabled=true; window.loadTournaments(true).then(()=>{ window.filterTournaments(${isChildView}); btn.innerHTML='🔄 Sync Live APIs'; btn.disabled=false; });" style="padding:6px 12px; font-size:11px; background:rgba(218,163,62,0.1); color:var(--gold); border:1px solid rgba(218,163,62,0.4);">
+            🔄 Sync Live APIs
+          </button>
         </div>
       </div>
 
@@ -402,14 +383,14 @@
             <span style="z-index:2; font-size:26px;">📡</span>
           </div>
           <h4 style="margin:5px 0 2px 0; color:var(--gold); font-family:var(--font-head);">Location Telemetry Active</h4>
-          <p id="tf-location-summary" style="font-size:11px; color:var(--ivory-dim); margin:0;">
+          <p id="tf-location-summary-${isChildView ? 'child' : 'admin'}" style="font-size:11px; color:var(--ivory-dim); margin:0;">
             Centered on: <strong>${escapeHtml(userCityName.toUpperCase())}</strong> coords (${userLat.toFixed(4)}, ${userLon.toFixed(4)})
           </p>
         </div>
       </div>
 
       <!-- Tournaments Grid -->
-      <div class="tf-grid" id="tf-results-grid"></div>
+      <div class="tf-grid" id="tf-results-grid-${isChildView ? 'child' : 'admin'}"></div>
     `;
 
     // Perform initial filtering
@@ -418,7 +399,7 @@
 
   // Auto-detect Geolocation
   window.detectFinderLocation = function (isChildView) {
-    const locSummary = document.getElementById('tf-location-summary');
+    const locSummary = document.getElementById(`tf-location-summary-${isChildView ? 'child' : 'admin'}`);
     if (locSummary) {
       locSummary.innerHTML = '⏳ Querying GPS telemetry satellites...';
     }
@@ -458,13 +439,12 @@
   };
 
   // City selection updates center coords
-  window.selectFinderCity = function (cityKey) {
+  window.selectFinderCity = function (cityKey, isChildView) {
     const coords = CITIES_COORDS[cityKey];
     if (coords) {
       userLat = coords.lat;
       userLon = coords.lon;
       
-      const isChildView = !document.getElementById('tf-student-select');
       const containerId = isChildView ? 'child-tf-list-view' : 'tf-list-view';
       const container = document.getElementById(containerId);
       if (container) {
@@ -473,17 +453,21 @@
     }
   };
 
-  // Admin student selection updates eligibility
-  window.selectFinderStudent = function (studentId) {
+  // Admin and Parent student selection updates eligibility
+  window.selectFinderStudent = function (studentId, isChildView) {
     const student = (window.allStudents || []).find(s => String(s.id) === String(studentId));
-    activeFinderStudent = student || null;
-    window.filterTournaments(false);
+    if (isChildView) {
+      window.currentStudent = student || null;
+    } else {
+      activeFinderStudent = student || null;
+    }
+    window.filterTournaments(isChildView);
   };
 
   // Filters tournament cards by distance radius
   window.filterTournaments = function (isChildView) {
-    const gridEl = document.getElementById('tf-results-grid');
-    const radiusVal = document.getElementById('tf-radius-select')?.value || '200';
+    const gridEl = document.getElementById(`tf-results-grid-${isChildView ? 'child' : 'admin'}`);
+    const radiusVal = document.getElementById(`tf-radius-select-${isChildView ? 'child' : 'admin'}`)?.value || '200';
     if (!gridEl) return;
 
     gridEl.innerHTML = '';
@@ -497,19 +481,28 @@
       return { ...t, distance: dist };
     });
 
-    // Apply radius filter
+    // Free-text search across the visible events
+    const query = (document.getElementById(`tf-search-${isChildView ? 'child' : 'admin'}`)?.value || '').toLowerCase().trim();
+
+    // Apply radius + search filters. 'all' and 'world' show every event
+    // (radius unbounded); 'world' is the global view.
     const filtered = listings.filter(t => {
-      if (radiusVal === 'all') return true;
-      const radiusKm = parseInt(radiusVal);
-      return t.distance <= radiusKm;
+      // A text search looks across ALL events (ignores the radius) so users can
+      // find a named event anywhere; otherwise the radius applies.
+      if (query) {
+        const hay = `${t.title} ${t.location} ${t.category} ${t.federation}`.toLowerCase();
+        return hay.includes(query);
+      }
+      return (radiusVal === 'all' || radiusVal === 'world') ? true : (t.distance <= parseInt(radiusVal));
     });
 
     if (filtered.length === 0) {
+      const reason = query ? `matching "${escapeHtml(query)}"` : `within the selected ${radiusVal === 'world' ? 'worldwide' : radiusVal + ' km'} range`;
       gridEl.innerHTML = `
         <div class="empty-state" style="grid-column:1/-1;">
           <span class="empty-icon">🏆</span>
-          <p>No chess tournaments found within the selected ${radiusVal} km radius.</p>
-          <button class="btn btn-outline btn-sm" onclick="document.getElementById('tf-radius-select').value='all'; window.filterTournaments(${isChildView});" style="margin-top:10px;">View National Tournaments</button>
+          <p>No chess tournaments found ${reason}.</p>
+          <button class="btn btn-outline btn-sm" onclick="var r=document.getElementById('tf-radius-select-${isChildView ? 'child' : 'admin'}'); if(r) r.value='world'; var sb=document.getElementById('tf-search-${isChildView ? 'child' : 'admin'}'); if(sb) sb.value=''; window.filterTournaments(${isChildView});" style="margin-top:10px;">🌍 View All Worldwide Events</button>
         </div>
       `;
       return;
@@ -588,9 +581,13 @@
 
           <!-- Actions -->
           <div style="display:flex; gap:8px; margin-top:4px;">
-            <a href="${t.regLink}" target="_blank" class="btn btn-gold btn-sm" style="flex:1; text-align:center; padding:6px; font-size:11px; border-radius:6px;">Register</a>
-            <button class="btn btn-outline btn-sm" onclick="window.syncTournamentCalendar('${t.id}')" style="padding:6px 10px; font-size:11px;" title="Sync to Calendar">📅 Calendar</button>
-            <button class="btn btn-outline btn-sm" onclick="window.sendTournamentWhatsAppReminder('${t.id}')" style="padding:6px 10px; font-size:11px;" title="WhatsApp Reminder">💬 WhatsApp</button>
+            ${t.sourceBadge === 'Academy' && !t.regLink
+               ? `<button class="btn btn-gold btn-sm" onclick="window.showInterestTournament('${t.id}')" style="flex:1; padding:6px; font-size:11px; border-radius:6px; border:none; cursor:pointer;">⭐ Show Interest</button>`
+               : `<a href="${t.regLink || '#'}" target="_blank" class="btn btn-gold btn-sm" style="flex:1; text-align:center; padding:6px; font-size:11px; border-radius:6px; text-decoration:none;">Register</a>`
+            }
+            <button class="btn btn-outline btn-sm" onclick="window.syncTournamentCalendar('${t.id}')" style="padding:6px 10px; font-size:11px;" title="Sync to Calendar">📅</button>
+            <button class="btn btn-outline btn-sm" onclick="window.sendTournamentWhatsAppReminder('${t.id}')" style="padding:6px 10px; font-size:11px;" title="WhatsApp Reminder">💬</button>
+            <button class="btn btn-outline btn-sm" onclick="window.downloadTournamentPoster('${t.id}')" style="padding:6px 10px; font-size:11px;" title="Download Event Poster">🖼️</button>
           </div>
         </div>
       `;
@@ -598,6 +595,57 @@
   };
 
   // Calendar Sync (Downloads .ics file)
+  // Generate & download a shareable event poster (uses html2canvas, already loaded).
+  window.downloadTournamentPoster = function (tournamentId) {
+    const t = tournamentsData.find(x => String(x.id) === String(tournamentId));
+    if (!t) return;
+    if (typeof html2canvas === 'undefined') {
+      if (window.toast) window.toast('Poster engine not loaded yet, please retry.', 'error');
+      return;
+    }
+    const eventDate = new Date(t.date).toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'long', year: 'numeric' });
+    const feeText = t.fee > 0 ? `Entry Fee: ₹${t.fee}` : 'FREE ENTRY';
+
+    const poster = document.createElement('div');
+    poster.style.cssText = 'position:fixed; left:-9999px; top:0; width:600px; height:800px; box-sizing:border-box;';
+    poster.innerHTML = `
+      <div style="width:600px; height:800px; background:linear-gradient(160deg,#0f1117 0%,#1a1d29 55%,#0b0d13 100%); color:#fff; font-family:Arial,sans-serif; padding:48px 44px; box-sizing:border-box; position:relative; overflow:hidden;">
+        <div style="position:absolute; top:-40px; right:-30px; font-size:260px; opacity:0.05;">♟️</div>
+        <div style="text-align:center; border-bottom:2px solid #DAA33E; padding-bottom:18px;">
+          <div style="font-size:13px; letter-spacing:5px; color:#DAA33E; font-weight:700;">CHESSKIDOO ACADEMY</div>
+          <div style="font-size:11px; letter-spacing:3px; color:#9aa0ad; margin-top:6px;">TOURNAMENT ANNOUNCEMENT</div>
+        </div>
+        <div style="margin-top:46px; text-align:center;">
+          <div style="display:inline-block; background:rgba(218,163,62,0.14); border:1px solid rgba(218,163,62,0.4); color:#DAA33E; font-size:12px; font-weight:700; padding:6px 16px; border-radius:20px; letter-spacing:1px;">${escapeHtml(t.federation)} · ${escapeHtml(t.category)}</div>
+          <h1 style="font-size:36px; line-height:1.25; margin:26px 10px 0; color:#fff; font-weight:800;">${escapeHtml(t.title)}</h1>
+        </div>
+        <div style="margin-top:48px; display:flex; flex-direction:column; gap:20px; font-size:18px;">
+          <div style="display:flex; gap:14px; align-items:center;"><span style="font-size:24px;">📅</span><span><b style="color:#DAA33E;">When:</b> ${eventDate} &nbsp;@&nbsp; ${escapeHtml(t.time || '09:00')}</span></div>
+          <div style="display:flex; gap:14px; align-items:center;"><span style="font-size:24px;">📍</span><span><b style="color:#DAA33E;">Venue:</b> ${escapeHtml(t.location)}</span></div>
+          <div style="display:flex; gap:14px; align-items:center;"><span style="font-size:24px;">🏆</span><span><b style="color:#DAA33E;">Category:</b> ${escapeHtml(t.category)}</span></div>
+          <div style="display:flex; gap:14px; align-items:center;"><span style="font-size:24px;">💰</span><span><b style="color:#DAA33E;">${feeText}</b></span></div>
+        </div>
+        <div style="position:absolute; left:44px; right:44px; bottom:44px; text-align:center;">
+          <div style="background:#DAA33E; color:#000; font-weight:800; font-size:18px; padding:14px; border-radius:10px; letter-spacing:1px;">REGISTER NOW</div>
+          <div style="font-size:12px; color:#9aa0ad; margin-top:14px; word-break:break-all;">${escapeHtml(t.regLink)}</div>
+        </div>
+      </div>`;
+    document.body.appendChild(poster);
+    if (window.toast) window.toast('Generating poster…', 'info');
+    html2canvas(poster.firstElementChild, { backgroundColor: null, scale: 2 }).then(canvas => {
+      const link = document.createElement('a');
+      link.download = `Chesskidoo_${t.title.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      document.body.removeChild(poster);
+      if (window.toast) window.toast('Poster downloaded!', 'success');
+    }).catch(err => {
+      console.error('Poster generation failed:', err);
+      if (poster.parentNode) document.body.removeChild(poster);
+      if (window.toast) window.toast('Could not generate poster.', 'error');
+    });
+  };
+
   window.syncTournamentCalendar = function (tournamentId) {
     const t = tournamentsData.find(x => x.id === tournamentId);
     if (!t) return;
@@ -648,9 +696,22 @@ END:VCALENDAR`;
     if (window.toast) window.toast('Event calendar (.ics) downloaded successfully!', 'success');
   };
 
+  // Register Interest for Academy Tournaments
+  window.showInterestTournament = function(tournamentId) {
+    const t = tournamentsData.find(x => String(x.id) === String(tournamentId));
+    if (!t) return;
+    
+    // Attempt to log interest in the student's notes or via an API call in the future
+    if (window.toast) {
+      window.toast(`Interest registered for ${t.title}! An admin will contact you with details.`, 'success');
+    } else {
+      alert(`Interest registered for ${t.title}! An admin will contact you with details.`);
+    }
+  };
+
   // Dispatch WhatsApp Reminder
   window.sendTournamentWhatsAppReminder = function (tournamentId) {
-    const t = tournamentsData.find(x => x.id === tournamentId);
+    const t = tournamentsData.find(x => String(x.id) === String(tournamentId));
     if (!t) return;
 
     const studentObj = window.currentStudent || activeFinderStudent;

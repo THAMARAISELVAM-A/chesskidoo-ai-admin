@@ -2,27 +2,29 @@ import { checkRateLimit } from './rate_limit.js'
 
 Deno.serve(async (req) => {
   const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
+  const { getCorsHeaders, isOriginAllowed, corsResponse, handleOptions } = await import('../cors.ts');
+
+  const origin = req.headers.get('origin');
+  
+  // Handle OPTIONS preflight FIRST before any other checks
+  if (req.method === 'OPTIONS') {
+    return handleOptions(origin);
+  }
+  
+  // Origin check for actual requests (after OPTIONS)
+  if (!isOriginAllowed(origin)) {
+    return corsResponse({ error: 'Origin not allowed' }, 403, origin);
+  }
   
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-  
+
   if (!supabaseUrl || !supabaseKey) {
-    return new Response(JSON.stringify({ error: 'Server configuration error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    return corsResponse({ error: 'Server configuration error' }, 500, origin);
   }
-  
+
   const supabase = createClient(supabaseUrl, supabaseKey)
-  
-  const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || '*'
-  
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
-  }
-  
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }

@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
   
   const corsHeaders = {
     'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-portal-token, x-portal-role, x-portal-student-id',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
   }
   
@@ -67,7 +67,8 @@ Deno.serve(async (req) => {
       description: p.description || '',
       transaction_id: p.transaction_id || null,
       payment_date: p.payment_date || p.created_at || new Date().toISOString(),
-      created_at: p.created_at || new Date().toISOString()
+      created_at: p.created_at || new Date().toISOString(),
+      'applied_month': p.applied_month || null
     }
   }
   
@@ -163,29 +164,21 @@ Deno.serve(async (req) => {
         })
       }
 
-      // --- AUTO-ROLLOVER LOGIC ---
+      // --- DEBT-FIRST ALLOCATION ENGINE ---
+      // Bypassed legacy auto-rollover: nextDate = new Date(student.due_date)
       try {
-        // 1. Fetch the student's current due_date
-        const { data: student, error: studentErr } = await supabase
-          .from('students')
-          .select('due_date')
-          .eq('id', studentId)
-          .single()
-
-        if (!studentErr && student) {
-          // 2. Calculate the new due date (add exactly 1 month to their specific anchor date)
-          let nextDate: Date;
-          
-          if (student.due_date) {
-            nextDate = new Date(student.due_date);
-          } else {
-             // Fallback if they forgot to set an initial date: set to the 5th of next month
-            const now = new Date();
-            let y = now.getUTCFullYear();
-            let m = now.getUTCMonth() + 1;
-            if (m > 11) { m = 0; y++; }
-            nextDate = new Date(Date.UTC(y, m, 5));
-          }
+        const rpcRes = await supabase.rpc('apply_payment_debt_first', {
+          p_student_id: studentId,
+          p_payment_id: newPayment.id as string,
+          p_amount: amount,
+          p_target_month: new Date().toISOString().slice(0, 7)
+        })
+        if (rpcRes.error) {
+          console.error('[payments] apply_payment_debt_first error:', rpcRes.error.message)
+        }
+      } catch (rpcErr) {
+        console.error('[payments] apply_payment_debt_first failed:', rpcErr)
+      }
           
           if (student.due_date) {
             let year = nextDate.getUTCFullYear();
@@ -217,20 +210,28 @@ Deno.serve(async (req) => {
               updated_at: new Date().toISOString()
             })
             .eq('id', studentId);
+=======
+        const rpcRes = await supabase.rpc('apply_payment_debt_first', {
+          p_student_id: studentId,
+          p_payment_id: newPayment.id as string,
+          p_amount: amount,
+          p_target_month: new Date().toISOString().slice(0, 7)
+        })
+        if (rpcRes.error) {
+          console.error('[payments] apply_payment_debt_first error:', rpcRes.error.message)
+>>>>>>> 07e4ac779276d6e424bb5fada807fe3bc337fd88
         }
-      } catch (rolloverErr) {
-        console.error('Auto-rollover failed:', rolloverErr);
-        // We don't fail the payment request if the rollover fails, 
-        // but it's logged for debugging.
+      } catch (rpcErr) {
+        console.error('[payments] apply_payment_debt_first failed:', rpcErr)
       }
-      
+
       return new Response(JSON.stringify(insertedPayment ? transformPayment(insertedPayment) : { success: true }), {
         status: 201,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
     
-    // DELETE - Remove payment
+    // DELETE - Remove payment and its allocations
     if (method === 'DELETE') {
       if (!id) {
         return new Response(JSON.stringify({ error: 'Payment ID is required for deletion' }), {
@@ -238,20 +239,36 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
-      
+
+      // 1. Find which student this payment belongs to (for cleanup)
+      const { data: existingPayment } = await supabase
+        .from('payments')
+        .select('student_id, id')
+        .eq('id', id)
+        .single()
+
+      // 2. Remove allocations first (to preserve trigger balance)
+      if (existingPayment?.student_id) {
+        await supabase.from("payment_allocations").delete().eq('payment_id', id)
+      }
+
+      // 3. Remove the payment record
       const { error: deleteError } = await supabase
         .from('payments')
         .delete()
         .eq('id', id)
-      
+
       if (deleteError) {
         return new Response(JSON.stringify({ error: deleteError.message }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
-      
-      return new Response(JSON.stringify({ success: true }), {
+
+      return new Response(JSON.stringify({ 
+        success: true,
+        cleared_allocations: !!existingPayment
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }

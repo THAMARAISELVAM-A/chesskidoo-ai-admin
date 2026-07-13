@@ -79,27 +79,23 @@ function checkRateLimitInMemory(key, endpoint) {
 }
 
 /**
- * Validate authentication token (Supports Master/Admin hardcoded tokens and Supabase JWTs)
+ * Validate authentication token (Supports Supabase JWTs only - tokens from env are for service role)
  */
 export async function validateAuth(req, supabase) {
   const authHeader = req.headers.get('Authorization') || req.headers.get('authorization');
   const apiKey = req.headers.get('apikey');
-  
+
   if (!authHeader) return { allowed: false, error: 'Missing Authorization header' };
-  
+
   const token = authHeader.replace('Bearer ', '');
   if (!token) return { allowed: false, error: 'Missing token' };
 
-  // 1. Check for hardcoded stabilization tokens
-  if (token.startsWith('master-token-')) return { allowed: true, role: 'master' };
-  if (token.startsWith('admin-token-')) return { allowed: true, role: 'admin' };
-  if (token.startsWith('parent-token-')) return { allowed: true, role: 'parent' };
-
-  // 2. Check for real Supabase JWT
+  // Check for real Supabase JWT
   const { data: { user }, error } = await supabase.auth.getUser(token);
   if (error || !user) {
+    // Allow service_role key for internal server-to-server calls
     if (token === Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || token === apiKey) {
-        return { allowed: true, role: 'service_role' };
+      return { allowed: true, role: 'service_role' };
     }
     return { allowed: false, error: 'Invalid or expired token' };
   }

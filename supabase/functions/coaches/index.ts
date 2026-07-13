@@ -1,26 +1,36 @@
 Deno.serve(async (req) => {
   const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+  const { getCorsHeaders, isOriginAllowed, corsResponse, handleOptions } = await import('../cors.ts');
+
+  const origin = req.headers.get('origin');
   
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  
-  if (!supabaseUrl || !supabaseKey) {
-    return new Response(JSON.stringify({ error: 'Server configuration error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+  // Handle OPTIONS preflight FIRST before any other checks
+  if (req.method === 'OPTIONS') {
+    return handleOptions(origin);
   }
   
+  // Origin check for actual requests (after OPTIONS)
+  if (!isOriginAllowed(origin)) {
+    return new Response(JSON.stringify({ error: 'Origin not allowed' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (!supabaseUrl || !supabaseKey) {
+    return corsResponse({ error: 'Server configuration error' }, 500, origin);
+  }
+
   const supabase = createClient(supabaseUrl, supabaseKey);
-  
+
   // --- Authentication ---
   const { validateAuth } = await import('./rate_limit.js')
   const auth = await validateAuth(req, supabase)
   if (!auth.allowed) {
-    return new Response(JSON.stringify({ error: auth.error }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-    })
+    return corsResponse({ error: auth.error }, 401, origin);
   }
 
   function generateId() {
@@ -51,16 +61,6 @@ Deno.serve(async (req) => {
     };
   }
 
-  if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type'
-      }
-    });
-  }
-
   try {
     const url = new URL(req.url);
     const id = url.searchParams.get('id');
@@ -75,9 +75,7 @@ Deno.serve(async (req) => {
           .single();
         
         if (error) throw error;
-        return new Response(JSON.stringify(coach ? transformCoach(coach) : null), {
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
+        return corsResponse(coach ? transformCoach(coach) : null, 200, origin);
       }
       const { data: coaches, error } = await supabase
         .from('coaches')
@@ -85,15 +83,13 @@ Deno.serve(async (req) => {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return new Response(JSON.stringify((coaches || []).map(transformCoach)), {
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
+      return corsResponse((coaches || []).map(transformCoach), 200, origin);
     }
 
     if (req.method === 'POST') {
       console.log('POST /coaches body:', JSON.stringify(body));
       
-      const newCoach: Record<string, unknown> = {
+      const newCoach = {
         id: generateId(), 
         name: body.name || '',
         email: body.email || null,
@@ -123,26 +119,17 @@ Deno.serve(async (req) => {
       
       if (insertError) {
         console.error('Insert error:', JSON.stringify(insertError));
-        return new Response(JSON.stringify({ error: insertError.message, details: insertError }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
+        return corsResponse({ error: insertError.message, details: insertError }, 400, origin);
       }
-      return new Response(JSON.stringify(insertedCoach ? transformCoach(insertedCoach) : null), {
-        status: 201,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
+      return corsResponse(insertedCoach ? transformCoach(insertedCoach) : null, 201, origin);
     }
 
     if (req.method === 'PUT') {
-      if (!id) return new Response(JSON.stringify({ error: 'ID is required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      if (!id) return corsResponse({ error: 'ID is required' }, 400, origin);
       
       console.log('PUT /coaches body:', JSON.stringify(body));
       
-      const updateData: Record<string, unknown> = {};
+      const updateData = {};
       
       if (body.name !== undefined) {
         updateData.name = body.name;
@@ -180,21 +167,13 @@ Deno.serve(async (req) => {
       
       if (updateError) {
         console.error('Update error:', JSON.stringify(updateError));
-        return new Response(JSON.stringify({ error: updateError.message, details: updateError }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
+        return corsResponse({ error: updateError.message, details: updateError }, 400, origin);
       }
-      return new Response(JSON.stringify({ message: 'Updated', data: updatedCoach ? transformCoach(updatedCoach) : null }), {
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
+      return corsResponse({ message: 'Updated', data: updatedCoach ? transformCoach(updatedCoach) : null }, 200, origin);
     }
 
     if (req.method === 'DELETE') {
-      if (!id) return new Response(JSON.stringify({ error: 'ID is required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      if (!id) return corsResponse({ error: 'ID is required' }, 400, origin);
       
       const { error: deleteError } = await supabase
         .from('coaches')
@@ -203,24 +182,13 @@ Deno.serve(async (req) => {
       
       if (deleteError) {
         console.error('Delete error:', JSON.stringify(deleteError));
-        return new Response(JSON.stringify({ error: deleteError.message }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
+        return corsResponse({ error: deleteError.message }, 400, origin);
       }
-      return new Response(JSON.stringify({ success: true, message: 'Deleted', id }), {
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
+      return corsResponse({ success: true, message: 'Deleted', id }, 200, origin);
     }
 
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return corsResponse({ error: 'Method not allowed' }, 405, origin);
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-    });
+    return corsResponse({ error: error.message }, 500, origin);
   }
 });

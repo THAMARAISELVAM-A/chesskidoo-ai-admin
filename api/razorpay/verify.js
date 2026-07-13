@@ -21,7 +21,10 @@ export default async function handler(request, response) {
   const secret = process.env.RAZORPAY_KEY_SECRET;
 
   if (!secret) {
-    // If no secret configured, assume simulated success for development
+    // Simulated success only in development environment
+    if (process.env.NODE_ENV !== 'development') {
+      return response.status(500).json({ error: 'Server configuration error: Razorpay secret not configured' });
+    }
     return response.status(200).json({ status: 'success', simulated: true });
   }
 

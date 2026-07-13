@@ -4,6 +4,7 @@
  * WhatsApp sharing, and contextual AI insights.
  */
 
+
 (function () {
     let currentScheduleData = {};
 
@@ -31,7 +32,7 @@
         populateCoachSelect();
         // Clear inputs on page load
         resetScheduleInputs();
-        generateSchedulePreview(); // Reset preview
+        if (window.generateSchedulePreview) window.generateSchedulePreview(); // Reset preview
     };
 
     function populateStudentSelect() {
@@ -80,14 +81,14 @@
     // alphabet (A-Za-z0-9+/=) survives sanitization intact.
     function encodeSchedulePayload(obj) {
         try {
-            return btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+            return window.btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
         } catch (e) {
             return '';
         }
     }
     function decodeSchedulePayload(b64) {
         try {
-            return JSON.parse(decodeURIComponent(escape(atob(b64))));
+            return JSON.parse(decodeURIComponent(escape(window.atob(b64))));
         } catch (e) {
             return null;
         }
@@ -95,7 +96,27 @@
 
     // Parses the embedded schedule tag from the notes column. Supports the new
     // sanitization-safe [SCHEDULE64:...] format and the legacy [SCHEDULE:{...}].
-    window.extractScheduleJSON = function (notesString) {
+    window.extractScheduleJSON = function (notesString, student = null) {
+        // OVERRIDE: Prioritize exact hardcoded Master Matrix if available
+        if (student && student.name && window.STATIC_MASTER_MATRIX) {
+            const studentName = student.name.trim().toLowerCase();
+            for (const coachObj of window.STATIC_MASTER_MATRIX) {
+                for (const batch of coachObj.batches) {
+                    for (const std of batch.students) {
+                        const stdLower = std.toLowerCase();
+                        if (stdLower.includes(studentName) || studentName.includes(stdLower)) {
+                            return {
+                                regDays: batch.days,
+                                regTime: batch.time,
+                                regCoachName: coachObj.coach,
+                                isMatrixOverride: true
+                            };
+                        }
+                    }
+                }
+            }
+        }
+
         if (!notesString) return null;
         const m64 = notesString.match(/\[SCHEDULE64:([A-Za-z0-9+/=]+)\]/);
         if (m64 && m64[1]) {
@@ -125,7 +146,7 @@
     window.loadStudentScheduleData = function (studentId) {
         resetScheduleInputs();
         if (!studentId) {
-            generateSchedulePreview();
+            if (window.generateSchedulePreview) window.generateSchedulePreview();
             return;
         }
 
@@ -143,7 +164,7 @@
             }
         }
 
-        generateSchedulePreview();
+        if (window.generateSchedulePreview) window.generateSchedulePreview();
 
         // Call Contextual AI Insight for the Schedule block
         if(window.generateContextualInsight) {
@@ -161,8 +182,133 @@
             days.push(day);
         }
         input.value = days.join(' & ');
-        generateSchedulePreview();
+        if (window.generateSchedulePreview) window.generateSchedulePreview();
     };
+
+    // Returns the base CSS color for a coach
+    function getCoachColor(name) {
+        const n = (name || '').toLowerCase();
+        if (n.includes('rohith')) return '#3b5998';
+        if (n.includes('ranjith')) return '#27ae60';
+        if (n.includes('gyana')) return '#8e44ad';
+        if (n.includes('arivu')) return '#d35400';
+        if (n.includes('yogesh')) return '#2ecc71';
+        if (n.includes('sudhin')) return '#f39c12';
+        if (n.includes('vasanth')) return '#16a085';
+        if (n.includes('vishnu')) return '#7f8c8d';
+        return '#4f5d75'; // default
+    }
+
+    // Shared function to render the Schedule Card HTML using the Master Matrix theme
+    function buildScheduleCardHtml(studentName, schedData, coachName, isChildView, studentId) {
+        const demoDate = schedData.demoDate || 'TBD';
+        const demoTime = schedData.demoTime || 'TBD';
+        const regDays = schedData.regDays || 'TBD';
+        const regTime = schedData.regTime || 'TBD';
+        const meetLink = schedData.meetLink || '';
+        const footnote = schedData.footnote || '';
+        
+        const coachColor = getCoachColor(coachName);
+
+        // Generate Weekly Calendar View HTML matching the Master Matrix table header style
+        const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const shortDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        const activeDaysStr = regDays.toLowerCase();
+        
+        let weekGridHtml = '<div style="display:flex; gap:3px; margin-top:12px; margin-bottom:12px; justify-content:space-between; width:100%;">';
+        for (let i = 0; i < 7; i++) {
+            const isActive = activeDaysStr.includes(daysOfWeek[i].toLowerCase()) || activeDaysStr.includes(shortDays[i].toLowerCase());
+            if (isActive) {
+                weekGridHtml += `<div style="flex:1; text-align:center; padding:6px 0; border-radius:2px; background-color:${coachColor}; color:#ffffff; font-weight:600; font-size:10px; border:1px solid ${coachColor}; text-transform:uppercase;">${shortDays[i]}</div>`;
+            } else {
+                weekGridHtml += `<div style="flex:1; text-align:center; padding:6px 0; border-radius:2px; background-color:#1c2030; color:#a4b0cb; font-weight:600; font-size:10px; border:1px solid #2c3242; text-transform:uppercase;">${shortDays[i]}</div>`;
+            }
+        }
+        weekGridHtml += '</div>';
+
+        // Action Buttons
+        let actionButtons = '';
+        if (isChildView) {
+            actionButtons = `
+                <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; justify-content:center;">
+                    ${meetLink ? `<a href="${meetLink}" target="_blank" style="background:${coachColor}; color:#ffffff; padding:10px 20px; border-radius:4px; text-decoration:none; font-weight:600; font-size:13px; box-shadow:0 4px 15px rgba(0,0,0,0.3); display:flex; align-items:center; gap:6px;">Join Class 🎥</a>` : ''}
+                    <button onclick="window.syncClassCalendar('${studentId}')" style="background:#1c2030; border:1px solid #2c3242; color:#ffffff; padding:10px 20px; border-radius:4px; font-weight:600; font-size:13px; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:6px;" onmouseover="this.style.background='#2c3242'" onmouseout="this.style.background='#1c2030'">Add to Calendar 📅</button>
+                    ${(window.currentUser && window.currentUser.role === 'admin') ? `<button onclick="window.editStudentSchedule('${studentId}')" style="background:#4f5d75; border:1px solid rgba(255,255,255,0.2); color:#fff; padding:10px 20px; border-radius:4px; font-weight:600; font-size:13px; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:6px;">Edit Schedule ✏️</button>` : ''}
+                </div>`;
+        }
+
+        return `
+        <div id="sch-render-target" style="
+            background-color: #141722;
+            border: 1px solid #2c3242;
+            border-left: 4px solid ${coachColor};
+            border-radius: 6px;
+            padding: 24px;
+            color: #ffffff;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            box-sizing: border-box;
+        ">
+            <!-- Header -->
+            <div style="text-align:center; border-bottom:1px solid #2c3242; padding-bottom:12px; margin-bottom:20px;">
+                <h2 style="color:#ffffff; margin:0; font-size:16px; font-weight:500; letter-spacing:0.5px;">Chess Academy &mdash; Official Schedule</h2>
+                <div style="color:#8a90a6; font-size:11px; margin-top:2px;">Complete Unified Roster</div>
+            </div>
+
+            <!-- Student Name -->
+            <div style="text-align:center; margin-bottom:24px;">
+                <div style="font-size:12px; color:#8a90a6;">Welcome to the academy,</div>
+                <div style="font-size:24px; font-weight:600; color:#ffffff; margin-top:4px;">${studentName}</div>
+            </div>
+
+            <!-- Demo Class Block -->
+            <div style="background-color:#1a1e2e; border:1px solid #2c3242; border-radius:4px; padding:14px; margin-bottom:16px;">
+                <div style="font-size:10px; text-transform:uppercase; color:#a4b0cb; font-weight:600; letter-spacing:0.5px; margin-bottom:8px;">Demo Class</div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <span style="color:#8a90a6; font-size:12px;">Date:</span>
+                    <span style="font-weight:600; font-size:12px;">${demoDate}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between;">
+                    <span style="color:#8a90a6; font-size:12px;">Timing:</span>
+                    <span style="font-weight:600; font-size:12px;">${demoTime}</span>
+                </div>
+            </div>
+
+            <!-- Regular Class Block -->
+            <div style="background-color:#1a1e2e; border:1px solid #2c3242; border-radius:4px; padding:16px; margin-bottom:16px;">
+                <div style="font-size:10px; text-transform:uppercase; color:#a4b0cb; font-weight:600; letter-spacing:0.5px; margin-bottom:8px;">Regular Class (Weekly Calendar)</div>
+                
+                ${weekGridHtml}
+                
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px; padding-top:8px;">
+                    <span style="color:#8a90a6; font-size:12px;">Days:</span>
+                    <span style="font-weight:600; font-size:12px;">${regDays}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                    <span style="color:#8a90a6; font-size:12px;">Timing:</span>
+                    <span style="font-weight:600; font-size:12px;">${regTime}</span>
+                </div>
+                
+                <div style="display:flex; justify-content:space-between; padding-top:12px; margin-top:4px; border-top:1px dashed #2c3242;">
+                    <span style="color:#8a90a6; font-size:12px;">Coach:</span>
+                    <span style="font-weight:bold; font-size:13px; color:${coachColor};">${coachName}</span>
+                </div>
+
+                ${!isChildView && meetLink ? `
+                <div style="margin-top:16px; text-align:center;">
+                    <a href="${meetLink}" target="_blank" style="display:inline-block; background:${coachColor}; color:#ffffff; padding:8px 20px; border-radius:4px; text-decoration:none; font-weight:600; font-size:12px;">Join Class 🎥</a>
+                </div>` : ''}
+            </div>
+
+            ${actionButtons}
+
+            ${footnote ? `<div style="font-size:10px; color:#4f5d75; text-align:center; font-style:italic; line-height:1.4; margin-top:16px;">"${footnote}"</div>` : ''}
+        </div>
+        `;
+    }
 
     window.generateSchedulePreview = function () {
         const wrapper = document.getElementById('sch-card-preview-wrapper');
@@ -182,109 +328,31 @@
         const student = (window.allStudents || []).find(s => s.id == studentId);
         const stName = student ? student.name : 'Student';
         
-        const demoDate = document.getElementById('sch-demo-date').value || 'TBD';
-        const demoTime = document.getElementById('sch-demo-time').value || 'TBD';
-        const regDays = document.getElementById('sch-reg-days').value || 'TBD';
-        const regTime = document.getElementById('sch-reg-time').value || 'TBD';
-        const meetLink = document.getElementById('sch-meet-link') ? document.getElementById('sch-meet-link').value : '';
+        const schedData = {
+            demoDate: document.getElementById('sch-demo-date').value || 'TBD',
+            demoTime: document.getElementById('sch-demo-time').value || 'TBD',
+            regDays: document.getElementById('sch-reg-days').value || 'TBD',
+            regTime: document.getElementById('sch-reg-time').value || 'TBD',
+            meetLink: document.getElementById('sch-meet-link') ? document.getElementById('sch-meet-link').value : '',
+            footnote: document.getElementById('sch-footnote').value || ''
+        };
+        
         const coachId = document.getElementById('sch-coach-select').value;
         let coachName = 'TBD';
         if (coachId && (window.allCoaches || window.coaches)) {
             const coach = (window.allCoaches || window.coaches || []).find(c => c.id == coachId);
             if (coach) coachName = coach.name;
         }
-        const footnote = document.getElementById('sch-footnote').value || '';
 
-        // Generate Weekly Calendar View HTML
-        const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-        const shortDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        const activeDaysStr = regDays.toLowerCase();
-        
-        let weekGridHtml = '<div style="display:flex; gap:6px; margin-top:12px; margin-bottom:12px; justify-content:space-between;">';
-        for (let i = 0; i < 7; i++) {
-            const isActive = activeDaysStr.includes(daysOfWeek[i].toLowerCase()) || activeDaysStr.includes(shortDays[i].toLowerCase());
-            if (isActive) {
-                weekGridHtml += `<div style="flex:1; text-align:center; padding:8px 0; border-radius:8px; background:linear-gradient(135deg, var(--gold) 0%, #b8860b 100%); color:#000; font-weight:900; font-size:11px; box-shadow:0 2px 8px rgba(218,163,62,0.4); border:1px solid #ffdf00;">${shortDays[i][0]}</div>`;
-            } else {
-                weekGridHtml += `<div style="flex:1; text-align:center; padding:8px 0; border-radius:8px; background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.4); font-size:11px; border:1px solid rgba(255,255,255,0.05);">${shortDays[i][0]}</div>`;
-            }
-        }
-        weekGridHtml += '</div>';
-
-        // Build HTML for the card (high fidelity, responsive, uses variables from styles.css)
-        wrapper.innerHTML = `
-        <div id="sch-render-target" style="
-            background: linear-gradient(145deg, #1f2937 0%, #111827 100%);
-            border: 2px solid var(--gold);
-            border-radius: 16px;
-            padding: 30px;
-            color: #fff;
-            font-family: sans-serif;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
-            position: relative;
-            overflow: hidden;
-            width: 100%;
-            box-sizing: border-box;
-            user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
-        ">
-            <!-- Decorative background elements -->
-            <div style="position:absolute; top:-20px; right:-20px; font-size:120px; opacity:0.03; pointer-events:none;">♟️</div>
-            
-            <div style="text-align:center; border-bottom:1px solid rgba(218, 163, 62, 0.3); padding-bottom:16px; margin-bottom:20px;">
-                <h2 style="color:var(--gold); margin:0; font-family:var(--font-head); font-size:24px; text-transform:uppercase; letter-spacing:1px;">Chesskidoo Academy</h2>
-                <div style="color:rgba(255,255,255,0.7); font-size:12px; letter-spacing:3px; margin-top:4px;">OFFICIAL SCHEDULE</div>
-            </div>
-
-            <div style="text-align:center; margin-bottom:24px;">
-                <div style="font-size:14px; color:rgba(255,255,255,0.8);">Welcome to the academy,</div>
-                <div style="font-size:28px; font-weight:bold; color:#fff; margin-top:4px;">${stName}</div>
-            </div>
-
-            <div style="background:rgba(218, 163, 62, 0.08); border:1px solid rgba(218, 163, 62, 0.2); border-radius:12px; padding:16px; margin-bottom:16px;">
-                <div style="font-size:11px; text-transform:uppercase; color:var(--gold); font-weight:bold; letter-spacing:1px; margin-bottom:8px;">Demo Class</div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                    <span style="color:rgba(255,255,255,0.7); font-size:13px;">Date:</span>
-                    <span style="font-weight:bold; font-size:13px;">${demoDate}</span>
-                </div>
-                <div style="display:flex; justify-content:space-between;">
-                    <span style="color:rgba(255,255,255,0.7); font-size:13px;">Timing:</span>
-                    <span style="font-weight:bold; font-size:13px;">${demoTime}</span>
-                </div>
-            </div>
-
-            <div style="background:rgba(255, 255, 255, 0.03); border:1px solid rgba(255, 255, 255, 0.1); border-radius:12px; padding:16px; margin-bottom:20px;">
-                <div style="font-size:11px; text-transform:uppercase; color:#bbb; font-weight:bold; letter-spacing:1px; margin-bottom:8px;">Regular Class (Weekly Calendar)</div>
-                ${weekGridHtml}
-                <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                    <span style="color:rgba(255,255,255,0.7); font-size:13px;">Days:</span>
-                    <span style="font-weight:bold; font-size:13px;">${regDays}</span>
-                </div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                    <span style="color:rgba(255,255,255,0.7); font-size:13px;">Timing:</span>
-                    <span style="font-weight:bold; font-size:13px;">${regTime}</span>
-                </div>
-                <div style="display:flex; justify-content:space-between; padding-top:8px; margin-top:8px; border-top:1px dashed rgba(255,255,255,0.1);">
-                    <span style="color:rgba(255,255,255,0.7); font-size:13px;">Coach:</span>
-                    <span style="font-weight:bold; font-size:13px; color:var(--gold);">${coachName}</span>
-                </div>
-                ${meetLink ? `
-                <div style="margin-top:16px; text-align:center;">
-                    <a href="${meetLink}" target="_blank" style="display:inline-block; background:var(--gold); color:#000; padding:8px 20px; border-radius:6px; text-decoration:none; font-weight:bold; font-size:13px; box-shadow:0 4px 10px rgba(218,163,62,0.3);">Join Class 🎥</a>
-                </div>` : ''}
-            </div>
-
-            ${footnote ? `<div style="font-size:11px; color:rgba(255,255,255,0.6); text-align:center; font-style:italic; line-height:1.4;">"${footnote}"</div>` : ''}
-        </div>
-        `;
+        wrapper.innerHTML = buildScheduleCardHtml(stName, schedData, coachName, false, studentId);
     };
 
-    window.saveStudentSchedule = async function () {
-        const studentId = document.getElementById('sch-student-select').value;
-        if (!studentId) return window.toast('Please select a student', 'error');
-
+    // Reads the current schedule form into a schedData object (shared by the
+    // single-student save and the group save).
+    function buildScheduleDataFromForm() {
         const coachId = document.getElementById('sch-coach-select').value;
         const coachObj = (window.allCoaches || window.coaches || []).find(c => String(c.id) === String(coachId));
-        const schedData = {
+        return {
             demoDate: document.getElementById('sch-demo-date').value,
             demoTime: document.getElementById('sch-demo-time').value,
             regDays: document.getElementById('sch-reg-days').value,
@@ -294,42 +362,85 @@
             coachName: coachObj ? coachObj.name : '', // denormalized so the parent card is correct even if rosters change
             footnote: document.getElementById('sch-footnote').value
         };
+    }
 
+    // Persists a schedData payload onto one student's notes (PUT). Returns true on success.
+    async function persistScheduleForStudent(student, schedData) {
+        if (!student) return false;
+        const notesWithoutSchedule = window.removeScheduleJSON(student.notes || '');
+        const newNotes = (notesWithoutSchedule + ` [SCHEDULE64:${encodeSchedulePayload(schedData)}]`).trim();
+        try {
+            const res = await window.apiCall('/api/students?id=' + encodeURIComponent(student.id), {
+                method: 'PUT',
+                body: JSON.stringify({ notes: newNotes, learning_mode: student.learning_mode || 'online' })
+            });
+            if (res.ok) { student.notes = newNotes; return true; }
+            return false;
+        } catch (e) {
+            console.error('[Schedule] save failed for', student.id, e);
+            return false;
+        }
+    }
+    window.persistScheduleForStudent = persistScheduleForStudent;
+    window.encodeSchedulePayload = encodeSchedulePayload;
+
+    window.saveStudentSchedule = async function () {
+        const studentId = document.getElementById('sch-student-select').value;
+        if (!studentId) return window.toast('Please select a student', 'error');
         const student = (window.allStudents || []).find(s => s.id == studentId);
         if (!student) return;
 
-        // Preserve the existing coach-review text, drop any prior schedule tag,
-        // then append the sanitization-safe base64 schedule payload.
-        const notesWithoutSchedule = window.removeScheduleJSON(student.notes || '');
-        const newNotes = (notesWithoutSchedule + ` [SCHEDULE64:${encodeSchedulePayload(schedData)}]`).trim();
-
         window.toast('Saving schedule...', 'info');
+        const ok = await persistScheduleForStudent(student, buildScheduleDataFromForm());
+        window.toast(ok ? 'Schedule saved successfully!' : 'Failed to save schedule.', ok ? 'success' : 'error');
+    };
 
-        try {
-            // Use PUT (update) with the id in the query string — POST creates a
-            // brand-new student. Send learning_mode so the server re-applies the
-            // [LM:] prefix it strips on read.
-            const res = await window.apiCall('/api/students?id=' + encodeURIComponent(student.id), {
-                method: 'PUT',
-                body: JSON.stringify({
-                    notes: newNotes,
-                    learning_mode: student.learning_mode || 'online'
-                })
-            });
-
-            if (res.ok) {
-                // Update local memory so the preview / parent card reflect it immediately.
-                student.notes = newNotes;
-                window.toast('Schedule saved successfully!', 'success');
-            } else {
-                let msg = 'Server error';
-                try { const j = await res.json(); msg = j.error || msg; } catch (e) {}
-                throw new Error(msg);
-            }
-        } catch (e) {
-            console.error('[Schedule] save failed:', e);
-            window.toast('Failed to save schedule: ' + (e.message || 'error'), 'error');
+    // ─── Group / Batch Class Scheduling ─────────────────────────────
+    // Toggle the group panel and (re)build the multi-select student list.
+    window.toggleScheduleGroup = function () {
+        const panel = document.getElementById('sch-group-panel');
+        if (!panel) return;
+        if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
+        const students = window.allStudents || [];
+        const list = students
+            .filter(s => (s.status || 'active').toLowerCase() !== 'archived')
+            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        const listEl = document.getElementById('sch-group-list');
+        if (listEl) {
+            listEl.innerHTML = list.map(s =>
+                `<label style="display:flex; align-items:center; gap:8px; padding:5px 6px; border-radius:6px; font-size:12px; color:var(--ivory); cursor:pointer;">
+                   <input type="checkbox" class="sch-group-cb" value="${s.id}" style="accent-color:var(--gold);">
+                   <span>${(window.escapeHtml ? window.escapeHtml(s.name) : s.name)}${s.session_mode ? ` <span style="color:var(--ivory-dim); font-size:10px;">(${s.session_mode})</span>` : ''}</span>
+                 </label>`
+            ).join('');
         }
+        panel.style.display = 'block';
+    };
+
+    window.schGroupSelect = function (mode) {
+        const cbs = document.querySelectorAll('.sch-group-cb');
+        const students = window.allStudents || [];
+        cbs.forEach(cb => {
+            if (mode === 'all') cb.checked = true;
+            else if (mode === 'none') cb.checked = false;
+            else if (mode === 'group') {
+                const s = students.find(x => String(x.id) === String(cb.value));
+                cb.checked = !!(s && String(s.session_mode || s.batch_type || '').toLowerCase() === 'group');
+            }
+        });
+    };
+
+    window.saveScheduleToGroup = async function () {
+        const ids = Array.from(document.querySelectorAll('.sch-group-cb:checked')).map(cb => cb.value);
+        if (ids.length === 0) return window.toast('Select at least one student for the group.', 'error');
+        const schedData = buildScheduleDataFromForm();
+        window.toast(`Saving schedule to ${ids.length} students...`, 'info');
+        let ok = 0;
+        for (const id of ids) {
+            const student = (window.allStudents || []).find(s => String(s.id) === String(id));
+            if (await persistScheduleForStudent(student, schedData)) ok++;
+        }
+        window.toast(`Group schedule saved to ${ok}/${ids.length} students.`, ok === ids.length ? 'success' : 'warning');
     };
 
     window.downloadScheduleCardImage = function () {
@@ -342,7 +453,7 @@
         }
 
         window.toast('Generating image...', 'info');
-        html2canvas(target, { backgroundColor: null, scale: 2 }).then(canvas => {
+        window.html2canvas(target, { backgroundColor: null, scale: 2 }).then(canvas => {
             const link = document.createElement('a');
             link.download = `Chesskidoo_Schedule_${stName.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
             link.href = canvas.toDataURL('image/png');
@@ -403,109 +514,117 @@
         window.open(waUrl, '_blank');
     };
 
-    window.renderChildSchedule = function (student, coachName) {
-        const wrapper = document.getElementById('child-schedule-card-container');
-        if (!wrapper) return;
+// Helper to compute homework summary for schedule card footer
+   window.getStudentHomeworkStatus = function (studentId) {
+     const homework = window.allHomework || [];
+     const batchIds = new Set((window.allBatches || []).reduce((acc, b) => {
+       const ids = Array.isArray(b.student_ids) ? b.student_ids.map(String) : [];
+       if (ids.includes(String(studentId))) acc.push(b.id);
+       return acc;
+     }, []))
+     const relevant = homework.filter((h) => {
+       if ((h.status || 'active') === 'archived') return false;
+       if (String(h.student_id) === String(studentId)) return true;
+       return batchIds.has(String(h.batch_id));
+     });
+     const pending = relevant.filter((h) => {
+       const c = h.student_completions?.find((c) => String(c.student_id) === String(studentId));
+       return !c?.submitted_at;
+     }).length;
+     const overdue = relevant.filter((h) => {
+       const c = h.student_completions?.find((c) => String(c.student_id) === String(studentId));
+       const due = h.due_date ? new Date(`${h.due_date}T23:59:59`) : null;
+       return due && new Date() > due && !c?.submitted_at;
+     }).length;
+     return { total: relevant.length, pending, overdue };
+   };
 
-        if (!student.notes || !window.extractScheduleJSON(student.notes)) {
-            wrapper.innerHTML = `
-            <div class="card" style="padding:40px; text-align:center; color:var(--ivory-dim); width:100%;">
-              <span style="font-size:36px; display:block; margin-bottom:12px;">📅</span>
-              No active schedule found. Please contact the administrator.
-            </div>`;
-            return;
-        }
+   // Get homework due dates for calendar overlay
+   window.getHomeworkDueDates = function (studentId) {
+     const homework = window.allHomework || [];
+     const batchIds = new Set((window.allBatches || []).reduce((acc, b) => {
+       const ids = Array.isArray(b.student_ids) ? b.student_ids.map(String) : [];
+       if (ids.includes(String(studentId))) acc.push(b.id);
+       return acc;
+     }, []))
+     const now = new Date();
+     const upcoming = homework.filter((h) => {
+       if ((h.status || 'active') === 'archived') return false;
+       if (String(h.student_id) !== String(studentId) && !batchIds.has(String(h.batch_id))) return false;
+       const due = h.due_date ? new Date(h.due_date) : null;
+       if (!due) return false;
+       const dueEnd = new Date(`${h.due_date}T23:59:59`);
+       return dueEnd >= now;
+     }).map((h) => ({
+       date: h.due_date,
+       title: h.title || 'Homework',
+       status: h.student_completions?.find((c) => String(c.student_id) === String(studentId))?.submission_status || 'pending'
+     }));
+     return upcoming;
+   };
 
-        const schedData = window.extractScheduleJSON(student.notes);
+   // Render homework calendar overlay on schedule card
+   window.renderHomeworkCalendarOverlay = function (studentId) {
+     const homeworkDates = window.getHomeworkDueDates(studentId);
+     if (!homeworkDates.length) return '';
+     
+     const datesMap = new Map();
+     homeworkDates.forEach(hw => {
+       if (!datesMap.has(hw.date)) datesMap.set(hw.date, []);
+       datesMap.get(hw.date).push(hw);
+     });
+     
+     const today = new Date();
+     const next30 = [];
+     for (let i = 0; i < 30; i++) {
+       const d = new Date(today);
+       d.setDate(today.getDate() + i);
+       next30.push({ date: d.toISOString().split('T')[0], day: d.getDate() });
+     }
+     
+     const dotsHtml = next30.slice(0, 14).map(d => {
+       const hw = datesMap.get(d.date);
+       if (!hw) return `<span style="flex:1;text-align:center;font-size:9px;color:#4f5d75;">${d.day}</span>`;
+       const color = hw.some(h => h.status === 'submitted' || h.status === 'graded') ? '#3b5998' : 
+                     hw.some(h => h.status === 'missing' || h.status === 'late') ? '#e74c3c' : '#d2a755';
+       return `<span style="flex:1;text-align:center;font-size:9px;color:${color};font-weight:bold;" title="${hw.map(h => h.title).join(', ')}">${d.day}</span>`;
+     }).join('');
+     
+     return `<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #2c3242;"><div style="font-size:10px;color:#8a90a6;margin-bottom:4px;">Homework Due Dates (Next 2 weeks)</div><div style="display:flex;flex-wrap:wrap;gap:4px;">${dotsHtml}</div></div>`;
+   };
 
-        // Resolve the coach actually chosen for this schedule (falls back to the
-        // student's assigned coach / passed-in name).
-        const resolvedCoachName = resolveScheduleCoachName(schedData, student) || coachName || 'TBD';
+  window.renderChildSchedule = function (student, coachName) {
+    const wrapper = document.getElementById('child-schedule-card-container');
+    if (!wrapper) return;
 
-        // Generate Weekly Calendar View HTML
-        const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-        const shortDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        const activeDaysStr = (schedData.regDays || 'TBD').toLowerCase();
-        
-        let weekGridHtml = '<div style="display:flex; gap:6px; margin-top:12px; margin-bottom:12px; justify-content:space-between;">';
-        for (let i = 0; i < 7; i++) {
-            const isActive = activeDaysStr.includes(daysOfWeek[i].toLowerCase()) || activeDaysStr.includes(shortDays[i].toLowerCase());
-            if (isActive) {
-                weekGridHtml += `<div style="flex:1; text-align:center; padding:8px 0; border-radius:8px; background:linear-gradient(135deg, var(--gold) 0%, #b8860b 100%); color:#000; font-weight:900; font-size:11px; box-shadow:0 2px 8px rgba(218,163,62,0.4); border:1px solid #ffdf00;">${shortDays[i][0]}</div>`;
-            } else {
-                weekGridHtml += `<div style="flex:1; text-align:center; padding:8px 0; border-radius:8px; background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.4); font-size:11px; border:1px solid rgba(255,255,255,0.05);">${shortDays[i][0]}</div>`;
-            }
-        }
-        weekGridHtml += '</div>';
+    const schedData = window.extractScheduleJSON(student.notes, student);
 
-        wrapper.innerHTML = `
-        <div style="
-            background: linear-gradient(145deg, #1f2937 0%, #111827 100%);
-            border: 2px solid var(--gold);
-            border-radius: 16px;
-            padding: 30px;
-            color: #fff;
-            font-family: sans-serif;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
-            position: relative;
-            overflow: hidden;
-            width: 100%;
-            box-sizing: border-box;
-            user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
-        ">
-            <div style="position:absolute; top:-20px; right:-20px; font-size:120px; opacity:0.03; pointer-events:none;">♟️</div>
-            
-            <div style="text-align:center; border-bottom:1px solid rgba(218, 163, 62, 0.3); padding-bottom:16px; margin-bottom:20px;">
-                <h2 style="color:var(--gold); margin:0; font-family:var(--font-head); font-size:24px; text-transform:uppercase; letter-spacing:1px;">Chesskidoo Academy</h2>
-                <div style="color:rgba(255,255,255,0.7); font-size:12px; letter-spacing:3px; margin-top:4px;">OFFICIAL SCHEDULE</div>
-            </div>
-
-            <div style="text-align:center; margin-bottom:24px;">
-                <div style="font-size:14px; color:rgba(255,255,255,0.8);">Welcome to the academy,</div>
-                <div style="font-size:28px; font-weight:bold; color:#fff; margin-top:4px;">${student.name}</div>
-            </div>
-
-            <div style="background:rgba(218, 163, 62, 0.08); border:1px solid rgba(218, 163, 62, 0.2); border-radius:12px; padding:16px; margin-bottom:16px;">
-                <div style="font-size:11px; text-transform:uppercase; color:var(--gold); font-weight:bold; letter-spacing:1px; margin-bottom:8px;">Demo Class</div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                    <span style="color:rgba(255,255,255,0.7); font-size:13px;">Date:</span>
-                    <span style="font-weight:bold; font-size:13px;">${schedData.demoDate || 'TBD'}</span>
-                </div>
-                <div style="display:flex; justify-content:space-between;">
-                    <span style="color:rgba(255,255,255,0.7); font-size:13px;">Timing:</span>
-                    <span style="font-weight:bold; font-size:13px;">${schedData.demoTime || 'TBD'}</span>
-                </div>
-            </div>
-
-            <div style="background:rgba(255, 255, 255, 0.03); border:1px solid rgba(255, 255, 255, 0.1); border-radius:12px; padding:16px; margin-bottom:20px;">
-                <div style="font-size:11px; text-transform:uppercase; color:#bbb; font-weight:bold; letter-spacing:1px; margin-bottom:8px;">Regular Class (Weekly Calendar)</div>
-                ${weekGridHtml}
-                <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                    <span style="color:rgba(255,255,255,0.7); font-size:13px;">Days:</span>
-                    <span style="font-weight:bold; font-size:13px;">${schedData.regDays || 'TBD'}</span>
-                </div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                    <span style="color:rgba(255,255,255,0.7); font-size:13px;">Timing:</span>
-                    <span style="font-weight:bold; font-size:13px;">${schedData.regTime || 'TBD'}</span>
-                </div>
-                <div style="display:flex; justify-content:space-between; padding-top:8px; margin-top:8px; border-top:1px dashed rgba(255,255,255,0.1);">
-                    <span style="color:rgba(255,255,255,0.7); font-size:13px;">Coach:</span>
-                    <span style="font-weight:bold; font-size:13px; color:var(--gold);">${resolvedCoachName}</span>
-                </div>
-                <div style="display:flex; gap:10px; margin-top:16px; justify-content:center;">
-                    ${schedData.meetLink ? `<a href="${schedData.meetLink}" target="_blank" style="background:var(--gold); color:#000; padding:8px 16px; border-radius:6px; text-decoration:none; font-weight:bold; font-size:12px; box-shadow:0 4px 10px rgba(218,163,62,0.3);">Join Class 🎥</a>` : ''}
-                    <button onclick="window.syncClassCalendar('${student.id}')" style="background:transparent; border:1px solid rgba(255,255,255,0.3); color:#fff; padding:8px 16px; border-radius:6px; font-weight:bold; font-size:12px; cursor:pointer; transition:all 0.2s;">Add to Calendar 📅</button>
-                </div>
-            </div>
-            
-            ${schedData.footnote ? `<div style="font-size:11px; color:rgba(255,255,255,0.6); text-align:center; font-style:italic; line-height:1.4;">"${schedData.footnote}"</div>` : ''}
+    if (!schedData) {
+      wrapper.innerHTML = `
+        <div class="card" style="padding:40px; text-align:center; color:var(--ivory-dim); width:100%;">
+          <span style="font-size:36px; display:block; margin-bottom:12px;">📅</span>
+          No active schedule found. Please contact the administrator.
         </div>`;
-        
-        // Trigger AI Insight update for Parent Portal Schedule
-        if(window.generateContextualInsight) {
-            window.generateContextualInsight('child_schedule', student.id);
-        }
-    };
+      return;
+    }
+
+    const resolvedCoachName = schedData.regCoachName || resolveScheduleCoachName(schedData, student) || coachName || 'TBD';
+
+    const hwStatus = window.getStudentHomeworkStatus(student.id);
+    const hwNotice = hwStatus.total > 0
+      ? `<div style="margin-top:12px;padding:8px;background:rgba(218,163,62,0.08);border-radius:4px;font-size:11px;color:var(--gold);">
+          📚 ${hwStatus.overdue ? `<strong>${hwStatus.overdue} overdue</strong> • ` : ''}${hwStatus.total} active homework • ${hwStatus.pending} pending
+        </div>`
+      : '';
+
+    const hwCalendar = window.renderHomeworkCalendarOverlay(student.id);
+
+    wrapper.innerHTML = buildScheduleCardHtml(student.name, schedData, resolvedCoachName, true, student.id) + hwNotice + hwCalendar;
+
+    if (window.generateContextualInsight) {
+      window.generateContextualInsight('child_schedule', student.id);
+    }
+  };
 
     window.syncClassCalendar = function(studentId) {
         const student = (window.allStudents || []).find(s => s.id == studentId);
@@ -553,6 +672,26 @@ DESCRIPTION:Regular chess class timing: ${schedData.regTime || 'TBD'}. Coach: ${
         document.body.removeChild(link);
 
         if (window.toast) window.toast('Class schedule calendar downloaded!', 'success');
+    };
+
+    window.editStudentSchedule = function (studentId) {
+        if (!window.currentUser || window.currentUser.role !== 'admin') return;
+        
+        // Find the student
+        const student = window.allStudents.find(s => String(s.id) === String(studentId));
+        if (!student) return;
+
+        // Open the Schedule Manager tab
+        if (window.setPage) window.setPage('schedule');
+
+        // Allow DOM to render page
+        setTimeout(() => {
+            const studentSelect = document.getElementById("sch-student");
+            if (studentSelect) {
+                studentSelect.value = studentId;
+                studentSelect.dispatchEvent(new window.Event('change')); // Trigger logic to load their existing schedule
+            }
+        }, 100);
     };
 
 })();

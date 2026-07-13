@@ -1,22 +1,35 @@
 Deno.serve(async (req) => {
   const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+  const { getCorsHeaders, isOriginAllowed, corsResponse, handleOptions } = await import('../cors.ts');
+
+  const origin = req.headers.get('origin');
   
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  
-  if (!supabaseUrl || !supabaseKey) {
-    return new Response(JSON.stringify({ error: 'Server configuration error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+  // Handle OPTIONS preflight FIRST before any other checks
+  if (req.method === 'OPTIONS') {
+    return handleOptions(origin);
   }
   
+  // Origin check for actual requests (after OPTIONS)
+  if (!isOriginAllowed(origin)) {
+    return new Response(JSON.stringify({ error: 'Origin not allowed' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (!supabaseUrl || !supabaseKey) {
+    return corsResponse({ error: 'Server configuration error' }, 500, origin);
+  }
+
   const supabase = createClient(supabaseUrl, supabaseKey);
-  
+
   const { validateAuth } = await import('./rate_limit.js')
   const auth = await validateAuth(req, supabase)
   if (!auth.allowed) {
-    return new Response(JSON.stringify({ error: auth.error }), { status: 401, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } })
+    return corsResponse({ error: auth.error }, 401, origin);
   }
 
   function generateId() { return crypto.randomUUID(); }
@@ -45,16 +58,6 @@ Deno.serve(async (req) => {
       created_at: e.created_at,
       updated_at: e.updated_at
     };
-  }
-
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
-  };
-
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
@@ -109,7 +112,7 @@ Deno.serve(async (req) => {
         if (!currentEvent) {
           const safeSearch = String(eventId).substring(0, 8);
           const { data: events2 } = await supabase.from('events').select('*').ilike('id', '%' + safeSearch + '%');
-          if (!events2 || events2.length === 0) return new Response(JSON.stringify({ error: 'Event not found' }), { status: 400 });
+          if (!events2 || events2.length === 0) return corsResponse({ error: 'Event not found' }, 400, origin);
           currentEvent = events2[0];
         }
 
@@ -213,7 +216,7 @@ Deno.serve(async (req) => {
         await supabase.from('event_registrations').delete().match({ event_id: eventId, student_id: studentId });
 
         const { data: currentEvent } = await supabase.from('events').select('*').eq('id', eventId).single();
-        if (!currentEvent) return new Response(JSON.stringify({ error: 'Event not found' }), { status: 400 });
+        if (!currentEvent) return corsResponse({ error: 'Event not found' }, 400, origin);
 
         let message = `Student removed.`;
         let promotedStudentName = null;
@@ -267,7 +270,7 @@ Deno.serve(async (req) => {
       }
       
       const { title, date, type, location, id, event_date, event_time, max_participants, description, fee, map_url, img_url, prize_pool } = body;
-      if (!title) return new Response(JSON.stringify({ error: 'Title is required' }), { status: 400 });
+      if (!title) return corsResponse({ error: 'Title is required' }, 400, origin);
       
       let newEvent: Record<string, unknown> = { 
         id: id || generateId(), 
@@ -297,7 +300,7 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === 'PUT') {
-      if (!id) return new Response(JSON.stringify({ error: 'ID is required' }), { status: 400 });
+      if (!id) return corsResponse({ error: 'ID is required' }, 400, origin);
       
       const allowedColumns = [
         'title', 'description', 'event_date', 'event_time', 'location', 
@@ -334,7 +337,7 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === 'DELETE') {
-      if (!id) return new Response(JSON.stringify({ error: 'ID is required' }), { status: 400 });
+      if (!id) return corsResponse({ error: 'ID is required' }, 400, origin);
       
       try {
         // Fetch the event first to get its title
@@ -359,3 +362,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });
   }
 });
+
+
+
+
