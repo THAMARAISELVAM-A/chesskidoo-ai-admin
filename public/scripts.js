@@ -167,6 +167,7 @@
       'Content-Type': 'application/json',
       'apikey': SUPABASE_ANON_KEY,
       'Authorization': `Bearer ${bearer}`,
+      'x-custom-token': storedTok || '',
       ...options.headers
     };
 
@@ -1592,9 +1593,10 @@ function initUI() {
   }
 
   function getStudentDueConfig(s, coachName, month = 4, year = 2026) {
-    if (!s) return { day: 5, feeOverride: null };
+    if (!s) return { day: 5, feeOverride: null, fullDate: null };
     let day = 5;
     let feeOverride = null;
+    let fullDate = null;
 
     // Default to the day of their enrollment/join date
     const enrollStr = s.enrollment_date || s.join_date || s.created_at;
@@ -1608,11 +1610,15 @@ function initUI() {
 
     if (s.due_date) {
       const parsedDay = parseInt(s.due_date);
-      if (!isNaN(parsedDay) && parsedDay >= 1 && parsedDay <= 31) {
+      if (!isNaN(parsedDay) && parsedDay >= 1 && parsedDay <= 31 && String(parsedDay) === String(s.due_date)) {
         day = parsedDay;
       } else {
         try {
-          day = new Date(s.due_date).getUTCDate() || day;
+          const d = new Date(s.due_date);
+          if (!isNaN(d.getTime())) {
+            day = d.getUTCDate() || day;
+            fullDate = d;
+          }
         } catch (e) {
           // ignore
         }
@@ -1631,7 +1637,7 @@ function initUI() {
       }
     }
     
-    return { day, feeOverride };
+    return { day, feeOverride, fullDate };
   }
   
   function getStudentPaymentStatus(s, monthOverride = null, yearOverride = null) {
@@ -1700,7 +1706,13 @@ function initUI() {
        const dueCfg = getStudentDueConfig(s, coachName, targetMonth, targetYear);
        
        const currentDate = new Date();
-       const dueDateObj = new Date(targetYear, targetMonth, dueCfg.day, 23, 59, 59);
+       
+       let dueDateObj;
+       if (dueCfg.fullDate) {
+         dueDateObj = new Date(dueCfg.fullDate.getFullYear(), dueCfg.fullDate.getMonth(), dueCfg.fullDate.getDate(), 23, 59, 59);
+       } else {
+         dueDateObj = new Date(targetYear, targetMonth, dueCfg.day, 23, 59, 59);
+       }
        
        // We omit isFirstMonth || here because dueDateObj is correctly set to their enrollment date for their first month.
        // They will automatically transition from 'Pending' to 'Due' precisely on their join date.
@@ -6177,7 +6189,6 @@ Best regards,
               body: JSON.stringify(updatePayload)
             });
             toast('Marked as Paid with transaction record', 'success'); sendPaymentReceiptNotification(id, fee);
-          }
           } else {
             throw new Error('POST failed');
           }
@@ -6518,6 +6529,7 @@ Best regards,
            });
            toast('Marked as Paid with transaction record', 'success'); sendPaymentReceiptNotification(id, fee);
          }
+        }
 
        // Invalidate cache and refresh
        window.totalPaymentsMap = null;

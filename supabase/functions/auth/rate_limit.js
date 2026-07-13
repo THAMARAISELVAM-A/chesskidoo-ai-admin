@@ -83,11 +83,12 @@ function checkRateLimitInMemory(key, endpoint) {
  */
 export async function validateAuth(req, supabase) {
   const authHeader = req.headers.get('Authorization') || req.headers.get('authorization');
+  const customToken = req.headers.get('x-custom-token');
   const apiKey = req.headers.get('apikey');
   
-  if (!authHeader) return { allowed: false, error: 'Missing Authorization header' };
+  if (!authHeader && !customToken) return { allowed: false, error: 'Missing Authorization header' };
   
-  const token = authHeader.replace('Bearer ', '');
+  const token = customToken || (authHeader ? authHeader.replace('Bearer ', '') : '');
   if (!token) return { allowed: false, error: 'Missing token' };
 
   // 1. Check for hardcoded stabilization tokens

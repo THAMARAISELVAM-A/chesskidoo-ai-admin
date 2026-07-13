@@ -31,9 +31,33 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // --- Rate Limiting ---
+  const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+  const rateLimitResult = await checkRateLimit(ip, 'default');
+  
+  if (!rateLimitResult.allowed) {
+    return new Response(JSON.stringify({ 
+      error: 'Rate limit exceeded',
+      retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
+    }), { 
+      status: 429, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
+  }
+
+  // --- Authentication ---
+  const { validateAuth } = await import('../auth/rate_limit.js');
+  const auth = await validateAuth(req, supabase);
+  if (!auth.allowed) {
+    return new Response(JSON.stringify({ error: auth.error }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
   // Verify requester is a master admin
-  const requestRole = req.headers.get('role');
-  if (requestRole !== 'master' && requestRole !== 'admin') {
+  const requestRole = auth.role;
+  if (requestRole !== 'master' && requestRole !== 'admin' && requestRole !== 'service_role') {
     return new Response(JSON.stringify({ error: 'Unauthorized: Admin privileges required' }), {
       status: 403,
       headers: { 'Content-Type': 'application/json', ...corsHeaders }
