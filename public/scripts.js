@@ -1570,6 +1570,87 @@ function initUI() {
     }
     return raw;
   }
+  // ── HISTORICAL ENROLLMENT ───────────────────────────────────────────────
+  // getStudentStatus() says where a student stands TODAY. Reports for earlier
+  // periods must not be rewritten when someone is deactivated or moved to the
+  // waiting list now: June's books should still show them exactly as June saw
+  // them. Filtering a past month by today's status silently removed their fee
+  // from that month's expected revenue, collection rate and student counts.
+  //
+  // There is no status_changed_at column on students, so the date the current
+  // status took effect is approximated from updated_at, and hard evidence — a
+  // payment or an attendance record inside the month — always wins over it.
+  const PRE_ENROLL_STATES = ['pending', 'waitlist', 'upcoming']; // never active yet
+  const EXIT_ENROLL_STATES = ['inactive', 'archived'];           // were active, then left
+
+  function getStudentStatusChangeDate(s) {
+    const raw = s && (s.status_changed_at || s.updated_at);
+    if (!raw) return null;
+    const d = new Date(raw);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  // Cheap memo — this runs per student per month across every report table.
+  // The token changes whenever a data reload swaps the underlying arrays.
+  let _activityCache = new Map();
+  let _activityToken = '';
+  function hasActivityInMonth(s, month, year) {
+    const key = String((s && s.id) || '').trim().toLowerCase();
+    if (!key) return false;
+
+    const token = `${(allPayments || []).length}:${(allAttendance || []).length}`;
+    if (token !== _activityToken) { _activityToken = token; _activityCache = new Map(); }
+
+    const cacheKey = `${key}_${year}-${month}`;
+    if (_activityCache.has(cacheKey)) return _activityCache.get(cacheKey);
+
+    const inMonth = (d) => {
+      const dt = new Date(d);
+      return !isNaN(dt.getTime()) && dt.getUTCMonth() === month && dt.getUTCFullYear() === year;
+    };
+    const found =
+      (allPayments || []).some(p => p && p.status === 'paid' &&
+        String(p.student_id || '').trim().toLowerCase() === key &&
+        inMonth(p.payment_date || p.created_at)) ||
+      (allAttendance || []).some(a => a &&
+        String(a.student_id || '').trim().toLowerCase() === key &&
+        inMonth(a.date));
+
+    _activityCache.set(cacheKey, found);
+    return found;
+  }
+
+  // Was this student on the roster during the given month?
+  function wasStudentEnrolledIn(s, month, year) {
+    if (!s) return false;
+    const monthEnd = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59));
+
+    const enrollStr = getStudentDate(s);
+    const enrollDate = enrollStr ? new Date(enrollStr) : null;
+    if (!enrollDate || isNaN(enrollDate.getTime()) || enrollDate > monthEnd) return false;
+
+    const state = getStudentStatus(s);
+    if (!PRE_ENROLL_STATES.includes(state) && !EXIT_ENROLL_STATES.includes(state)) return true;
+
+    // Hard evidence they were being taught or billed that month.
+    if (hasActivityInMonth(s, month, year)) return true;
+
+    // Never-active states carry no history: without evidence, they weren't enrolled.
+    if (PRE_ENROLL_STATES.includes(state)) return false;
+
+    // Left the academy — still enrolled for every month before the exit took effect.
+    const changed = getStudentStatusChangeDate(s);
+    if (!changed) return false;
+    const changeMonthStart = new Date(Date.UTC(changed.getUTCFullYear(), changed.getUTCMonth(), 1));
+    return monthEnd < changeMonthStart;
+  }
+
+  // THE roster for a reporting period. Every financial figure should start from
+  // this so the dashboard, the registry and the PDF/PPT reports cannot disagree.
+  function getReportStudents(month, year) {
+    return (allStudents || []).filter(s => wasStudentEnrolledIn(s, month, year));
+  }
+
   function getStudentBatchType(s) {
     const raw = s.session_mode || s.batch_type || 'Group';
     if (String(raw).trim().toLowerCase() === 'single') return 'Single';
@@ -1681,11 +1762,9 @@ function initUI() {
     // Did they explicitly pay for this month? (Overrides inactive/archived states)
     if (hasPaymentThisMonth) return 'Paid';
 
-    // 1. Enrollment Check
-    const enrollStatus = getStudentStatus(s);
-    if (enrollStatus === 'pending' || enrollStatus === 'waitlist' || enrollStatus === 'upcoming' || enrollStatus === 'inactive' || enrollStatus === 'archived') {
-      return 'Not Enrolled';
-    }
+    // 1. Enrollment Check — evaluated FOR THE TARGET MONTH, not for today, so
+    // deactivating a student now does not retroactively un-enroll their history.
+    if (!wasStudentEnrolledIn(s, targetMonth, targetYear)) return 'Not Enrolled';
     const enrollDateStr = getStudentDate(s);
     const enrollDate = enrollDateStr ? new Date(enrollDateStr) : null;
     if (!enrollDate || enrollDate > targetMonthEnd) return 'Not Enrolled';
@@ -4380,15 +4459,9 @@ function initUI() {
         s_id_map[sid] = getStudentPaidMonthCount(s, targetMonthEnd);
       });
 
-    const targetStudents = (allStudents || []).filter(s => {
-      const sStatus = getStudentStatus(s);
-      if (sStatus === 'archived' || sStatus === 'pending' || sStatus === 'waitlist' || sStatus === 'upcoming' || sStatus === 'inactive') return false;
-
-      const enrollDateStr = getStudentDate(s);
-      const baseline = new Date(Date.UTC(2026, 3, 1, 0, 0, 0)); // April 1st Baseline (UTC)
-      const enrollDate = enrollDateStr ? new Date(enrollDateStr) : baseline;
-      return enrollDate <= targetMonthEnd;
-    });
+    // Period-aware roster: a student deactivated today still counts for the
+    // months they were actually enrolled in.
+    const targetStudents = getReportStudents(targetMonth, targetYear);
 
     // Update target-based summary stats
     if ($('s-total')) $('s-total').textContent = targetStudents.length;
@@ -4570,27 +4643,18 @@ function initUI() {
     // Aggregate student data using Slot-Based Reconciliation
     const unassignedData = { name: 'Unassigned / Academy', students: 0, revenue: 0, pending: 0, projected: 0, cost: 0 };
 
-    allStudents.forEach(s => {
-      const sStatus = getStudentStatus(s);
-      if (sStatus === 'archived' || sStatus === 'pending' || sStatus === 'waitlist' || sStatus === 'upcoming' || sStatus === 'inactive') return;
-
+    getReportStudents(targetMonth, targetYear).forEach(s => {
       const coachId = s.coach_id;
       const targetData = coachData[coachId] || unassignedData;
-      
-      const enrollDateStr = getStudentDate(s);
-      const enrollDate = enrollDateStr ? new Date(enrollDateStr) : null;
 
-      // 1. Enrollment Check for selected month
-      if (enrollDate && enrollDate <= targetMonthEnd) {
-        const fee = getStudentMonthlyFee(s) || 0;
-        targetData.students++;
-        targetData.projected += fee;
+      const fee = getStudentMonthlyFee(s) || 0;
+      targetData.students++;
+      targetData.projected += fee;
 
-        // Status-Based Pending Check (for the 'Pending' column)
-        const status = getStudentPaymentStatus(s, targetMonth, targetYear);
-        if (status !== 'Paid') {
-          targetData.pending += fee;
-        }
+      // Status-Based Pending Check (for the 'Pending' column)
+      const status = getStudentPaymentStatus(s, targetMonth, targetYear);
+      if (status !== 'Paid') {
+        targetData.pending += fee;
       }
     });
 
@@ -4821,9 +4885,9 @@ function initUI() {
        // apart and never added to the money totals.
        studRegistryView = studs.map(s => ({
          id: String(s.id),
-         status: getStudentStatus(s) !== 'active'
-           ? 'Not Enrolled'
-           : getStudentPaymentStatus(s, targetMonth, targetYear),
+         status: wasStudentEnrolledIn(s, targetMonth, targetYear)
+           ? getStudentPaymentStatus(s, targetMonth, targetYear)
+           : 'Not Enrolled',
          fee: getStudentMonthlyFee(s) || 0
        }));
 
@@ -4855,8 +4919,11 @@ function initUI() {
             const isOverdue = (status === 'Overdue') || (status !== 'Paid' && status !== 'Pending' && dueDateObj < new Date());
             
             const enrollStatus = getStudentStatus(s);
-            const isNonActive = enrollStatus !== 'active';
-            
+            // Billable for the period being viewed — a student deactivated today
+            // was still billable in the months before that, so their history
+            // keeps showing real fees and payment status.
+            const isNonActive = !wasStudentEnrolledIn(s, targetMonth, targetYear);
+
             let badgeHtml = '';
             if (enrollStatus === 'active') {
               badgeHtml = '<span class="badge" style="background: rgba(16, 185, 129, 0.12); color: var(--emerald); font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; border: 1px solid rgba(16, 185, 129, 0.25);">Enrolled & Attending</span>';
@@ -4957,7 +5024,10 @@ function initUI() {
             if (status === 'Paid') statusClass = 'text-success';
             else if (isNonActive || status === 'Not Enrolled') statusClass = 'text-warning';
 
-            const statusText = enrollStatus === 'waitlist' ? 'Waiting List' : (enrollStatus === 'upcoming' ? 'Upcoming' : (enrollStatus === 'inactive' ? 'Inactive' : (enrollStatus === 'archived' ? 'Archived' : (enrollStatus === 'pending' ? 'Not Enrolled' : status))));
+            // Show the enrollment label only when the student genuinely wasn't on
+            // the roster for this period; otherwise show the period's payment status.
+            const ENROLL_LABELS = { waitlist: 'Waiting List', upcoming: 'Upcoming', inactive: 'Inactive', archived: 'Archived', pending: 'Not Enrolled' };
+            const statusText = isNonActive ? (ENROLL_LABELS[enrollStatus] || status) : status;
 
             return `<tr>
               <td>${checkboxHtml}</td>
@@ -6981,14 +7051,8 @@ Best regards,
     const targetMonthEnd = new Date(Date.UTC(targetYear, targetMonth + 1, 0, 23, 59, 59));
 
     tbody.innerHTML = filteredStudents.map(s => {
-      const enrollDateStr = getStudentDate(s);
-      const enrollDate = enrollDateStr ? new Date(enrollDateStr) : null;
-
-      // 1. Enrollment Check
-      const enrollStatus = getStudentStatus(s);
-      const isNotEnrolled = enrollStatus === 'pending' || enrollStatus === 'upcoming' || enrollStatus === 'waitlist' || enrollStatus === 'inactive';
-      const wasEnrolled = enrollDate && enrollDate <= targetMonthEnd && !isNotEnrolled;
-      if (!wasEnrolled || isNotEnrolled) {
+      // 1. Enrollment Check — for the period being billed, not for today.
+      if (!wasStudentEnrolledIn(s, targetMonth, targetYear)) {
         return `<tr>
           <td><span style="font-family:var(--font-mono);color:var(--gold);font-size:13px">INV-${(s.id ? s.id.toString().slice(-6) : '000000')}</span></td>
           <td>
@@ -9180,6 +9244,8 @@ Best regards,
   window.getStudentPaidMonths = getStudentPaidMonths;
   window.getStudentPaidMonthCount = getStudentPaidMonthCount;
   window.getStudentCreditWindowStart = getStudentCreditWindowStart;
+  window.wasStudentEnrolledIn = wasStudentEnrolledIn;
+  window.getReportStudents = getReportStudents;
   window.getStudentLevel = getStudentLevel;
   window.getStudentRating = getStudentRating;
   window.getStudentDate = getStudentDate;
@@ -9516,10 +9582,7 @@ Best regards,
       creditsMap[sid] = getStudentPaidMonthCount(s);
     });
 
-    allStudents.forEach(s => {
-      const sStatus = getStudentStatus(s);
-      if (sStatus === 'archived' || sStatus === 'inactive' || sStatus === 'pending' || sStatus === 'waitlist' || sStatus === 'upcoming') return;
-
+    getReportStudents(targetMonth, targetYear).forEach(s => {
       const enrollDateStr = getStudentDate(s);
       const enrollDate = enrollDateStr ? new Date(enrollDateStr) : baseline;
       const effectiveEnroll = enrollDate < baseline ? baseline : enrollDate;

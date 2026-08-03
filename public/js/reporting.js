@@ -48,21 +48,31 @@ window.generateReportPDF = async function() {
     const targetYM = `${targetYear}-${targetMonth}`;
 
      // 1. Data Aggregation (Filtered by Period)
-     const monthEndLimit = new Date(Date.UTC(targetYear, targetMonth + 1, 0)); // last day of month at 00:00 UTC
+     const monthEndLimit = new Date(Date.UTC(targetYear, targetMonth + 1, 0, 23, 59, 59)); // last moment of month (UTC)
      const baseline = new Date(Date.UTC(2026, 3, 1, 0, 0, 0)); // April 1st Baseline (UTC)
-     
-     const targetStudents = allStudents.filter(s => {
-          const sStatus = getStudentStatus(s);
-          if (sStatus === 'archived' || sStatus === 'pending' || sStatus === 'waitlist' || sStatus === 'inactive') return false;
-          
-          const sName = (getStudentName(s) || '').toUpperCase();
-          if (sName.includes('PARENT') || sName.includes('COACH') || sName.includes('TEST')) return false;
-          
-          const joinStr = getStudentDate(s);
-          let enrollDate = joinStr ? new Date(joinStr) : baseline;
-          if (isNaN(enrollDate.getTime())) enrollDate = baseline;
-          return enrollDate <= monthEndLimit;
-     });
+
+     // Single period-aware roster shared with the dashboard and the registry, so
+     // every figure below reconciles with what the admin sees on screen.
+     //
+     // Two things this replaced:
+     //  - filtering by TODAY's status, which erased a student's whole history the
+     //    moment they were marked inactive;
+     //  - a name blacklist (PARENT / COACH / TEST) that was dropping real fee-paying
+     //    students whose names happen to contain "parent" out of the report, while
+     //    their payments still counted towards collections — so the collection rate
+     //    was computed against an expected-revenue figure that excluded them.
+     const getRoster = (m, y) => (window.getReportStudents
+        ? window.getReportStudents(m, y)
+        : allStudents.filter(s => {
+            const sStatus = getStudentStatus(s);
+            if (sStatus === 'archived' || sStatus === 'pending' || sStatus === 'waitlist' || sStatus === 'inactive') return false;
+            const joinStr = getStudentDate(s);
+            let enrollDate = joinStr ? new Date(joinStr) : baseline;
+            if (isNaN(enrollDate.getTime())) enrollDate = baseline;
+            return enrollDate <= new Date(Date.UTC(y, m + 1, 0, 23, 59, 59));
+          }));
+
+     const targetStudents = getRoster(targetMonth, targetYear);
 
     const totalStudents = allStudents.length;
     const activeStudents = targetStudents.length;
@@ -105,6 +115,11 @@ window.generateReportPDF = async function() {
     // Sum actual cash collected matching the dashboard's s-rev calculation
     const collected = calculateSlotRevenue(targetYear, targetMonth);
     const monthlyPayments = allPayments.filter(p => getYM(p.payment_date || p.created_at) === targetYM && p.status === 'paid');
+    // Raw cash actually banked this month. `collected` is the recognised figure
+    // (one monthly fee per student); this is the sum of the ledger rows below.
+    // They differ when a student pays twice in a month or pays a part amount, and
+    // the report now states both instead of implying the ledger adds up to `collected`.
+    const ledgerTotal = monthlyPayments.reduce((a, p) => a + (parseFloat(p.amount) || 0), 0);
 
     let lastDueAmount = 0;
     let currPendingAmount = 0;
@@ -152,18 +167,30 @@ window.generateReportPDF = async function() {
     }
     
     const netProfit = collected - payroll - totalExp;
-    
+
     // Simple Executive Metrics
-    const arpu = activeStudents > 0 ? (collected / activeStudents).toFixed(0) : 0;
-    const collectionRate = potential > 0 ? ((collected / potential) * 100).toFixed(1) : 0;
-    const opMargin = collected > 0 ? ((netProfit / collected) * 100).toFixed(1) : 0;
-    
+    // Revenue per enrolled student (ARPU) — not the average fee, which is a
+    // different number entirely. The card is labelled accordingly below.
+    const arpu = activeStudents > 0 ? Math.round(collected / activeStudents) : 0;
+    // Average fee actually settled, across the students who paid.
+    const rawCollectionRate = potential > 0 ? (collected / potential) * 100 : 0;
+    // Collections can exceed the month's expected fees when arrears are cleared,
+    // so the headline rate is capped at 100% (matching the dashboard) and the
+    // uncapped value is reported alongside it rather than silently dropped.
+    const collectionRate = Math.min(rawCollectionRate, 100).toFixed(1);
+    const isOverCollected = rawCollectionRate > 100;
+    const opMargin = collected > 0 ? ((netProfit / collected) * 100).toFixed(1) : 'N/A';
+
     // Growth & Attendance Metrics
     const monthStartLimit = new Date(Date.UTC(targetYear, targetMonth, 1));
-    const newStudsThisMonth = allStudents.filter(s => {
-        const joinStr = s.joining_date || s.enrollment_date || s.created_at;
-        let join = joinStr ? new Date(joinStr) : baseline;
-        if (isNaN(join.getTime())) join = baseline;
+    // Counted off the same roster and the same date field (getStudentDate) as every
+    // other figure. It previously read a `joining_date` column that does not exist
+    // on the students table and scanned every record — archived and non-enrolled
+    // included — so it could report enrollments the rest of the report ignored.
+    const newStudsThisMonth = targetStudents.filter(s => {
+        const joinStr = getStudentDate(s);
+        const join = joinStr ? new Date(joinStr) : null;
+        if (!join || isNaN(join.getTime())) return false;
         return join >= monthStartLimit && join <= monthEndLimit;
     }).length;
     
@@ -186,88 +213,75 @@ window.generateReportPDF = async function() {
     });
     const outstanding = lastDueAmount + currPendingAmount;
 
-    // Coach Performance (based on true payments from assigned students this month)
+    // Coach Performance.
+    // Revenue is measured on the SAME basis as the academy's `collected` figure —
+    // one recognised monthly fee per settled student — so the coach column now
+    // sums back to the headline. It previously added up raw transaction amounts
+    // with no per-student dedup, so a student who paid twice in a month (or paid
+    // an amount different from their fee) made the coach rows exceed academy
+    // revenue, and the two numbers could never be reconciled.
+    const coachRevenueFor = (studentIds) => targetStudents.reduce((sum, s) => {
+        if (!studentIds.has(String(s.id).toLowerCase())) return sum;
+        return getStudentPaymentStatus(s, targetMonth, targetYear) === 'Paid'
+            ? sum + (getStudentMonthlyFee(s) || 0)
+            : sum;
+    }, 0);
+
     const coachMetrics = allCoaches.filter(c => c.status !== 'archived').map(c => {
-      const coachStuds = allStudents.filter(s => String(s.coach_id) === String(c.id));
-      const coachStudIds = new Set(coachStuds.map(s => String(s.id).toLowerCase()));
-      
-      let coachRev = (allPayments || []).reduce((sum, p) => {
-          const pDate = new Date(p.payment_date || p.created_at);
-          if (pDate.getUTCMonth() === targetMonth && pDate.getUTCFullYear() === targetYear && p.status === 'paid') {
-              const sid = String(p.student_id).toLowerCase();
-              if (coachStudIds.has(sid)) {
-                  return sum + (parseFloat(p.amount) || 0);
-              }
-          }
-          return sum;
-      }, 0);
-      
+      const rosterStuds = targetStudents.filter(s => String(s.coach_id) === String(c.id));
+      const coachStudIds = new Set(rosterStuds.map(s => String(s.id).toLowerCase()));
+      const coachRev = coachRevenueFor(coachStudIds);
       const coachCost = getCoachSalary(c) || 0;
       const profit = coachRev - coachCost;
-      return { 
-        name: getCoachName(c), 
-        students: coachStuds.filter(s => {
-          const sStatus = getStudentStatus(s);
-          if (sStatus === 'archived' || sStatus === 'pending' || sStatus === 'waitlist' || sStatus === 'inactive') return false;
-          const enrollDateStr = getStudentDate(s);
-          let enrollDate = enrollDateStr ? new Date(enrollDateStr) : baseline;
-          if (isNaN(enrollDate.getTime())) enrollDate = baseline;
-          return enrollDate <= monthEndLimit;
-        }).length, 
-        revenue: coachRev, 
-        cost: coachCost, 
-        profit: profit, 
-        roi: coachCost > 0 ? ((profit / coachCost) * 100) : 'N/A'
+      return {
+        name: getCoachName(c),
+        students: rosterStuds.length,
+        revenue: coachRev,
+        cost: coachCost,
+        profit: profit,
+        roi: coachCost > 0 ? ((profit / coachCost) * 100) : null // null = not meaningful
       };
     });
 
-    const topPending = allStudents
+    const topPending = targetStudents
       .filter(s => {
-          const sStatus = getStudentStatus(s);
-          if (sStatus === 'archived' || sStatus === 'pending' || sStatus === 'waitlist' || sStatus === 'inactive') return false;
-          const enrollDateStr = getStudentDate(s);
-          let enrollDate = enrollDateStr ? new Date(enrollDateStr) : baseline;
-          if (isNaN(enrollDate.getTime())) enrollDate = baseline;
-          if (enrollDate > monthEndLimit) return false;
           const status = getStudentPaymentStatus(s, targetMonth, targetYear);
           return status !== 'Paid' && status !== 'Not Enrolled';
       })
       .sort((a, b) => getStudentMonthlyFee(b) - getStudentMonthlyFee(a))
       .slice(0, 5);
 
-    // Monthwise Historical Analysis (Last 6 Months) using true transaction-level values
+    // Monthwise Historical Analysis (Last 6 Months) using true transaction-level values.
+    // Months before the April-2026 billing baseline are skipped: the ledger does not
+    // reach back that far, so they rendered as expected-revenue with zero collected
+    // and a 0% collection rate — pure noise that also inflated the 6-month
+    // uncollected-fees recommendation below.
     const monthwiseData = [];
     for (let i = 5; i >= 0; i--) {
         const d = new Date(Date.UTC(targetYear, targetMonth - i, 1));
+        if (d < baseline) continue;
         const mName = d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
         const m = d.getUTCMonth();
         const y = d.getUTCFullYear();
         const mEnd = new Date(Date.UTC(y, m + 1, 0, 23, 59, 59));
         
         let mPotential = 0;
-        let mCollected = 0;
         let mOutstanding = 0;
-        
-        mCollected = calculateSlotRevenue(y, m);
+        const mCollected = calculateSlotRevenue(y, m);
 
-        allStudents.forEach(s => {
-            const sStatus = getStudentStatus(s);
-            if (sStatus === 'archived' || sStatus === 'pending' || sStatus === 'waitlist' || sStatus === 'inactive') return;
-            const enrollDateStr = getStudentDate(s);
-            let enrollDate = enrollDateStr ? new Date(enrollDateStr) : baseline;
-            if (isNaN(enrollDate.getTime())) enrollDate = baseline;
-            if (enrollDate <= mEnd) {
-                const fee = getStudentMonthlyFee(s) || 0;
-                mPotential += fee;
-                
-                const status = getStudentPaymentStatus(s, m, y);
-                if (status !== 'Paid' && status !== 'Not Enrolled') {
-                    mOutstanding += fee;
-                }
+        // Same roster rule as the headline figures, evaluated for THAT month — so
+        // the bottom row of this table equals the KPIs above it, and a student who
+        // left in August still appears in the April–July rows they belong to.
+        getRoster(m, y).forEach(s => {
+            const fee = getStudentMonthlyFee(s) || 0;
+            mPotential += fee;
+            const status = getStudentPaymentStatus(s, m, y);
+            if (status !== 'Paid' && status !== 'Not Enrolled') {
+                mOutstanding += fee;
             }
         });
-        
-        const mRate = mPotential > 0 ? ((mCollected / mPotential) * 100).toFixed(0) : 0;
+
+        const mRate = mPotential > 0 ? Math.min((mCollected / mPotential) * 100, 100).toFixed(0) : 0;
         monthwiseData.push({ month: mName, potential: mPotential, collected: mCollected, outstanding: mOutstanding, rate: mRate });
     }
 
@@ -468,9 +482,9 @@ window.generateReportPDF = async function() {
         <div class="kpi-sub">Current Month Balance</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Avg Student Fee</div>
-        <div class="kpi-value">₹${arpu}</div>
-        <div class="kpi-sub">Avg Paid Fee</div>
+        <div class="kpi-label">Revenue / Student</div>
+        <div class="kpi-value">₹${arpu.toLocaleString()}</div>
+        <div class="kpi-sub">collected ÷ ${activeStudents} enrolled</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Attendance</div>
@@ -484,7 +498,7 @@ window.generateReportPDF = async function() {
       <div class="kpi-card">
         <div class="kpi-label">Revenue Collected</div>
         <div class="kpi-value" style="color:var(--emerald)">₹${collected.toLocaleString()}</div>
-        <div class="kpi-sub">${collectionRate}% of expected</div>
+        <div class="kpi-sub">${collectionRate}% of expected${isOverCollected ? ` (${rawCollectionRate.toFixed(1)}% incl. arrears)` : ''}</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Outstanding</div>
@@ -518,8 +532,9 @@ window.generateReportPDF = async function() {
         <canvas id="revChart"></canvas>
       </div>
       <div class="data-story">
-        <p><strong>Fees Reconciliation Summary:</strong> Total expected fees for ${dateStr} is <span class="bold">₹${potential.toLocaleString()}</span>. Verified collections totaled <span class="bold">₹${collected.toLocaleString()}</span> across ${monthlyPayments.length} transactions.</p>
-        <p>Operating profit margin for this period is <span class="bold">${opMargin}%</span>. Total Coaches salary overhead is <span class="bold">₹${payroll.toLocaleString()}</span> and Total Academy Expenditures are <span class="bold">₹${totalExp.toLocaleString()}</span>, yielding a net profit of <span class="bold">₹${netProfit.toLocaleString()}</span>.</p>
+        <p><strong>Fees Reconciliation Summary:</strong> Total expected fees for ${dateStr} is <span class="bold">₹${potential.toLocaleString()}</span> across ${activeStudents} enrolled students. Recognised collections totaled <span class="bold">₹${collected.toLocaleString()}</span>${ledgerTotal !== collected ? ` (₹${ledgerTotal.toLocaleString()} banked across ${monthlyPayments.length} transactions — the difference is part-payments and second payments in the same month)` : ` across ${monthlyPayments.length} transactions`}.</p>
+        <p>Operating profit margin for this period is <span class="bold">${opMargin === 'N/A' ? 'N/A (no collections)' : opMargin + '%'}</span>. Total Coaches salary overhead is <span class="bold">₹${payroll.toLocaleString()}</span> and Total Academy Expenditures are <span class="bold">₹${totalExp.toLocaleString()}</span>, yielding a net profit of <span class="bold">₹${netProfit.toLocaleString()}</span>.</p>
+        <p style="font-size:13px;color:var(--text-dim)"><em>Basis: collections are recognised as one monthly fee per settled student. Payroll and expenditures are the roster and ledger as they stand today.</em></p>
         <div class="strategic-insight">
           Audit Note: System confirms ${newStudsThisMonth} new student registrations. Average Academy ELO has reached <span class="bold">${avgElo}</span>. Total outstanding (Last Due + Current) stands at <span class="bold">₹${(lastDueAmount + currPendingAmount).toLocaleString()}</span>.
         </div>
@@ -546,7 +561,7 @@ window.generateReportPDF = async function() {
           <td class="text-right mono">₹${m.revenue.toLocaleString()}</td>
           <td class="text-right mono">₹${m.cost.toLocaleString()}</td>
           <td class="text-right mono ${m.profit < 0 ? 'loss' : 'gain'}">₹${m.profit.toLocaleString()}</td>
-          <td class="text-right mono ${m.roi !== 'N/A' && m.roi < 0 ? 'loss' : 'gain'}">${m.roi === 'N/A' ? 'N/A' : m.roi.toFixed(0) + '%'}</td>
+          <td class="text-right mono ${m.roi !== null && m.roi < 0 ? 'loss' : 'gain'}">${m.roi === null ? 'N/A' : m.roi.toFixed(0) + '%'}</td>
         </tr>`).join('')}
       </tbody>
     </table>
@@ -645,7 +660,12 @@ window.generateReportPDF = async function() {
         <strong style="color:var(--gold)">1. UNCOLLECTED FEES AUDIT:</strong> Total uncollected fees across the last 6 months is <span class="bold">₹${monthwiseData.reduce((a, m) => a + m.outstanding, 0).toLocaleString()}</span>. A focused recovery drive is recommended.
       </div>
       <div style="margin-bottom:15px; border-bottom: 1px solid var(--border); padding-bottom:10px; font-size: 15px;">
-        <strong style="color:var(--gold)">2. COACH RETENTION PERFORMANCE:</strong> <span class="bold">${coachMetrics.sort((a,b)=>b.roi-a.roi)[0]?.name || 'Top coaches'}</span> is demonstrating optimal batch class management. Consider faculty-wide training based on these patterns.
+        <strong style="color:var(--gold)">2. COACH RETENTION PERFORMANCE:</strong> <span class="bold">${
+          // Copy before sorting — sorting coachMetrics in place would reorder the
+          // table above on the next render. Coaches with no salary on file have a
+          // null ROI and are skipped rather than being ranked as NaN.
+          [...coachMetrics].filter(m => m.roi !== null).sort((a, b) => b.roi - a.roi)[0]?.name || 'Top coaches'
+        }</span> is demonstrating optimal batch class management. Consider faculty-wide training based on these patterns.
       </div>
       <div style="font-size: 15px;">
         <strong style="color:var(--gold)">3. BATCH GROWTH POTENTIAL:</strong> ${timings['Evening'] > timings['Morning'] ? 'Evening batches are approaching peak saturation. Expansion should focus on weekend morning slots.' : 'Current morning utilization is healthy. Potential for expansion in evening group sessions.'}
@@ -664,6 +684,7 @@ window.generateReportPDF = async function() {
     <h3>IX. Verified Transaction Ledger</h3>
     <p style="font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-dim); margin-bottom: 20px;">
       THE FOLLOWING IS A RECONCILIATION OF ALL ${monthlyPayments.length} PAYMENTS RECORDED FOR ${dateStr.toUpperCase()}.
+      LEDGER TOTAL: &#8377;${ledgerTotal.toLocaleString()}${ledgerTotal !== collected ? ` &middot; RECOGNISED REVENUE: &#8377;${collected.toLocaleString()}` : ''}
     </p>
     <table>
       <thead>
@@ -869,19 +890,23 @@ window.generateReportPPT = async function() {
         };
         const targetYM = `${targetYear}-${targetMonth}`;
         const monthStr = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}`;
-        const monthEndLimit = new Date(Date.UTC(targetYear, targetMonth + 1, 0));
+        const monthEndLimit = new Date(Date.UTC(targetYear, targetMonth + 1, 0, 23, 59, 59));
         const baseline = new Date(Date.UTC(2026, 3, 1, 0, 0, 0));
 
-        const targetStudents = allStudents.filter(s => {
-            const sStatus = getStudentStatus(s);
-            if (sStatus === 'archived' || sStatus === 'pending' || sStatus === 'waitlist' || sStatus === 'inactive') return false;
-            const sName = (getStudentName(s) || '').toUpperCase();
-            if (sName.includes('PARENT') || sName.includes('COACH') || sName.includes('TEST')) return false;
-            const joinStr = getStudentDate(s);
-            let enrollDate = joinStr ? new Date(joinStr) : baseline;
-            if (isNaN(enrollDate.getTime())) enrollDate = baseline;
-            return enrollDate <= monthEndLimit;
-        });
+        // Same period-aware roster as the PDF report and the dashboard — see the
+        // note in generateReportPDF for why the old status/name filters were wrong.
+        const getRoster = (m, y) => (window.getReportStudents
+            ? window.getReportStudents(m, y)
+            : allStudents.filter(s => {
+                const sStatus = getStudentStatus(s);
+                if (sStatus === 'archived' || sStatus === 'pending' || sStatus === 'waitlist' || sStatus === 'inactive') return false;
+                const joinStr = getStudentDate(s);
+                let enrollDate = joinStr ? new Date(joinStr) : baseline;
+                if (isNaN(enrollDate.getTime())) enrollDate = baseline;
+                return enrollDate <= new Date(Date.UTC(y, m + 1, 0, 23, 59, 59));
+              }));
+
+        const targetStudents = getRoster(targetMonth, targetYear);
 
         const activeStudents = targetStudents.length;
 
@@ -958,7 +983,9 @@ window.generateReportPPT = async function() {
         }
 
         const netProfit = collected - payroll - totalExp;
-        const collectionRate = potential > 0 ? ((collected / potential) * 100).toFixed(1) : 0;
+        // Capped at 100% like the dashboard: clearing arrears can push raw
+        // collections past the month's expected fees.
+        const collectionRate = potential > 0 ? Math.min((collected / potential) * 100, 100).toFixed(1) : 0;
 
         // Fetch detailed expenditures for AI FinOps Audit
         let allExpenditures = [];
@@ -1027,34 +1054,29 @@ window.generateReportPPT = async function() {
         }
 
         // Historical collections for last 6 months
+        // Skips pre-baseline months — see the note in generateReportPDF.
         const monthwiseData = [];
         for (let i = 5; i >= 0; i--) {
             const d = new Date(Date.UTC(targetYear, targetMonth - i, 1));
+            if (d < baseline) continue;
             const mName = d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
             const m = d.getUTCMonth();
             const y = d.getUTCFullYear();
             const mEnd = new Date(Date.UTC(y, m + 1, 0, 23, 59, 59));
             
             let mPotential = 0;
-            let mCollected = calculateSlotRevenue(y, m);
             let mOutstanding = 0;
-            
-            allStudents.forEach(s => {
-                const sStatus = getStudentStatus(s);
-                if (sStatus === 'archived' || sStatus === 'pending' || sStatus === 'waitlist' || sStatus === 'inactive') return;
-                const enrollDateStr = getStudentDate(s);
-                let enrollDate = enrollDateStr ? new Date(enrollDateStr) : baseline;
-                if (isNaN(enrollDate.getTime())) enrollDate = baseline;
-                if (enrollDate <= mEnd) {
-                    const fee = getStudentMonthlyFee(s) || 0;
-                    mPotential += fee;
-                    const status = getStudentPaymentStatus(s, m, y);
-                    if (status !== 'Paid' && status !== 'Not Enrolled') {
-                        mOutstanding += fee;
-                    }
+            const mCollected = calculateSlotRevenue(y, m);
+
+            getRoster(m, y).forEach(s => {
+                const fee = getStudentMonthlyFee(s) || 0;
+                mPotential += fee;
+                const status = getStudentPaymentStatus(s, m, y);
+                if (status !== 'Paid' && status !== 'Not Enrolled') {
+                    mOutstanding += fee;
                 }
             });
-            const mRate = mPotential > 0 ? ((mCollected / mPotential) * 100).toFixed(0) : 0;
+            const mRate = mPotential > 0 ? Math.min((mCollected / mPotential) * 100, 100).toFixed(0) : 0;
             monthwiseData.push({ month: mName, potential: mPotential, collected: mCollected, outstanding: mOutstanding, rate: mRate });
         }
 
@@ -1084,31 +1106,19 @@ window.generateReportPPT = async function() {
             else if (st === 'Overdue') pOverdue++;
         });
 
+        // Revenue on the same recognised basis as the academy total (one monthly
+        // fee per settled student) so the coach rows sum back to `collected`.
         const coachMetrics = allCoaches.filter(c => c.status !== 'archived').map(c => {
-            const coachStuds = allStudents.filter(s => String(s.coach_id) === String(c.id));
-            const coachStudIds = new Set(coachStuds.map(s => String(s.id).toLowerCase()));
-            let coachRev = (allPayments || []).reduce((sum, p) => {
-                const pDate = new Date(p.payment_date || p.created_at);
-                if (pDate.getUTCMonth() === targetMonth && pDate.getUTCFullYear() === targetYear && p.status === 'paid') {
-                    const sid = String(p.student_id).toLowerCase();
-                    if (coachStudIds.has(sid)) {
-                        return sum + (parseFloat(p.amount) || 0);
-                    }
-                }
-                return sum;
-            }, 0);
+            const rosterStuds = targetStudents.filter(s => String(s.coach_id) === String(c.id));
+            const coachRev = rosterStuds.reduce((sum, s) =>
+                getStudentPaymentStatus(s, targetMonth, targetYear) === 'Paid'
+                    ? sum + (getStudentMonthlyFee(s) || 0)
+                    : sum, 0);
             const coachCost = getCoachSalary(c) || 0;
             const profit = coachRev - coachCost;
             return {
                 name: getCoachName(c),
-                students: coachStuds.filter(s => {
-                    const sStatus = getStudentStatus(s);
-                    if (sStatus === 'archived' || sStatus === 'pending' || sStatus === 'waitlist' || sStatus === 'inactive') return false;
-                    const enrollDateStr = getStudentDate(s);
-                    let enrollDate = enrollDateStr ? new Date(enrollDateStr) : baseline;
-                    if (isNaN(enrollDate.getTime())) enrollDate = baseline;
-                    return enrollDate <= monthEndLimit;
-                }).length,
+                students: rosterStuds.length,
                 revenue: coachRev,
                 cost: coachCost,
                 profit: profit,
@@ -1477,30 +1487,42 @@ window.getAcademySnapshot = function() {
     const getStudentStatus = window.getStudentStatus;
     const getStudentMonthlyFee = window.getStudentMonthlyFee;
 
-    // ── Monthly revenue dedup (1 fee per student per month) ────────────
-    const paidMonths = new Set();
-    const totalRev = payments.reduce((a, p) => {
-        if (p.status !== 'paid') return a;
-        const pDate = new Date(p.payment_date || p.created_at);
-        if (isNaN(pDate.getTime())) return a;
-        const mKey = `${p.student_id}_${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`;
-        if (paidMonths.has(mKey)) return a;
-        paidMonths.add(mKey);
-        const s = students.find(x => String(x.id) === String(p.student_id));
-        return a + (s && typeof getStudentMonthlyFee === 'function'
-            ? getStudentMonthlyFee(s)
-            : (parseFloat(p.amount) || 0));
-    }, 0);
-
-    // ── Active/archive counts ──────────────────────────────────────────
-    const activeCount = students.filter(s => {
-        const st = (typeof getStudentStatus === 'function' ? getStudentStatus(s) : (s.status || 'active'));
-        return st !== 'archived' && st !== 'inactive' && st !== 'pending';
-    }).length;
-
-    // ── Real attendance for current month (UTC) ────────────────────────
     const now = new Date();
     const tm = now.getUTCMonth(), ty = now.getUTCFullYear();
+
+    // ── Revenue dedup (1 fee per student per month) ────────────────────
+    // Ids are lower-cased to match every other aggregation in the app; the raw
+    // comparison used here before let case-mismatched ids escape the dedup.
+    // Both figures are returned separately: the AI was quoting the all-time total
+    // as if it were the current month's revenue.
+    const seenMonths = new Set();
+    let totalRev = 0;
+    let monthRev = 0;
+    payments.forEach(p => {
+        if (p.status !== 'paid') return;
+        const pDate = new Date(p.payment_date || p.created_at);
+        if (isNaN(pDate.getTime())) return;
+        const sid = String(p.student_id || '').trim().toLowerCase();
+        const mKey = `${sid}_${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`;
+        if (seenMonths.has(mKey)) return;
+        seenMonths.add(mKey);
+        const s = students.find(x => String(x.id).trim().toLowerCase() === sid);
+        const amt = (s && typeof getStudentMonthlyFee === 'function')
+            ? getStudentMonthlyFee(s)
+            : (parseFloat(p.amount) || 0);
+        totalRev += amt;
+        if (pDate.getUTCMonth() === tm && pDate.getUTCFullYear() === ty) monthRev += amt;
+    });
+
+    // ── Active roster (same period-aware rule as the reports) ──────────
+    const activeCount = typeof window.getReportStudents === 'function'
+        ? window.getReportStudents(tm, ty).length
+        : students.filter(s => {
+            const st = (typeof getStudentStatus === 'function' ? getStudentStatus(s) : (s.status || 'active'));
+            return st !== 'archived' && st !== 'inactive' && st !== 'pending' && st !== 'waitlist' && st !== 'upcoming';
+        }).length;
+
+    // ── Real attendance for current month (UTC) ────────────────────────
     const monthAtt = attendance.filter(a => {
         const d = new Date(a.date);
         return !isNaN(d.getTime()) && d.getUTCMonth() === tm && d.getUTCFullYear() === ty;
@@ -1533,7 +1555,8 @@ window.getAcademySnapshot = function() {
         metrics: {
             totalStudents: students.length,
             activeStudents: activeCount,
-            totalRevenue: totalRev,
+            totalRevenue: totalRev,        // all-time, recognised basis
+            monthRevenue: monthRev,        // current month only
             coachCount: coachData.length,
             pendingPayments,
             // null when no records — AI is instructed to say "n/a" rather than guess
