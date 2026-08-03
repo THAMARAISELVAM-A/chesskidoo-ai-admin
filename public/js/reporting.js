@@ -67,23 +67,17 @@ window.generateReportPDF = async function() {
     const totalStudents = allStudents.length;
     const activeStudents = targetStudents.length;
 
-    // Map total payments per student up to target month end (Deduplicated by month)
+    // Map paid months per student up to target month end (deduplicated by month,
+    // restricted to each student's credit window — see getStudentPaidMonthCount
+    // in scripts.js — so pre-enrollment payments don't wipe out real arrears).
     const targetMonthEnd = new Date(Date.UTC(targetYear, targetMonth + 1, 0, 23, 59, 59));
     const totalPaymentsMap = {};
-    const seenMonthsGlobal = new Set();
-    allPayments.forEach(p => {
-      if (p.status === 'paid') {
-        const sid = String(p.student_id || '').trim().toLowerCase();
-        const pDate = new Date(p.payment_date || p.created_at);
-        if (pDate <= targetMonthEnd) {
-          const mKey = `${sid}_${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`;
-          if (seenMonthsGlobal.has(mKey)) return;
-          seenMonthsGlobal.add(mKey);
-          
-          if (!totalPaymentsMap[sid]) totalPaymentsMap[sid] = 0;
-          totalPaymentsMap[sid]++;
-        }
-      }
+    allStudents.forEach(s => {
+      const sid = String(s.id || '').trim().toLowerCase();
+      if (!sid) return;
+      totalPaymentsMap[sid] = window.getStudentPaidMonthCount
+        ? window.getStudentPaidMonthCount(s, targetMonthEnd)
+        : 0;
     });
 
     // Helper function to match dashboard slot-based revenue calculation
@@ -915,23 +909,16 @@ window.generateReportPPT = async function() {
 
         const collected = calculateSlotRevenue(targetYear, targetMonth);
 
-        // Deduplication structure for arrears
+        // Credit map for arrears (deduplicated by month, credit-window aware)
         const totalPaymentsMap = {};
-        const seenMonthsGlobal = new Set();
         const targetMonthEnd = new Date(Date.UTC(targetYear, targetMonth + 1, 0, 23, 59, 59));
-        
-        allPayments.forEach(p => {
-            if (p.status === 'paid') {
-                const sid = String(p.student_id || '').trim().toLowerCase();
-                const pDate = new Date(p.payment_date || p.created_at);
-                if (pDate <= targetMonthEnd) {
-                    const mKey = `${sid}_${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`;
-                    if (seenMonthsGlobal.has(mKey)) return;
-                    seenMonthsGlobal.add(mKey);
-                    if (!totalPaymentsMap[sid]) totalPaymentsMap[sid] = 0;
-                    totalPaymentsMap[sid]++;
-                }
-            }
+
+        allStudents.forEach(s => {
+            const sid = String(s.id || '').trim().toLowerCase();
+            if (!sid) return;
+            totalPaymentsMap[sid] = window.getStudentPaidMonthCount
+                ? window.getStudentPaidMonthCount(s, targetMonthEnd)
+                : 0;
         });
 
         let lastDueAmount = 0;

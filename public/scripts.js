@@ -1148,22 +1148,7 @@
     const effectiveEnroll = enrollDate < baselineDate ? baselineDate : enrollDate;
 
     // FIX #5: Always rebuild — never trust a cached map for financial calculations
-    const freshPaymentsMap = {};
-    const seenStudentMonths = new Set();
-    (allPayments || []).forEach(p => {
-      if (p.status === 'paid') {
-        const sid = String(p.student_id || '').trim().toLowerCase();
-        if (!sid) return;
-        const pDate = new Date(p.payment_date || p.created_at);
-        const mKey = `${sid}_${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`;
-        if (seenStudentMonths.has(mKey)) return;
-        seenStudentMonths.add(mKey);
-        freshPaymentsMap[sid] = (freshPaymentsMap[sid] || 0) + 1;
-      }
-    });
-
-    const s_id_key = String(s.id || '').trim().toLowerCase();
-    const totalCredits = freshPaymentsMap[s_id_key] || 0;
+    const totalCredits = getStudentPaidMonthCount(s);
     const monthsRequired = ((targetYear - effectiveEnroll.getUTCFullYear()) * 12) + (targetMonth - effectiveEnroll.getUTCMonth()) + 1;
 
     const pendingMonths = Math.max(1, monthsRequired - totalCredits);
@@ -1359,17 +1344,8 @@
       const effectiveEnroll = enrollDate < baseline ? baseline : enrollDate;
       const monthsReq = ((targetYear - effectiveEnroll.getUTCFullYear()) * 12) + (targetMonth - effectiveEnroll.getUTCMonth()) + 1;
       
-      const sid = String(s.id).toLowerCase();
-      const paidMonthsSet = new Set();
-      (allPayments || []).forEach(p => {
-        if (String(p.student_id).toLowerCase() === sid && p.status === 'paid') {
-          const pDate = new Date(p.payment_date || p.created_at);
-          const mKey = `${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`;
-          paidMonthsSet.add(mKey);
-        }
-      });
-      
-      let totalDebt = Math.max(0, (fee * monthsReq) - (fee * paidMonthsSet.size));
+      const paidCount = getStudentPaidMonthCount(s);
+      let totalDebt = Math.max(0, (fee * monthsReq) - (fee * paidCount));
       
       const coach = allCoaches.find(c => String(c.id) === String(s.coach_id));
       const coachName = coach ? (coach.name || '') : '';
@@ -1537,6 +1513,49 @@ function initUI() {
   }
   function getStudentPhone(s) { return s.parent_phone || s.phone || ''; }
   function getStudentEmail(s) { return s.email || ''; }
+
+  // ── PAYMENT CREDIT WINDOW ───────────────────────────────────────────────
+  // Billing starts at the student's effective enrollment month (never earlier
+  // than the April 2026 baseline). Payments recorded BEFORE that month belong to
+  // an earlier enrollment period and must NOT be credited against the current
+  // cycle — otherwise a student whose enrollment date is moved forward
+  // (re-enrollment, corrected start date) carries the old payments over and is
+  // reported as 'Paid' for months they have not actually paid for.
+  const PAYMENT_BASELINE_MS = Date.UTC(2026, 3, 1, 0, 0, 0); // April 1st, 2026 (UTC)
+
+  function getStudentCreditWindowStart(s) {
+    const enrollStr = s ? getStudentDate(s) : '';
+    const enrollMs = enrollStr ? new Date(enrollStr).getTime() : NaN;
+    const effectiveMs = (isNaN(enrollMs) || enrollMs < PAYMENT_BASELINE_MS) ? PAYMENT_BASELINE_MS : enrollMs;
+    const eff = new Date(effectiveMs);
+    return new Date(Date.UTC(eff.getUTCFullYear(), eff.getUTCMonth(), 1, 0, 0, 0));
+  }
+
+  // Deduplicated set of "YYYY-M" keys for the months a student has actually
+  // paid for. Limited to the credit window above and, optionally, an upper
+  // cut-off date (e.g. the end of the month being reported on).
+  function getStudentPaidMonths(s, cutoff = null) {
+    const months = new Set();
+    const key = String((s && s.id) || '').trim().toLowerCase();
+    if (!key) return months;
+    const windowStart = getStudentCreditWindowStart(s);
+    // Read the same ledger getStudentPaymentStatus does, so status and money never disagree.
+    (allPayments || []).forEach(p => {
+      if (!p || p.status !== 'paid') return;
+      if (String(p.student_id || '').trim().toLowerCase() !== key) return;
+      const pDate = new Date(p.payment_date || p.created_at);
+      if (isNaN(pDate.getTime())) return;
+      if (pDate < windowStart) return;            // pre-enrollment payment → not credit
+      if (cutoff && pDate > cutoff) return;
+      months.add(`${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`);
+    });
+    return months;
+  }
+
+  // Number of months already covered by payments within the credit window.
+  function getStudentPaidMonthCount(s, cutoff = null) {
+    return getStudentPaidMonths(s, cutoff).size;
+  }
   function getStudentStatus(s) {
     const raw = (s.status || s.account_status || 'active').toLowerCase();
     // Auto-promote: If status is 'upcoming' but enrollment date has arrived, treat as 'active'
@@ -1638,28 +1657,26 @@ function initUI() {
     const targetMonthEnd = new Date(Date.UTC(targetYear, targetMonth + 1, 0, 23, 59, 59));
     const baselineDate = new Date(Date.UTC(2026, 3, 1, 0, 0, 0)); // April 1st, 2026 baseline (UTC)
 
-    // 0. Cumulative Audit (All-Time Payment Count)
+    // 0. Cumulative Audit (paid months inside the student's credit window)
+    // Payments made before the effective enrollment month are ignored — see
+    // getStudentCreditWindowStart. Without that filter a student re-enrolled at a
+    // later date inherits their old payments as credit and shows up as 'Paid'.
     const s_id_key = String(s.id || '').trim().toLowerCase();
-    
-    let paidMonths = new Set();
-    let hasPaymentThisMonth = false;
 
-    (allPayments || []).forEach(p => {
-      const psid = String(p.student_id || '').trim().toLowerCase();
-      if (psid === s_id_key && p.status === 'paid') {
-        const pDate = new Date(p.payment_date || p.created_at);
-        // Only count payments that occurred in or after the enrollment month
-        if (pDate <= targetMonthEnd) {
-          const monthKey = `${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`;
-          paidMonths.add(monthKey);
-        }
-        if (pDate.getUTCMonth() === targetMonth && pDate.getUTCFullYear() === targetYear) {
-          hasPaymentThisMonth = true;
-        }
-      }
-    });
-
+    const paidMonths = getStudentPaidMonths(s, targetMonthEnd);
     const totalPaidInvoices = paidMonths.size;
+
+    // A payment actually dated inside the target month always means 'Paid' for
+    // that month, even if it predates the current credit window (so historical
+    // months keep showing the truth after an enrollment date is corrected).
+    const hasPaymentThisMonth = (allPayments || []).some(p => {
+      if (!p || p.status !== 'paid') return false;
+      if (String(p.student_id || '').trim().toLowerCase() !== s_id_key) return false;
+      const pDate = new Date(p.payment_date || p.created_at);
+      return !isNaN(pDate.getTime()) &&
+             pDate.getUTCMonth() === targetMonth &&
+             pDate.getUTCFullYear() === targetYear;
+    });
 
     // Did they explicitly pay for this month? (Overrides inactive/archived states)
     if (hasPaymentThisMonth) return 'Paid';
@@ -4353,31 +4370,14 @@ function initUI() {
     const targetYear = window.reportYear;
     const targetMonthEnd = new Date(Date.UTC(targetYear, targetMonth + 1, 0, 23, 59, 59));
 
-      // 1. Target Dataset Preparation — cumulative paid months (deduplicated)
+      // 1. Target Dataset Preparation — cumulative paid months (deduplicated,
+      // restricted to each student's credit window so pre-enrollment payments
+      // don't cancel out the current cycle's dues).
       const s_id_map = {};
-      const seenMonthsAudit = new Set();
-      (allPayments || []).forEach(p => {
-        if (p.status === 'paid') {
-          const sid = String(p.student_id || '').trim().toLowerCase();
-          if (!sid) return;
-          const s = allStudents.find(x => String(x.id).toLowerCase() === sid);
-          if (!s) return;
-
-          const enrollDateStr = getStudentDate(s);
-          const baseline = new Date(Date.UTC(2026, 3, 1));
-          const enrollDate = enrollDateStr ? new Date(enrollDateStr) : baseline;
-          const effectiveEnroll = enrollDate < baseline ? baseline : enrollDate;
-
-          const pDate = new Date(p.payment_date || p.created_at);
-          if (pDate <= targetMonthEnd) {
-            const mKey = `${sid}_${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`;
-            if (seenMonthsAudit.has(mKey)) return;
-            seenMonthsAudit.add(mKey);
-            
-            if (!s_id_map[sid]) s_id_map[sid] = 0;
-            s_id_map[sid]++;
-          }
-        }
+      (allStudents || []).forEach(s => {
+        const sid = String(s.id || '').trim().toLowerCase();
+        if (!sid) return;
+        s_id_map[sid] = getStudentPaidMonthCount(s, targetMonthEnd);
       });
 
     const targetStudents = (allStudents || []).filter(s => {
@@ -5106,10 +5106,11 @@ function initUI() {
         // NEW: If status changed FROM 'Paid' TO 'Pending', 'Due', or 'Overdue', delete the payment record for this month.
         // This follows the concept: "If I mark it as Pending/Due/Overdue, it means no payment is recorded for that month."
         if ((s.payment_status === 'Paid' || getStudentPaymentStatus(s) === 'Paid') && (newStatus === 'Pending' || newStatus === 'Due' || newStatus === 'Overdue')) {
-            const now = new Date();
-            const targetMonth = now.getUTCMonth();
-            const targetYear = now.getUTCFullYear();
-            
+            // Use the period currently being viewed, not "now" — the badge the admin
+            // is reverting belongs to the selected report month.
+            const targetMonth = Number.isFinite(window.reportMonth) ? window.reportMonth : new Date().getUTCMonth();
+            const targetYear = Number.isFinite(window.reportYear) ? window.reportYear : new Date().getUTCFullYear();
+
             const monthPay = (allPayments || []).find(p => {
                 if (String(p.student_id) !== String(id)) return false;
                 const pDate = new Date(p.payment_date || p.created_at);
@@ -5122,6 +5123,12 @@ function initUI() {
                     // Optimistically remove from local array to ensure UI refresh is instant
                     allPayments = allPayments.filter(p => p.id !== monthPay.id);
                 } catch (de) { console.warn('Failed to auto-delete payment record on revert:', de); }
+            } else {
+                // No record for this period means the 'Paid' badge comes from credit
+                // carried over from an earlier month — the status is derived from the
+                // payment ledger, so saving 'Pending' here alone would not change it.
+                const periodLabel = new Date(targetYear, targetMonth).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+                toast(`No payment is recorded for ${periodLabel}; the status is derived from the payment history. Remove the carried-over payment from ⏳ History to change it.`, 'warning');
             }
         }
 
@@ -6062,14 +6069,34 @@ Best regards,
       const currentStatus = getStudentPaymentStatus(s);
       const isCurrentlyPaid = currentStatus === 'Paid';
       const action = isCurrentlyPaid ? 'unpaid' : 'paid';
-      const confirmMsg = isCurrentlyPaid
-        ? `Mark ${name} as Unpaid? This will remove this month's payment record and revert status to Pending.`
-        : `Mark ${name} as Paid? This will create a payment record for this month.`;
-
-      if (!confirm(confirmMsg)) return;
 
       const targetMonth = window.reportMonth;
       const targetYear = window.reportYear;
+      const periodLabel = new Date(targetYear, targetMonth).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+
+      // 'Paid' can also come from surplus credit carried in from earlier months.
+      // In that case there is no record for this period to delete, so removing
+      // one would silently leave the badge on 'Paid' — say so instead.
+      if (isCurrentlyPaid) {
+        const hasRecordThisPeriod = (window.allPayments || []).some(p => {
+          if (String(p.student_id) !== String(id) || p.status !== 'paid') return false;
+          const pDate = new Date(p.payment_date || p.created_at);
+          return !isNaN(pDate.getTime()) &&
+                 pDate.getUTCMonth() === targetMonth &&
+                 pDate.getUTCFullYear() === targetYear;
+        });
+        if (!hasRecordThisPeriod) {
+          toast(`${name} has no payment recorded in ${periodLabel} — the 'Paid' badge comes from credit carried over from an earlier month. Remove that payment from ⏳ History to change this.`, 'warning');
+          return;
+        }
+      }
+
+      const confirmMsg = isCurrentlyPaid
+        ? `Mark ${name} as Unpaid? This will remove ${periodLabel}'s payment record and revert status to Pending.`
+        : `Mark ${name} as Paid? This will create a payment record for ${periodLabel}.`;
+
+      if (!confirm(confirmMsg)) return;
+
       const originalPayments = [...window.allPayments];
 
       // --- Optimistic Local Updates ---
@@ -6266,16 +6293,8 @@ Best regards,
      const effectiveEnroll = enrollDate < baseline ? baseline : enrollDate;
      const monthsRequired = ((targetYear - effectiveEnroll.getUTCFullYear()) * 12) + (targetMonth - effectiveEnroll.getUTCMonth()) + 1;
 
-     const sid = String(s.id).toLowerCase();
-     const paidMonthsSet = new Set();
-     (window.allPayments || []).forEach(p => {
-       if (p.status === 'paid' && String(p.student_id).toLowerCase() === sid) {
-         const pDate = new Date(p.payment_date || p.created_at);
-         const mKey = `${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`;
-         paidMonthsSet.add(mKey);
-       }
-     });
-     const totalDue = Math.max(0, (monthsRequired * fee) - (fee * paidMonthsSet.size));
+     const paidCount = getStudentPaidMonthCount(s);
+     const totalDue = Math.max(0, (monthsRequired * fee) - (fee * paidCount));
 
      // Populate modal
      $('inform-student-name').textContent = name;
@@ -6313,16 +6332,8 @@ Best regards,
       const effectiveEnroll = enrollDate < baseline ? baseline : enrollDate;
       const monthsRequired = ((targetYear - effectiveEnroll.getUTCFullYear()) * 12) + (targetMonth - effectiveEnroll.getUTCMonth()) + 1;
 
-       const sid = String(s.id).toLowerCase();
-       const paidMonthsSet = new Set();
-       (window.allPayments || []).forEach(p => {
-         if (p.status === "paid" && String(p.student_id).toLowerCase() === sid) {
-           const pDate = new Date(p.payment_date || p.created_at);
-           const mKey = `${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`;
-           paidMonthsSet.add(mKey);
-         }
-       });
-       let totalDue = Math.max(0, (monthsRequired * fee) - (fee * paidMonthsSet.size));
+       const paidCount = getStudentPaidMonthCount(s);
+       let totalDue = Math.max(0, (monthsRequired * fee) - (fee * paidCount));
 
        const coach = allCoaches.find(c => String(c.id) === String(s.coach_id));
        const coachName = coach ? (coach.name || '') : '';
@@ -6741,19 +6752,9 @@ Best regards,
    //  - Due/Overdue: the oldest unpaid due date (longest-outstanding first)
    function getStudentEffectiveDueDate(s, targetMonth, targetYear, status) {
      const baselineDate = new Date(Date.UTC(2026, 3, 1, 0, 0, 0)); // April 1st, 2026 baseline (UTC)
-     const s_id_key = String(s.id || '').trim().toLowerCase();
      const targetMonthEnd = new Date(Date.UTC(targetYear, targetMonth + 1, 0, 23, 59, 59));
 
-     const paidMonths = new Set();
-     (allPayments || []).forEach(p => {
-       const psid = String(p.student_id || '').trim().toLowerCase();
-       if (psid === s_id_key && p.status === 'paid') {
-         const pDate = new Date(p.payment_date || p.created_at);
-         if (pDate <= targetMonthEnd) {
-           paidMonths.add(`${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`);
-         }
-       }
-     });
+     const paidMonths = getStudentPaidMonths(s, targetMonthEnd);
 
       if (status === 'Overdue') {
         const enrollDateStr = getStudentDate(s);
@@ -9081,6 +9082,9 @@ Best regards,
   window.getStudentName = getStudentName;
   window.getStudentMonthlyFee = getStudentMonthlyFee;
   window.getStudentPaymentStatus = getStudentPaymentStatus;
+  window.getStudentPaidMonths = getStudentPaidMonths;
+  window.getStudentPaidMonthCount = getStudentPaidMonthCount;
+  window.getStudentCreditWindowStart = getStudentCreditWindowStart;
   window.getStudentLevel = getStudentLevel;
   window.getStudentRating = getStudentRating;
   window.getStudentDate = getStudentDate;
@@ -9411,17 +9415,10 @@ Best regards,
     const baseline = new Date(Date.UTC(2026, 3, 1));
 
     const creditsMap = {};
-    const seenMonths = new Set();
-    (allPayments || []).forEach(p => {
-      if (p.status === 'paid') {
-        const sid = String(p.student_id || '').trim().toLowerCase();
-        const pDate = new Date(p.payment_date || p.created_at);
-        const mKey = `${sid}_${pDate.getUTCFullYear()}-${pDate.getUTCMonth()}`;
-        if (seenMonths.has(mKey)) return;
-        seenMonths.add(mKey);
-        
-        creditsMap[sid] = (creditsMap[sid] || 0) + 1;
-      }
+    (allStudents || []).forEach(s => {
+      const sid = String(s.id || '').trim().toLowerCase();
+      if (!sid) return;
+      creditsMap[sid] = getStudentPaidMonthCount(s);
     });
 
     allStudents.forEach(s => {
