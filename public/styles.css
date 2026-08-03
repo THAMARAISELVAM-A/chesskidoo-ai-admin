@@ -309,24 +309,36 @@ td { padding: 15px 18px; border-bottom: 1px solid rgba(255,255,255,0.04); font-s
 tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: var(--gold-mist); }
 
-/* ── BILLS TOTALS BAR ── */
-.bill-totals-bar {
+/* ── TOTALS BAR (payments registry + student registry) ── */
+.bill-totals-bar, .totals-bar {
   display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px;
 }
-.bill-total-pill {
+.bill-total-pill, .total-pill {
   display: flex; flex-direction: column; gap: 2px;
   padding: 10px 16px; border-radius: 10px;
   background: var(--surface2); border: 1px solid var(--border);
   min-width: 130px;
 }
-.bill-total-pill .bt-label { font-size: 11px; color: var(--ivory3); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
-.bill-total-pill .bt-val { font-size: 15px; font-weight: 700; color: var(--ivory); font-variant-numeric: tabular-nums; }
-.bill-total-pill .bt-sep { color: var(--ivory3); font-weight: 400; margin: 0 2px; }
-.bill-total-total { border-color: rgba(232,168,48,0.35); }
-.bill-total-total .bt-label, .bill-total-total .bt-val { color: var(--gold); }
-.bill-total-paid .bt-val { color: var(--success, #3ddc84); }
-.bill-total-pending .bt-val { color: var(--warning, #e8a830); }
-.bill-total-due .bt-val, .bill-total-overdue .bt-val { color: var(--danger, #ff5b6e); }
+.bill-total-pill .bt-label, .total-pill .bt-label { font-size: 11px; color: var(--ivory3); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+.bill-total-pill .bt-val, .total-pill .bt-val { font-size: 15px; font-weight: 700; color: var(--ivory); font-variant-numeric: tabular-nums; }
+.bill-total-pill .bt-sep, .total-pill .bt-sep { color: var(--ivory3); font-weight: 400; margin: 0 2px; }
+.bill-total-total, .total-pill.total-all { border-color: rgba(232,168,48,0.35); }
+.bill-total-total .bt-label, .bill-total-total .bt-val,
+.total-pill.total-all .bt-label, .total-pill.total-all .bt-val { color: var(--gold); }
+.bill-total-paid .bt-val, .total-pill.total-paid .bt-val { color: var(--success, #3ddc84); }
+.bill-total-pending .bt-val, .total-pill.total-pending .bt-val { color: var(--warning, #e8a830); }
+.bill-total-due .bt-val, .bill-total-overdue .bt-val,
+.total-pill.total-due .bt-val, .total-pill.total-overdue .bt-val { color: var(--danger, #ff5b6e); }
+.total-pill.total-none .bt-val { color: var(--ivory3); }
+
+/* Selection mode — totals reflect only the ticked rows */
+.totals-bar.is-selection .total-pill { background: var(--gold-mist); }
+.totals-bar .bt-clear {
+  align-self: center; background: none; border: none; cursor: pointer;
+  color: var(--gold); font-family: inherit; font-size: 12px; font-weight: 600;
+  padding: 4px 8px; text-decoration: underline;
+}
+.totals-bar .bt-clear:hover { color: var(--ivory); }
 
 .av-cell { display: flex; align-items: center; gap: 11px; font-weight: 600; }
 .av-sm { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(232,168,48,0.3); flex-shrink: 0; }

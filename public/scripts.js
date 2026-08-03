@@ -4810,8 +4810,22 @@ function initUI() {
 
        if (!studs || studs.length === 0) {
          tbody.innerHTML = '<tr><td colspan="12" class="text-center">No students found matching filters for this period</td></tr>';
+         studRegistryView = [];
+         renderStudentTotalsBar();
          return;
        }
+
+       // Snapshot the rendered rows so ticking checkboxes can retotal without
+       // re-running the whole filter chain. Bucket by what the row actually
+       // shows: non-active enrollments display "—" for fee, so they are counted
+       // apart and never added to the money totals.
+       studRegistryView = studs.map(s => ({
+         id: String(s.id),
+         status: getStudentStatus(s) !== 'active'
+           ? 'Not Enrolled'
+           : getStudentPaymentStatus(s, targetMonth, targetYear),
+         fee: getStudentMonthlyFee(s) || 0
+       }));
 
        console.log(`[UI] Rendering ${studs.length} students...`);
        tbody.innerHTML = studs.map((s, i) => {
@@ -4919,9 +4933,9 @@ function initUI() {
               moreActions = '';
             }
 
-            const checkboxHtml = isNonActive 
+            const checkboxHtml = isNonActive
               ? `<input type="checkbox" class="stud-check" data-id="${s.id}" disabled title="Non-active students cannot be selected for payments">`
-              : `<input type="checkbox" class="stud-check" data-id="${s.id}">`;
+              : `<input type="checkbox" class="stud-check" data-id="${s.id}" onchange="window.renderStudentTotalsBar()">`;
 
             const learningMode = s.learning_mode === 'offline' ? 'Offline' : 'Online';
             const learningModeColor = learningMode === 'Online' ? '#3b82f6' : '#8b5cf6';
@@ -4974,11 +4988,89 @@ function initUI() {
            return `<tr><td colspan="12" style="color:var(--danger)">Error rendering student ${s.name || i}</td></tr>`;
          }
        }).join('');
+
+       renderStudentTotalsBar();
      } catch (err) {
        console.error('[UI] renderStudents critical error:', err);
        if (tbody) tbody.innerHTML = `<tr><td colspan="12" class="text-center text-danger">Failed to load students. Please refresh the page.</td></tr>`;
+       studRegistryView = [];
+       renderStudentTotalsBar();
      }
    }
+
+   // ── STUDENT REGISTRY TOTALS BAR ─────────────────────────────────────────
+   // Same four buckets as the Payments registry. Totals follow the ticked rows
+   // when any are selected, otherwise the whole filtered view.
+   const STUD_TOTAL_BUCKETS = ['Paid', 'Pending', 'Due', 'Overdue'];
+   let studRegistryView = [];
+
+   function tallyStudentTotals(rows) {
+     const totals = { Total: { count: 0, amt: 0 }, 'Not Enrolled': { count: 0, amt: 0 } };
+     STUD_TOTAL_BUCKETS.forEach(k => { totals[k] = { count: 0, amt: 0 }; });
+
+     rows.forEach(r => {
+       const bucket = STUD_TOTAL_BUCKETS.includes(r.status) ? r.status : 'Not Enrolled';
+       totals[bucket].count++;
+       if (bucket === 'Not Enrolled') return; // no billable fee on these rows
+       totals[bucket].amt += r.fee;
+       totals.Total.count++;
+       totals.Total.amt += r.fee;
+     });
+     return totals;
+   }
+
+   function renderStudentTotalsBar() {
+     const el = $('stud-totals-bar');
+     if (!el) return;
+
+     if (!studRegistryView.length) {
+       el.innerHTML = '';
+       el.classList.remove('is-selection');
+       return;
+     }
+
+     const checkedIds = new Set(
+       Array.from(document.querySelectorAll('.stud-check:checked')).map(cb => cb.dataset.id)
+     );
+     const isSelection = checkedIds.size > 0;
+     const rows = isSelection
+       ? studRegistryView.filter(r => checkedIds.has(r.id))
+       : studRegistryView;
+
+     const totals = tallyStudentTotals(rows);
+     const fmt = n => '₹' + Math.round(n).toLocaleString();
+     const pill = (cls, label, data, countOnly) =>
+       `<div class="total-pill ${cls}"><span class="bt-label">${label}</span><span class="bt-val">${data.count}` +
+       (countOnly ? '' : ` <span class="bt-sep">·</span> ${fmt(data.amt)}`) +
+       `</span></div>`;
+
+     el.classList.toggle('is-selection', isSelection);
+
+     let html =
+       pill('total-all', isSelection ? `Selected (${rows.length})` : `Total (${totals.Total.count})`, totals.Total) +
+       pill('total-paid', 'Paid', totals.Paid) +
+       pill('total-pending', 'Pending', totals.Pending) +
+       pill('total-due', 'Due', totals.Due) +
+       pill('total-overdue', 'Overdue', totals.Overdue);
+
+     // Only shown when the view actually contains rows with no billable fee, so
+     // the pill counts always reconcile with the number of rows in the table.
+     if (totals['Not Enrolled'].count > 0) {
+       html += pill('total-none', 'Not Billed', totals['Not Enrolled'], true);
+     }
+     if (isSelection) {
+       html += `<button type="button" class="bt-clear" onclick="window.clearStudentSelection()">Clear selection</button>`;
+     }
+
+     el.innerHTML = html;
+   }
+   window.renderStudentTotalsBar = renderStudentTotalsBar;
+
+   window.clearStudentSelection = function () {
+     document.querySelectorAll('.stud-check').forEach(cb => { cb.checked = false; });
+     if ($('stud-check-all')) $('stud-check-all').checked = false;
+     renderStudentTotalsBar();
+   };
 
 
   window.toggleMoreMenu = function (id) {
@@ -6968,7 +7060,10 @@ Best regards,
   }
 
   window.toggleAllStudents = function (checked) {
-    document.querySelectorAll('.stud-check').forEach(cb => cb.checked = checked);
+    // Skip disabled rows — non-active students are explicitly not selectable for
+    // payments, and ticking them here would feed them into the bulk actions.
+    document.querySelectorAll('.stud-check:not(:disabled)').forEach(cb => cb.checked = checked);
+    renderStudentTotalsBar();
   };
 
   async function bulkMarkPaid() {
