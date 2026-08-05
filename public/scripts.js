@@ -2260,7 +2260,7 @@ function initUI() {
 
     // 5. Standalone 10-digit numbers (no + sign, no 1/91 prefix)
     if (digits.length === 10) {
-      if (CANADIAN_AREA_CODES.has(digits.substring(0, 3))) {
+      if (CANADIAN_AREA_CODES.has(digits.substring(0, 3)) && !['6', '7', '8', '9'].includes(digits[0])) {
         return { countryCode: 'CA', localNumber: digits };
       }
       if (knownCode === 'CA') {
