@@ -141,8 +141,34 @@ Deno.serve(async (req) => {
       const knownCountry = COUNTRY_CODES.find(c => c.code === knownCode);
       const hasPlus = phoneStr.trim().startsWith('+');
 
+      const sortedCountries = [...COUNTRY_CODES].sort((a, b) => b.dial.length - a.dial.length);
+
+      // Cleanup double-prefixed historical data (e.g. 9119057825754 = 91 + 1 + 9057825754)
+      if (digits.startsWith('911') && digits.length === 13) {
+        if (knownCode === 'CA' || knownCode === 'US') {
+          return { countryCode: knownCode, localNumber: digits.slice(3) };
+        }
+      }
+
+      // 1. If explicit '+' is present, the dial code after '+' ALWAYS takes precedence
+      if (hasPlus) {
+        for (const c of sortedCountries) {
+          const dialDigits = c.dial.replace(/\D/g, '');
+          if (digits.startsWith(dialDigits)) {
+            const local = digits.slice(dialDigits.length);
+            if (local.length >= c.length - 2 && local.length <= c.length + 2) {
+              if (knownCountry && knownCountry.dial.replace(/\D/g, '') === dialDigits) {
+                return { countryCode: knownCountry.code, localNumber: local };
+              }
+              return { countryCode: c.code, localNumber: local };
+            }
+          }
+        }
+      }
+
+      // 2. If knownCountry is provided and matches dial code or length, prioritize it
       if (knownCountry) {
-        const kDial = knownCountry.dial;
+        const kDial = knownCountry.dial.replace(/\D/g, '');
         if (digits.startsWith(kDial) && digits.length > knownCountry.length - 2) {
           const local = digits.slice(kDial.length);
           if (local.length >= knownCountry.length - 2 && local.length <= knownCountry.length + 2) {
@@ -154,10 +180,11 @@ Deno.serve(async (req) => {
         }
       }
 
-      const sortedCountries = [...COUNTRY_CODES].sort((a, b) => b.dial.length - a.dial.length);
+      // 3. Otherwise scan all countries by dial code
       for (const c of sortedCountries) {
-        if (digits.startsWith(c.dial)) {
-          const local = digits.slice(c.dial.length);
+        const dialDigits = c.dial.replace(/\D/g, '');
+        if (digits.startsWith(dialDigits)) {
+          const local = digits.slice(dialDigits.length);
           if (local.length >= c.length - 2 && local.length <= c.length + 2) {
             if (hasPlus || (!hasPlus && digits.length > c.length)) {
               return { countryCode: c.code, localNumber: local };

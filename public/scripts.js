@@ -2121,7 +2121,32 @@ function initUI() {
     const knownCountry = knownCode ? getCountryByCode(knownCode) : null;
     const hasPlus = phoneStr.trim().startsWith('+');
 
-    // 1. If knownCountry is provided and matches dial code or length, prioritize it
+    const sortedCountries = [...COUNTRY_CODES].sort((a, b) => b.dial.length - a.dial.length);
+
+    // Cleanup double-prefixed historical data (e.g. 9119057825754 = 91 + 1 + 9057825754)
+    if (digits.startsWith('911') && digits.length === 13) {
+      if (knownCode === 'CA' || knownCode === 'US') {
+        return { countryCode: knownCode, localNumber: digits.slice(3) };
+      }
+    }
+
+    // 1. If explicit '+' is present, the dial code after '+' ALWAYS takes precedence
+    if (hasPlus) {
+      for (const c of sortedCountries) {
+        const dialDigits = c.dial.replace(/\D/g, '');
+        if (digits.startsWith(dialDigits)) {
+          const local = digits.slice(dialDigits.length);
+          if (local.length >= c.length - 2 && local.length <= c.length + 2) {
+            if (knownCountry && knownCountry.dial.replace(/\D/g, '') === dialDigits) {
+              return { countryCode: knownCountry.code, localNumber: local };
+            }
+            return { countryCode: c.code, localNumber: local };
+          }
+        }
+      }
+    }
+
+    // 2. If knownCountry is provided and matches dial code or length, prioritize it
     if (knownCountry) {
       const kDial = knownCountry.dial.replace(/\D/g, '');
       if (digits.startsWith(kDial) && digits.length > knownCountry.length - 2) {
@@ -2135,9 +2160,7 @@ function initUI() {
       }
     }
 
-    // 2. Otherwise scan all countries by dial code
-    const sortedCountries = [...COUNTRY_CODES].sort((a, b) => b.dial.length - a.dial.length);
-
+    // 3. Otherwise scan all countries by dial code
     for (const c of sortedCountries) {
       const dialDigits = c.dial.replace(/\D/g, '');
       if (digits.startsWith(dialDigits)) {
@@ -2166,14 +2189,44 @@ function initUI() {
   }
   window.parseStoredPhone = parseStoredPhone;
 
-  function getFullInternationalPhoneDigits(rawPhone, countryCode) {
-    const digits = rawPhone.replace(/\D/g, '');
-    const country = getCountryByCode(countryCode);
-    if (!country) return digits;
-    const dialDigits = country.dial.replace(/\D/g, '');
-    if (digits.startsWith(dialDigits) && digits.length > country.length) {
-      return digits;
+  function getFullInternationalPhoneDigits(rawPhone, countryCode = 'IN') {
+    if (!rawPhone) return '';
+    const trimmed = rawPhone.trim();
+    const digits = trimmed.replace(/\D/g, '');
+    if (!digits) return '';
+
+    // If string starts with '+', parse directly to obtain true country dial digits
+    if (trimmed.startsWith('+')) {
+      const parsed = parseStoredPhone(trimmed, countryCode);
+      const c = getCountryByCode(parsed.countryCode);
+      if (c) {
+        const dialDigits = c.dial.replace(/\D/g, '');
+        return digits.startsWith(dialDigits) ? digits : (dialDigits + digits);
+      }
     }
+
+    // Check if digits already starts with countryCode dial digits
+    const country = getCountryByCode(countryCode);
+    if (country) {
+      const dialDigits = country.dial.replace(/\D/g, '');
+      if (digits.startsWith(dialDigits) && digits.length > country.length - 2) {
+        return digits;
+      }
+    }
+
+    // Check if digits already starts with ANY valid country dial code
+    const sortedCountries = [...COUNTRY_CODES].sort((a, b) => b.dial.length - a.dial.length);
+    for (const c of sortedCountries) {
+      const dialDigits = c.dial.replace(/\D/g, '');
+      if (digits.startsWith(dialDigits)) {
+        const local = digits.slice(dialDigits.length);
+        if (local.length >= c.length - 2 && local.length <= c.length + 2) {
+          return digits;
+        }
+      }
+    }
+
+    const dialDigits = country ? country.dial.replace(/\D/g, '') : '91';
     return dialDigits + digits;
   }
   window.getFullInternationalPhoneDigits = getFullInternationalPhoneDigits;
