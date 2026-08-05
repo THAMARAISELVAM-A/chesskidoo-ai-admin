@@ -1916,49 +1916,70 @@ function initUI() {
   
   const CURRENCY_MAP = {
     'IN': { currency: 'INR', symbol: '₹', rate: 1.0 },
-    'US': { currency: 'USD', symbol: '$', rate: 0.012 },
-    'GB': { currency: 'GBP', symbol: '£', rate: 0.0094 },
-    'CA': { currency: 'CAD', symbol: 'C$', rate: 0.016 },
-    'AU': { currency: 'AUD', symbol: 'A$', rate: 0.018 },
-    'DE': { currency: 'EUR', symbol: '€', rate: 0.011 },
-    'FR': { currency: 'EUR', symbol: '€', rate: 0.011 },
-    'JP': { currency: 'JPY', symbol: '¥', rate: 1.88 },
-    'CN': { currency: 'CNY', symbol: '¥', rate: 0.087 },
-    'BR': { currency: 'BRL', symbol: 'R$', rate: 0.062 },
-    'MX': { currency: 'MXN', symbol: '$', rate: 0.20 },
-    'IT': { currency: 'EUR', symbol: '€', rate: 0.011 },
-    'ES': { currency: 'EUR', symbol: '€', rate: 0.011 },
-    'RU': { currency: 'RUB', symbol: '₽', rate: 1.10 },
-    'KR': { currency: 'KRW', symbol: '₩', rate: 16.4 },
-    'SG': { currency: 'SGD', symbol: 'S$', rate: 0.016 },
-    'MY': { currency: 'MYR', symbol: 'RM', rate: 0.056 },
-    'TH': { currency: 'THB', symbol: '฿', rate: 0.44 },
-    'ID': { currency: 'IDR', symbol: 'Rp', rate: 193.0 },
-    'PH': { currency: 'PHP', symbol: '₱', rate: 0.70 },
-    'VN': { currency: 'VND', symbol: '₫', rate: 305.0 },
-    'AE': { currency: 'AED', symbol: 'AED', rate: 0.044 },
-    'SA': { currency: 'SAR', symbol: 'SR', rate: 0.045 },
-    'PK': { currency: 'PKR', symbol: 'Rs', rate: 3.32 },
-    'BD': { currency: 'BDT', symbol: '৳', rate: 1.41 },
-    'LK': { currency: 'LKR', symbol: 'Rs', rate: 3.59 },
-    'ZA': { currency: 'ZAR', symbol: 'R', rate: 0.22 },
-    'NG': { currency: 'NGN', symbol: '₦', rate: 18.0 },
-    'EG': { currency: 'EGP', symbol: 'E£', rate: 0.57 },
-    'NL': { currency: 'EUR', symbol: '€', rate: 0.011 },
-    'BE': { currency: 'EUR', symbol: '€', rate: 0.011 },
-    'SE': { currency: 'SEK', symbol: 'kr', rate: 0.13 },
-    'NO': { currency: 'NOK', symbol: 'kr', rate: 0.13 },
-    'DK': { currency: 'DKK', symbol: 'kr', rate: 0.083 },
-    'FI': { currency: 'EUR', symbol: '€', rate: 0.011 },
-    'PL': { currency: 'PLN', symbol: 'zł', rate: 0.048 },
-    'TR': { currency: 'TRY', symbol: '₺', rate: 0.39 },
-    'IL': { currency: 'ILS', symbol: '₪', rate: 0.044 },
-    'AR': { currency: 'ARS', symbol: '$', rate: 10.7 },
-    'CL': { currency: 'CLP', symbol: '$', rate: 11.2 },
-    'CO': { currency: 'COP', symbol: '$', rate: 47.0 },
-    'NZ': { currency: 'NZD', symbol: 'NZ$', rate: 0.020 },
-    'TW': { currency: 'TWD', symbol: 'NT$', rate: 0.39 }
+    'US': { currency: 'USD', symbol: '$', rate: 0.010488 },
+    'GB': { currency: 'GBP', symbol: '£', rate: 0.007798 },
+    'CA': { currency: 'CAD', symbol: 'C$', rate: 0.014743 },
+    'AU': { currency: 'AUD', symbol: 'A$', rate: 0.014903 },
+    'DE': { currency: 'EUR', symbol: '€', rate: 0.009101 },
+    'FR': { currency: 'EUR', symbol: '€', rate: 0.009101 },
+    'JP': { currency: 'JPY', symbol: '¥', rate: 1.65269 },
+    'CN': { currency: 'CNY', symbol: '¥', rate: 0.070887 },
+    'BR': { currency: 'BRL', symbol: 'R$', rate: 0.05345 },
+    'MX': { currency: 'MXN', symbol: '$', rate: 0.181106 },
+    'IT': { currency: 'EUR', symbol: '€', rate: 0.009101 },
+    'ES': { currency: 'EUR', symbol: '€', rate: 0.009101 },
+    'RU': { currency: 'RUB', symbol: '₽', rate: 0.850306 },
+    'KR': { currency: 'KRW', symbol: '₩', rate: 14.990093 },
+    'SG': { currency: 'SGD', symbol: 'S$', rate: 0.013446 },
+    'MY': { currency: 'MYR', symbol: 'RM', rate: 0.04292 },
+    'TH': { currency: 'THB', symbol: '฿', rate: 0.34919 },
+    'ID': { currency: 'IDR', symbol: 'Rp', rate: 188.945 },
+    'PH': { currency: 'PHP', symbol: '₱', rate: 0.641276 },
+    'VN': { currency: 'VND', symbol: '₫', rate: 275.492 },
+    'AE': { currency: 'AED', symbol: 'AED', rate: 0.038514 },
+    'SA': { currency: 'SAR', symbol: 'SR', rate: 0.039327 },
+    'PK': { currency: 'PKR', symbol: 'Rs', rate: 2.9158 },
+    'BD': { currency: 'BDT', symbol: '৳', rate: 1.2972 },
+    'LK': { currency: 'LKR', symbol: 'Rs', rate: 3.5188 },
+    'ZA': { currency: 'ZAR', symbol: 'R', rate: 0.172087 },
+    'NG': { currency: 'NGN', symbol: '₦', rate: 14.3066 },
+    'EG': { currency: 'EGP', symbol: 'E£', rate: 0.5265 },
+    'NL': { currency: 'EUR', symbol: '€', rate: 0.009101 },
+    'BE': { currency: 'EUR', symbol: '€', rate: 0.009101 },
+    'SE': { currency: 'SEK', symbol: 'kr', rate: 0.099983 },
+    'NO': { currency: 'NOK', symbol: 'kr', rate: 0.10004 },
+    'DK': { currency: 'DKK', symbol: 'kr', rate: 0.067919 },
+    'FI': { currency: 'EUR', symbol: '€', rate: 0.009101 },
+    'PL': { currency: 'PLN', symbol: 'zł', rate: 0.03916 },
+    'TR': { currency: 'TRY', symbol: '₺', rate: 0.498567 },
+    'IL': { currency: 'ILS', symbol: '₪', rate: 0.031694 },
+    'AR': { currency: 'ARS', symbol: '$', rate: 15.6935 },
+    'CL': { currency: 'CLP', symbol: '$', rate: 9.70057 },
+    'CO': { currency: 'COP', symbol: '$', rate: 33.9129 },
+    'NZ': { currency: 'NZD', symbol: 'NZ$', rate: 0.017834 },
+    'TW': { currency: 'TWD', symbol: 'NT$', rate: 0.339366 }
   };
+
+  async function fetchLiveExchangeRates() {
+    try {
+      const res = await fetch('https://open.er-api.com/v6/latest/INR');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data && data.rates) {
+        Object.keys(CURRENCY_MAP).forEach(code => {
+          const curr = CURRENCY_MAP[code].currency;
+          if (curr && data.rates[curr]) {
+            CURRENCY_MAP[code].rate = data.rates[curr];
+          }
+        });
+        console.log('[Currency] Up-to-date live exchange rates loaded successfully!');
+      }
+    } catch (e) {
+      console.warn('[Currency] Live exchange rate fetch fallback to static map:', e);
+    }
+  }
+  // Auto-fetch live exchange rates in background on initialization
+  fetchLiveExchangeRates();
 
   function formatStudentFee(s, inrAmount) {
     if (!s) return '₹' + (inrAmount || 0).toLocaleString();
