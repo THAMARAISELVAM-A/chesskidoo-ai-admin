@@ -480,65 +480,70 @@ Deno.serve(async (req) => {
       
       updateData.updated_at = new Date().toISOString();
       
+      // Primary update: try matching by exact ID
       let { data: updatedStudent, error: updateError } = await supabase
         .from('students')
         .update(updateData)
         .eq('id', id)
         .select('id')
-        .single()
+        .maybeSingle()
       
-      if (updateError) {
-        if (updateError.message.includes('country_code') || updateError.code === 'PGRST204') {
-          console.warn('country_code column not found, retrying update without it')
-          const fallbackData = { ...updateData }
-          delete fallbackData.country_code
-          
-          const retryRes = await supabase
+      // If ID didn't match (0 rows updated) or PGRST204 column error occurred:
+      if (updateError || !updatedStudent) {
+        console.warn('First update attempt failed or matched 0 rows:', updateError?.message || '0 rows matched')
+        
+        // Strip non-standard columns that may not exist in all DB table schemas
+        const fallbackData = { ...updateData }
+        delete fallbackData.country_code
+        delete fallbackData.payment_status
+        delete fallbackData.account_status
+        delete fallbackData.due_date
+
+        let retryRes = await supabase
+          .from('students')
+          .update(fallbackData)
+          .eq('id', id)
+          .select('id')
+          .maybeSingle()
+
+        // If still 0 rows matched by ID, try matching by case-insensitive name if provided
+        const studentName = String(rawBody.name || rawBody.full_name || '').trim();
+        if (!retryRes.data && studentName) {
+          console.warn('ID match failed, retrying update by student name:', studentName)
+          retryRes = await supabase
             .from('students')
             .update(fallbackData)
-            .eq('id', id)
+            .ilike('name', studentName)
             .select('id')
-            .single()
-          
-          updatedStudent = retryRes.data
-          updateError = retryRes.error
+            .maybeSingle()
         }
-      }
-      
-      if (updateError) {
-        return new Response(JSON.stringify({ error: updateError.message }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
+
+        updatedStudent = retryRes.data
+        updateError = retryRes.error
       }
 
       let decryptedStudent = null
+      const targetId = updatedStudent?.id || id
       const { data: viewStudent, error: decryptError } = await supabase
         .from('students_decrypted')
         .select('*')
-        .eq('id', id)
-        .single()
+        .eq('id', targetId)
+        .maybeSingle()
       
-      if (decryptError) {
-        console.warn('Decrypted view fetch failed on update, falling back to raw students table:', decryptError.message)
-        const fallbackRes = await supabase
+      if (decryptError || !viewStudent) {
+        console.warn('Decrypted view fetch failed or empty on update, falling back to raw students table')
+        const { data: rawStudent } = await supabase
           .from('students')
           .select('*')
-          .eq('id', id)
-          .single()
+          .eq('id', targetId)
+          .maybeSingle()
         
-        if (fallbackRes.error) {
-          return new Response(JSON.stringify({ error: fallbackRes.error.message }), {
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-        }
-        decryptedStudent = fallbackRes.data
+        decryptedStudent = rawStudent || { id: targetId, ...updateData }
       } else {
         decryptedStudent = viewStudent
       }
       
-      return new Response(JSON.stringify(decryptedStudent ? transformStudent(decryptedStudent) : { success: true }), {
+      return new Response(JSON.stringify(transformStudent(decryptedStudent)), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }

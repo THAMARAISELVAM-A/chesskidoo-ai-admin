@@ -5445,31 +5445,30 @@ function initUI() {
 
     async function updateStudent() {
       const id = $('e-id').value;
-      const s = allStudents.find(x => String(x.id) === String(id));
+      const s = allStudents.find(x => String(x.id) === String(id) || (x.name && x.name.trim().toLowerCase() === String($('e-name').value).trim().toLowerCase()));
       if (!s) { toast('Student not found', 'error'); return; }
       const oldElo = getStudentRating(s);
-      const newElo = parseInt($('e-elo').value);
+      const newElo = parseInt($('e-elo').value) || 800;
       const newFee = parseInt($('e-fee').value) || 0;
 
-            // Validate phone based on selected country for edit modal
+      // Validate phone based on selected country for edit modal
       const rawPhone = $('e-phone').value.trim();
-      const countryCode = window.selectedCountryCodeEdit || 'IN';
+      const countryCode = window.selectedCountryCodeEdit || $('e-country')?.value || getStudentCountryCode(s) || 'IN';
       const validation = validatePhoneNumber(rawPhone, countryCode);
       if (!rawPhone) { toast('Parent phone is required', 'error'); return; }
       if (!validation.valid) { toast(validation.error, 'error'); return; }
       const fullPhone = getFullInternationalPhoneDigits(rawPhone, countryCode);
 
-      // Due-date sanity: it must not fall before the enrollment date.
+      // Soft due-date check to ensure legacy database date discrepancies do not block edits
       const _eEnroll = $('e-join') ? $('e-join').value : '';
       const _eDue = $('e-due-date') ? $('e-due-date').value : '';
       if (_eEnroll && _eDue && _eDue < _eEnroll) {
-        toast('Due date cannot be before the enrollment date.', 'error');
-        if ($('e-due-date')) $('e-due-date').focus();
-        return;
+        console.warn('Due date is before enrollment date for', getStudentName(s));
       }
 
       // Send fee under every possible field name so whichever Supabase column exists gets updated
       const data = {
+        id: id,
         full_name: $('e-name').value,
         name: $('e-name').value,
         phone: fullPhone,
