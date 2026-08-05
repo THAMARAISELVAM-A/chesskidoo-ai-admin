@@ -256,6 +256,9 @@
           <option value="online">Online</option>
           <option value="offline">Offline</option>
         </select>
+        <select id="f-country" onchange="renderStudents()" title="Filter by the student's country">
+          <option value="">All Countries</option>
+        </select>
         <select id="f-status" onchange="renderStudents()"><option value="">All Payment Status</option><option value="Paid">Paid</option><option value="Pending">Pending</option><option value="Due">Due</option><option value="Overdue">Overdue</option></select>
         <input type="number" id="f-min-fee" placeholder="Min Fee ₹" oninput="renderStudents()">
         <input type="number" id="f-max-fee" placeholder="Max Fee ₹" oninput="renderStudents()">
@@ -951,6 +954,13 @@
           <span style="font-size:13px; color:var(--ivory-dim)">Coach:</span>
           <select id="f-bill-coach" onchange="renderBills()" style="padding:6px 12px; background:var(--bg3); border:1px solid var(--border); color:var(--ivory); border-radius:6px; font-size:13px; width:150px">
             <option value="">All Coaches</option>
+          </select>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:8px">
+          <span style="font-size:13px; color:var(--ivory-dim)">Country:</span>
+          <select id="f-bill-country" onchange="renderBills()" style="padding:6px 12px; background:var(--bg3); border:1px solid var(--border); color:var(--ivory); border-radius:6px; font-size:13px; width:170px">
+            <option value="">All Countries</option>
           </select>
         </div>
 
@@ -1998,6 +2008,18 @@
 
     <div class="modal-grid">
       <div class="form-group">
+        <label>Student Country</label>
+        <select id="m-country" onchange="onStudentCountryChange('m')"></select>
+        <div class="field-hint">Where the student actually is — independent of the phone's dial code.</div>
+      </div>
+      <div class="form-group">
+        <label>Billing Currency</label>
+        <div id="m-currency-preview" class="currency-preview">₹ INR</div>
+      </div>
+    </div>
+
+    <div class="modal-grid">
+      <div class="form-group">
         <label>Student Level</label>
         <select id="m-level">
           <option>Beginner</option><option>Intermediate</option><option>Advanced</option><option>Elite</option>
@@ -2093,6 +2115,19 @@
           </div>
           <input type="tel" id="e-phone" placeholder="10 digits" maxlength="13" inputmode="numeric" style="flex:1">
         </div>
+        <div class="field-hint" id="e-phone-country-note" style="display:none"></div>
+      </div>
+    </div>
+
+    <div class="modal-grid">
+      <div class="form-group">
+        <label>Student Country</label>
+        <select id="e-country" onchange="onStudentCountryChange('e')"></select>
+        <div class="field-hint">Where the student actually is — independent of the phone's dial code.</div>
+      </div>
+      <div class="form-group">
+        <label>Billing Currency</label>
+        <div id="e-currency-preview" class="currency-preview">₹ INR</div>
       </div>
     </div>
 
@@ -2656,6 +2691,15 @@
     <div class="modal-sub">Student: <strong id="inform-student-name" style="color:var(--ivory)"></strong></div>
     <div class="modal-sub">Amount Due: <strong id="inform-amount" style="color:var(--danger)"></strong></div>
 
+    <div style="margin:10px 0 0 0;padding:10px 14px;background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.25);border-radius:8px;font-size:12px;color:var(--ivory-dim);line-height:1.6">
+      <div style="font-weight:700;color:var(--gold);margin-bottom:4px;display:flex;align-items:center;gap:6px">
+        <span>🏦</span> Bank Payment Details Included in Message:
+      </div>
+      <div>• <strong>ACCOUNT HOLDER NAME:</strong> RANJITH A S</div>
+      <div>• <strong>ACCOUNT NUMBER:</strong> 110020810982</div>
+      <div>• <strong>IFSC CODE:</strong> CNRB0016533</div>
+    </div>
+
     <div style="margin:16px 0;padding:16px;background:var(--glass);border-radius:10px;border:1px solid var(--border);font-size:14px;line-height:1.7">
       <label style="display:block;margin-bottom:10px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--gold)">SELECT NOTIFICATION CHANNEL</label>
       <div class="channel-grid">
@@ -2826,7 +2870,7 @@
       <script src="js/telemetry.js?v=1.0" charset="utf-8"></script>
       <script src="js/productivity.js?v=1.2&t=20260601c" charset="utf-8"></script>
       <script src="js/tournaments.js?v=1.1&t=20260531" charset="utf-8"></script>
-      <script src="js/access.js?v=1.3&t=20260601c"></script>
+      <script src="js/access.js?v=1.4&t=20260728a"></script>
       <script src="js/tom-brain.js?v=1.0&t=20260601" charset="utf-8"></script>
       <script src="scripts.js?v=6.13&t=20260803b" charset="utf-8"></script>
       <script src="js/expenditures.js?v=1.1&t=20260601d" charset="utf-8"></script>

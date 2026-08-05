@@ -340,6 +340,28 @@ tbody tr:hover { background: var(--gold-mist); }
 }
 .totals-bar .bt-clear:hover { color: var(--ivory); }
 
+/* ── COUNTRY CHIPS & PICKERS ── */
+.country-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 6px; border-radius: 4px;
+  background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+  font-size: 10px; font-weight: 600; color: var(--ivory-dim);
+  letter-spacing: 0.3px; line-height: 1.4; white-space: nowrap;
+}
+/* Student's country differs from their phone's dial code — the case this exists for. */
+.country-chip-mismatch { border-color: rgba(232,168,48,0.4); color: var(--gold); }
+.country-chip-alert { color: var(--gold); font-size: 13px; line-height: 0; }
+
+.field-hint { font-size: 11px; color: var(--ivory3); margin-top: 5px; line-height: 1.45; }
+#e-phone-country-note, #m-phone-country-note { color: var(--gold); }
+.currency-preview {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  background: var(--bg3); border: 1px solid var(--border);
+  color: var(--ivory); font-weight: 700; font-size: 14px; min-height: 42px;
+}
+.currency-preview-note { font-size: 11px; font-weight: 400; color: var(--ivory3); }
+
 .av-cell { display: flex; align-items: center; gap: 11px; font-weight: 600; }
 .av-sm { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(232,168,48,0.3); flex-shrink: 0; }
 

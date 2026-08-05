@@ -1,5 +1,3 @@
-import { checkRateLimit } from '../auth/rate_limit.js';
-
 Deno.serve(async (req) => {
   const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
 
@@ -24,15 +22,19 @@ Deno.serve(async (req) => {
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, role',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, role, x-admin-role',
   };
 
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Verify requester is a master admin
-  const requestRole = req.headers.get('role');
+  // Verify requester is a master admin.
+  // `role` is reserved by the Supabase gateway (it is derived from the JWT for
+  // PostgREST routing), so a caller-supplied `role` header does not reach us
+  // intact. Read the non-reserved `x-admin-role` first and keep `role` only as
+  // a fallback for older clients.
+  const requestRole = req.headers.get('x-admin-role') || req.headers.get('role');
   if (requestRole !== 'master' && requestRole !== 'admin') {
     return new Response(JSON.stringify({ error: 'Unauthorized: Admin privileges required' }), {
       status: 403,

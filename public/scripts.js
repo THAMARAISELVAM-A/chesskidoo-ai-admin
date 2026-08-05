@@ -1107,28 +1107,69 @@
   function buildFeeMessage(s, name, amount, dueDateStr, isDueOrOverdue) {
     const amountText = '\u{20B9}' + Number(amount || 0).toLocaleString() + getStudentLocalCurrencyAmount(s, amount);
     const cn = cleanText(name);
-    if (isDueOrOverdue) {
-      return `\u{1F534} *FEE PAYMENT DUE*\n` +                                  // 🔴
-        `\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\n\n` +
-        `Hello Sir/Madam, \u{1F44B}\n\n` +                                      // 👋
-        `\u{265F}\u{FE0F} This is a gentle note that the chess class fee for *${cn}* is currently *due*.\n\n` + // ♟️
-        `\u{1F4B0} *Amount Due:* ${amountText}\n` +                            // 💰
-        `\u{1F4C5} *Due Date:* ${dueDateStr}\n\n` +                            // 📅
-        `Kindly complete the payment on or before the due date to avoid any interruption in class participation. \u{1F64F}\n\n` + // 🙏
-        `\u{1F4F2} *Pay via UPI / GPay / PhonePe:* ${(window.getPaymentPayeeText ? window.getPaymentPayeeText() : '9025846663 (Ranjith)')}\n\n` + // 📲
-        `Thank you for your continued support! \u{1F31F}\n` +                  // 🌟
-        `\u{265F}\u{FE0F} *Chesskidoo Academy*`;                               // ♟️
+
+    // Determine exact status header & text for Overdue, Due, Pending, or Upcoming
+    let statusType = 'Upcoming';
+    if (typeof isDueOrOverdue === 'string') {
+      statusType = isDueOrOverdue;
+    } else if (isDueOrOverdue === true) {
+      statusType = 'Due';
     }
-    return `\u{1F4E2} *UPCOMING FEE REMINDER*\n` +                              // 📢
+
+    const bankDetails =
+      `\u{1F3E6} *Bank Account Transfer Details:*\n` +
+      `\u{2022} *ACCOUNT HOLDER NAME:* RANJITH A S\n` +
+      `\u{2022} *ACCOUNT NUMBER:* 110020810982\n` +
+      `\u{2022} *IFSC CODE:* CNRB0016533\n\n`;
+
+    if (statusType === 'Overdue') {
+      return `\u{1F6A8} *FEE PAYMENT OVERDUE*\n` +
+        `\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\n\n` +
+        `Hello Sir/Madam, \u{1F44B}\n\n` +
+        `\u{265F}\u{FE0F} This is an urgent note that the chess class fee for *${cn}* is currently *overdue*.\n\n` +
+        `\u{1F4B0} *Amount Overdue:* ${amountText}\n` +
+        `\u{1F4C5} *Due Date:* ${dueDateStr}\n\n` +
+        `Kindly complete the payment at your earliest convenience to avoid any interruption in class participation. \u{1F64F}\n\n` +
+        `\u{1F4F2} *Pay via UPI / GPay / PhonePe:* ${(window.getPaymentPayeeText ? window.getPaymentPayeeText() : '9025846663 (Ranjith)')}\n\n` +
+        bankDetails +
+        `Thank you for your prompt attention! \u{1F31F}\n` +
+        `\u{265F}\u{FE0F} *Chesskidoo Academy*`;
+    } else if (statusType === 'Due') {
+      return `\u{1F534} *FEE PAYMENT DUE*\n` +
+        `\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\n\n` +
+        `Hello Sir/Madam, \u{1F44B}\n\n` +
+        `\u{265F}\u{FE0F} This is a gentle note that the chess class fee for *${cn}* is currently *due*.\n\n` +
+        `\u{1F4B0} *Amount Due:* ${amountText}\n` +
+        `\u{1F4C5} *Due Date:* ${dueDateStr}\n\n` +
+        `Kindly complete the payment on or before the due date to avoid any interruption in class participation. \u{1F64F}\n\n` +
+        `\u{1F4F2} *Pay via UPI / GPay / PhonePe:* ${(window.getPaymentPayeeText ? window.getPaymentPayeeText() : '9025846663 (Ranjith)')}\n\n` +
+        bankDetails +
+        `Thank you for your continued support! \u{1F31F}\n` +
+        `\u{265F}\u{FE0F} *Chesskidoo Academy*`;
+    } else if (statusType === 'Pending') {
+      return `\u{23F3} *FEE PAYMENT PENDING*\n` +
+        `\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\n\n` +
+        `Hello Sir/Madam, \u{1F44B}\n\n` +
+        `\u{265F}\u{FE0F} This is a friendly note that the chess class fee for *${cn}* is currently *pending*.\n\n` +
+        `\u{1F4B0} *Pending Amount:* ${amountText}\n` +
+        `\u{1F4C5} *Due Date:* ${dueDateStr}\n\n` +
+        `Kindly complete the payment on or before the due date. \u{1F64F}\n\n` +
+        `\u{1F4F2} *Pay via UPI / GPay / PhonePe:* ${(window.getPaymentPayeeText ? window.getPaymentPayeeText() : '9025846663 (Ranjith)')}\n\n` +
+        bankDetails +
+        `Thank you so much for your support and cooperation! \u{1F31F}\n` +
+        `\u{265F}\u{FE0F} *Chesskidoo Academy*`;
+    }
+    return `\u{1F4E2} *UPCOMING FEE REMINDER*\n` +
       `\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\n\n` +
-      `Hello Sir/Madam, \u{1F44B}\n\n` +                                        // 👋
-      `We hope you are doing well! \u{1F60A} This is a friendly reminder that the chess class fee for *${cn}* is coming up soon. \u{265F}\u{FE0F}\n\n` + // 😊 ♟️
-      `\u{1F4B0} *Fee Amount:* ${amountText}\n` +                              // 💰
-      `\u{1F4C5} *Due Date:* ${dueDateStr}\n\n` +                              // 📅
-      `Kindly complete the payment on or before the due date. \u{1F64F}\n\n` + // 🙏
-      `\u{1F4F2} *Pay via UPI / GPay / PhonePe:* ${(window.getPaymentPayeeText ? window.getPaymentPayeeText() : '9025846663 (Ranjith)')}\n\n` + // 📲
-      `Thank you so much for your support and cooperation! \u{1F31F}\n` +      // 🌟
-      `\u{265F}\u{FE0F} *Chesskidoo Academy*`;                                 // ♟️
+      `Hello Sir/Madam, \u{1F44B}\n\n` +
+      `We hope you are doing well! \u{1F60A} This is a friendly reminder that the chess class fee for *${cn}* is coming up soon. \u{265F}\u{FE0F}\n\n` +
+      `\u{1F4B0} *Fee Amount:* ${amountText}\n` +
+      `\u{1F4C5} *Due Date:* ${dueDateStr}\n\n` +
+      `Kindly complete the payment on or before the due date. \u{1F64F}\n\n` +
+      `\u{1F4F2} *Pay via UPI / GPay / PhonePe:* ${(window.getPaymentPayeeText ? window.getPaymentPayeeText() : '9025846663 (Ranjith)')}\n\n` +
+      bankDetails +
+      `Thank you so much for your support and cooperation! \u{1F31F}\n` +
+      `\u{265F}\u{FE0F} *Chesskidoo Academy*`;
   }
 
   function sendPaymentReminder(id) {
@@ -1170,12 +1211,11 @@
     const dueDateStr = `${getOrdinal(dueCfg.day)} ${monthName} ${targetYear}`;
 
     const status = getStudentPaymentStatus(s);
-    const isDueOrOverdue = (status === 'Due' || status === 'Overdue');
     if (totalPending <= 0) {
       totalPending = monthlyFee || 1500;
     }
 
-    const msg = buildFeeMessage(s, name, totalPending, dueDateStr, isDueOrOverdue);
+    const msg = buildFeeMessage(s, name, totalPending, dueDateStr, status);
 
     const parsed = parseStoredPhone(phone);
     const inferredCountry = (parsed.countryCode && parsed.countryCode !== 'IN') ? parsed.countryCode : (s.country_code || 'IN');
@@ -1363,12 +1403,11 @@
        const dueDateStr = `${getOrdinal(dueCfg.day)} ${monthName} ${targetYear}`;
 
         const payStatus = getStudentPaymentStatus(s);
-        const isDueOrOverdue = (payStatus === 'Due' || payStatus === 'Overdue');
         if (totalDebt <= 0) {
           totalDebt = fee || 1500;
         }
 
-        const msg = buildFeeMessage(s, name, totalDebt, dueDateStr, isDueOrOverdue);
+        const msg = buildFeeMessage(s, name, totalDebt, dueDateStr, payStatus);
 
       const parsed = parseStoredPhone(phone);
       const inferredCountry = (parsed.countryCode && parsed.countryCode !== 'IN') ? parsed.countryCode : (s.country_code || 'IN');
@@ -1862,7 +1901,7 @@ function initUI() {
     { code: 'NL', name: 'Netherlands', dial: '+31', length: 9, flag: '🇳🇱' },
     { code: 'BE', name: 'Belgium', dial: '+32', length: 9, flag: '🇧🇪' },
     { code: 'SE', name: 'Sweden', dial: '+46', length: 9, flag: '🇸🇪' },
-    { code: 'NO', name: 'Norway', dial: '+47', length: 8, flag: '🇳🇴´' },
+    { code: 'NO', name: 'Norway', dial: '+47', length: 8, flag: '🇳🇴' },
     { code: 'DK', name: 'Denmark', dial: '+45', length: 8, flag: '🇩🇰' },
     { code: 'FI', name: 'Finland', dial: '+358', length: 9, flag: '🇫🇮' },
     { code: 'PL', name: 'Poland', dial: '+48', length: 9, flag: '🇵🇱' },
@@ -1871,20 +1910,20 @@ function initUI() {
     { code: 'AR', name: 'Argentina', dial: '+54', length: 10, flag: '🇦🇷' },
     { code: 'CL', name: 'Chile', dial: '+56', length: 9, flag: '🇨🇱' },
     { code: 'CO', name: 'Colombia', dial: '+57', length: 10, flag: '🇨🇴' },
-    { code: 'NZ', name: 'New Zealand', dial: '+64', length: 9, flag: '🇳🇴¿' },
+    { code: 'NZ', name: 'New Zealand', dial: '+64', length: 9, flag: '🇳🇿' },
     { code: 'TW', name: 'Taiwan', dial: '+886', length: 9, flag: '🇹🇼' }
   ];
   
   const CURRENCY_MAP = {
     'IN': { currency: 'INR', symbol: '₹', rate: 1.0 },
     'US': { currency: 'USD', symbol: '$', rate: 0.012 },
-    'GB': { currency: 'GBP', symbol: 'Â£', rate: 0.0094 },
+    'GB': { currency: 'GBP', symbol: '£', rate: 0.0094 },
     'CA': { currency: 'CAD', symbol: 'C$', rate: 0.016 },
     'AU': { currency: 'AUD', symbol: 'A$', rate: 0.018 },
     'DE': { currency: 'EUR', symbol: '€', rate: 0.011 },
     'FR': { currency: 'EUR', symbol: '€', rate: 0.011 },
-    'JP': { currency: 'JPY', symbol: 'Â¥', rate: 1.88 },
-    'CN': { currency: 'CNY', symbol: 'Â¥', rate: 0.087 },
+    'JP': { currency: 'JPY', symbol: '¥', rate: 1.88 },
+    'CN': { currency: 'CNY', symbol: '¥', rate: 0.087 },
     'BR': { currency: 'BRL', symbol: 'R$', rate: 0.062 },
     'MX': { currency: 'MXN', symbol: '$', rate: 0.20 },
     'IT': { currency: 'EUR', symbol: '€', rate: 0.011 },
@@ -1893,25 +1932,25 @@ function initUI() {
     'KR': { currency: 'KRW', symbol: '₩', rate: 16.4 },
     'SG': { currency: 'SGD', symbol: 'S$', rate: 0.016 },
     'MY': { currency: 'MYR', symbol: 'RM', rate: 0.056 },
-    'TH': { currency: 'THB', symbol: 'à¸¿', rate: 0.44 },
+    'TH': { currency: 'THB', symbol: '฿', rate: 0.44 },
     'ID': { currency: 'IDR', symbol: 'Rp', rate: 193.0 },
     'PH': { currency: 'PHP', symbol: '₱', rate: 0.70 },
     'VN': { currency: 'VND', symbol: '₫', rate: 305.0 },
     'AE': { currency: 'AED', symbol: 'AED', rate: 0.044 },
     'SA': { currency: 'SAR', symbol: 'SR', rate: 0.045 },
     'PK': { currency: 'PKR', symbol: 'Rs', rate: 3.32 },
-    'BD': { currency: 'BDT', symbol: 'à§³', rate: 1.41 },
+    'BD': { currency: 'BDT', symbol: '৳', rate: 1.41 },
     'LK': { currency: 'LKR', symbol: 'Rs', rate: 3.59 },
     'ZA': { currency: 'ZAR', symbol: 'R', rate: 0.22 },
     'NG': { currency: 'NGN', symbol: '₦', rate: 18.0 },
-    'EG': { currency: 'EGP', symbol: 'EÂ£', rate: 0.57 },
+    'EG': { currency: 'EGP', symbol: 'E£', rate: 0.57 },
     'NL': { currency: 'EUR', symbol: '€', rate: 0.011 },
     'BE': { currency: 'EUR', symbol: '€', rate: 0.011 },
     'SE': { currency: 'SEK', symbol: 'kr', rate: 0.13 },
     'NO': { currency: 'NOK', symbol: 'kr', rate: 0.13 },
     'DK': { currency: 'DKK', symbol: 'kr', rate: 0.083 },
     'FI': { currency: 'EUR', symbol: '€', rate: 0.011 },
-    'PL': { currency: 'PLN', symbol: 'zÅ‚', rate: 0.048 },
+    'PL': { currency: 'PLN', symbol: 'zł', rate: 0.048 },
     'TR': { currency: 'TRY', symbol: '₺', rate: 0.39 },
     'IL': { currency: 'ILS', symbol: '₪', rate: 0.044 },
     'AR': { currency: 'ARS', symbol: '$', rate: 10.7 },
@@ -1955,6 +1994,123 @@ function initUI() {
     return COUNTRY_CODES.find(c => c.code === code) || COUNTRY_CODES[0];
   }
   window.getCountryByCode = getCountryByCode;
+
+  // ── STUDENT COUNTRY ─────────────────────────────────────────────────────
+  // A student's country is tracked SEPARATELY from the dial code on their phone.
+  // Families living abroad routinely keep an Indian mobile, so the number can read
+  // +91 while the student is really in Singapore and should be billed in SGD.
+  //
+  // country_code on the student record is the country of record: it drives the
+  // currency conversion, the registry flag and the country filters. The dial code
+  // is read back off the stored international phone number instead of being the
+  // same field, so setting one no longer silently changes the other.
+  function getStudentCountryCode(s) {
+    return String((s && s.country_code) || 'IN').toUpperCase();
+  }
+  function getStudentCountry(s) {
+    return getCountryByCode(getStudentCountryCode(s));
+  }
+  // The country the stored phone number actually dials — may differ from above.
+  function getStudentPhoneCountryCode(s) {
+    if (!s) return 'IN';
+    const parsed = parseStoredPhone(getStudentPhone(s));
+    return (parsed && parsed.countryCode) || 'IN';
+  }
+  function isStudentOverseas(s) {
+    return getStudentCountryCode(s) !== 'IN';
+  }
+  // True for the case this feature exists for: an Indian number on a foreign student.
+  function hasCountryPhoneMismatch(s) {
+    return getStudentCountryCode(s) !== getStudentPhoneCountryCode(s);
+  }
+
+  function countryFlagHtml(country, px = 16) {
+    const h = Math.round(px * 0.7);
+    return `<img src="https://flagcdn.com/w20/${country.code.toLowerCase()}.png" alt="${escapeHtml(country.name)}" ` +
+      `style="width:${px}px;height:${h}px;border-radius:2px;vertical-align:-2px;flex-shrink:0" ` +
+      `onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">` +
+      `<span style="display:none">${country.flag}</span>`;
+  }
+
+  // Compact flag + code chip for table rows.
+  function getStudentCountryBadge(s) {
+    const country = getStudentCountry(s);
+    const mismatch = hasCountryPhoneMismatch(s);
+    const phoneCountry = getCountryByCode(getStudentPhoneCountryCode(s));
+    const title = mismatch
+      ? `${country.name} — billed in ${(CURRENCY_MAP[country.code] || CURRENCY_MAP.IN).currency}. Phone is a ${phoneCountry.name} number (${phoneCountry.dial}).`
+      : `${country.name} (${country.dial})`;
+    return `<span class="country-chip${mismatch ? ' country-chip-mismatch' : ''}" title="${escapeHtml(title)}">` +
+      `${countryFlagHtml(country, 14)}<span>${country.code}</span>` +
+      (mismatch ? `<span class="country-chip-alert" aria-hidden="true">•</span>` : '') +
+      `</span>`;
+  }
+
+  // Fills a native <select> with the country list. `allLabel` adds a leading
+  // "any country" option for filter dropdowns.
+  function populateCountrySelect(el, selectedCode, allLabel) {
+    if (!el) return;
+    const cur = String(selectedCode || '').toUpperCase();
+    el.innerHTML = (allLabel ? `<option value="">${allLabel}</option>` : '') +
+      COUNTRY_CODES.map(c =>
+        `<option value="${c.code}"${c.code === cur ? ' selected' : ''}>${c.flag} ${escapeHtml(c.name)} (${c.dial})</option>`
+      ).join('');
+  }
+
+  window.getStudentCountry = getStudentCountry;
+  window.getStudentCountryCode = getStudentCountryCode;
+  window.getStudentCountryBadge = getStudentCountryBadge;
+  window.isStudentOverseas = isStudentOverseas;
+  window.hasCountryPhoneMismatch = hasCountryPhoneMismatch;
+  window.populateCountrySelect = populateCountrySelect;
+
+  // Student-country selections for the enroll / edit modals, kept apart from the
+  // phone dial-code selections (window.selectedCountryCode*).
+  window.selectedStudentCountry = 'IN';
+  window.selectedStudentCountryEdit = 'IN';
+
+  // Keeps the currency preview and the phone-mismatch note in step with the
+  // Student Country picker. `prefix` is 'm' (enroll) or 'e' (edit).
+  window.onStudentCountryChange = function (prefix) {
+    const sel = $(`${prefix}-country`);
+    if (!sel) return;
+    const code = sel.value || 'IN';
+    if (prefix === 'e') window.selectedStudentCountryEdit = code;
+    else window.selectedStudentCountry = code;
+
+    const country = getCountryByCode(code);
+    const map = CURRENCY_MAP[code] || CURRENCY_MAP.IN;
+    const preview = $(`${prefix}-currency-preview`);
+    if (preview) {
+      preview.innerHTML = map.currency === 'INR'
+        ? `${countryFlagHtml(country, 16)} <span>₹ INR</span>`
+        : `${countryFlagHtml(country, 16)} <span>${map.symbol} ${map.currency}</span>` +
+          `<span class="currency-preview-note">fees stored in ₹, shown in both</span>`;
+    }
+
+    // Flag the exact case this field exists for: a foreign student on an Indian number.
+    const dialCode = (prefix === 'e' ? window.selectedCountryCodeEdit : window.selectedCountryCode) || 'IN';
+    const note = $(`${prefix}-phone-country-note`);
+    if (note) {
+      if (dialCode !== code) {
+        const dial = getCountryByCode(dialCode);
+        note.innerHTML = `Phone is a ${escapeHtml(dial.name)} number (${dial.dial}) — student is recorded in ${escapeHtml(country.name)}.`;
+        note.style.display = '';
+      } else {
+        note.style.display = 'none';
+      }
+    }
+  };
+
+  // Called after a dial-code pick so a brand-new enrollment gets a sensible
+  // default country without clobbering an explicit choice.
+  function syncStudentCountryToDial(prefix, dialCode) {
+    const sel = $(`${prefix}-country`);
+    if (!sel || sel.dataset.touched === '1') return;
+    sel.value = dialCode;
+    window.onStudentCountryChange(prefix);
+  }
+  window.syncStudentCountryToDial = syncStudentCountryToDial;
 
   function parseStoredPhone(phoneStr) {
     if (!phoneStr) return { countryCode: 'IN', localNumber: '' };
@@ -2068,6 +2224,8 @@ function initUI() {
     if (opt) opt.classList.add('selected');
     const dropdown = $('country-dropdown');
     if (dropdown) dropdown.classList.remove('open');
+    // Default the student's country to the dial code until it is set explicitly.
+    syncStudentCountryToDial('m', code);
   };
 
   window.selectCountryCoach = function(code, dial, length) {
@@ -2107,6 +2265,8 @@ function initUI() {
     if (opt) opt.classList.add('selected');
     const dropdown = $('country-dropdown-edit');
     if (dropdown) dropdown.classList.remove('open');
+    // Refresh the mismatch note; the student's own country is set from the record.
+    if (typeof window.onStudentCountryChange === 'function') window.onStudentCountryChange('e');
   };
 
   window.openCountryDropdown = function() {
@@ -3535,6 +3695,38 @@ function initUI() {
     if ($('att-coach-filter')) $('att-coach-filter').innerHTML = '<option value="">All Coaches</option>' + options;
     
      if ($('award-student')) $('award-student').innerHTML = '<option value="">Select Student</option>' + allStudents.map(s => `<option value="${s.id}">${escapeHtml(getStudentName(s))}</option>`).join('');
+
+     syncCountryFilters();
+  }
+
+  // Country filters list only the countries actually on the roster, so the
+  // dropdown stays short, plus an "Overseas" bucket for every non-Indian student.
+  function syncCountryFilters() {
+    const counts = new Map();
+    (allStudents || []).forEach(s => {
+      const code = getStudentCountryCode(s);
+      counts.set(code, (counts.get(code) || 0) + 1);
+    });
+    if (!counts.size) return;
+
+    const overseas = [...counts.entries()].reduce((a, [code, n]) => a + (code === 'IN' ? 0 : n), 0);
+    const options = [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([code, n]) => {
+        const c = getCountryByCode(code);
+        return `<option value="${code}">${c.flag} ${escapeHtml(c.name)} (${n})</option>`;
+      }).join('');
+    const overseasOpt = overseas > 0
+      ? `<option value="OVERSEAS">🌍 Overseas only (${overseas})</option>`
+      : '';
+
+    ['f-country', 'f-bill-country'].forEach(id => {
+      const el = $(id);
+      if (!el) return;
+      const keep = el.value;
+      el.innerHTML = '<option value="">All Countries</option>' + overseasOpt + options;
+      el.value = keep; // survive a data refresh without losing the admin's filter
+    });
   }
 
 
@@ -4709,7 +4901,7 @@ function initUI() {
   // STUDENTS, COACHES, EVENTS, ACHIEVEMENTS
   // ═══════════════════════════════════════════════════════════════
    function clearFilters() {
-     ['f-coach', 'f-session', 'f-status', 'f-min-fee', 'f-max-fee', 'f-search', 'f-bill-month-stud', 'f-due-date-stud', 'f-enroll-date-stud'].forEach(id => { const el = $(id); if (el) el.value = ''; });
+     ['f-coach', 'f-session', 'f-status', 'f-min-fee', 'f-max-fee', 'f-search', 'f-bill-month-stud', 'f-due-date-stud', 'f-enroll-date-stud', 'f-country', 'f-learning-mode', 'f-enroll-status'].forEach(id => { const el = $(id); if (el) el.value = ''; });
      resetStudMonth();
      /* renderStudents(); */
      renderStudents();
@@ -4813,6 +5005,7 @@ function initUI() {
           const fSession = $('f-session')?.value;
           const fEnrollStatus = $('f-enroll-status')?.value;
           const fLearningMode = $('f-learning-mode')?.value;
+          const fCountry = $('f-country')?.value;
           const fStatus = $('f-status')?.value;
           const fMin = parseInt($('f-min-fee')?.value) || 0;
           const fMax = parseInt($('f-max-fee')?.value) || 999999;          const fDueDate = $('f-due-date-stud')?.value;
@@ -4851,8 +5044,11 @@ function initUI() {
             
             const enrollStatusMatch = !fEnrollStatus || getStudentStatus(s) === fEnrollStatus;
             const learningModeMatch = !fLearningMode || (s.learning_mode || 'online') === fLearningMode;
-            
-            return nameMatch && coachMatch && sessionMatch && statusMatch && feeMatch && dueDateMatch && enrollDateMatch && enrollStatusMatch && learningModeMatch;
+            // "OVERSEAS" groups every non-Indian student into one view.
+            const countryMatch = !fCountry ||
+              (fCountry === 'OVERSEAS' ? isStudentOverseas(s) : getStudentCountryCode(s) === fCountry);
+
+            return nameMatch && coachMatch && sessionMatch && statusMatch && feeMatch && dueDateMatch && enrollDateMatch && enrollStatusMatch && learningModeMatch && countryMatch;
           });
 
           if (selectedDay !== null) {
@@ -5013,6 +5209,7 @@ function initUI() {
               <div style="margin-top: 4px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px;">
                 ${badgeHtml}
                 ${learningModeBadge}
+                ${getStudentCountryBadge(s)}
               </div>
             `;
 
@@ -5175,15 +5372,23 @@ function initUI() {
      $('e-name').value = getStudentName(s);
      // Render country dropdown for edit modal
      renderCountryDropdown('country-dropdown-edit', 'selectCountryEdit');
-                 // Set country first so phone placeholder/validation matches
+                 // Set the dial code from the phone itself so the placeholder and
+                 // validation match. The student's country is a separate field and
+                 // is loaded from the record below, not inferred from the number.
       const studentPhone = getStudentPhone(s);
       const parsed = parseStoredPhone(studentPhone);
-      const inferredCountry = (parsed.countryCode && parsed.countryCode !== 'IN') ? parsed.countryCode : (s.country_code || 'IN');
-      const country = getCountryByCode(inferredCountry);
-      if (country) {
-        selectCountryEdit(country.code, country.dial, country.length);
+      const dialCountry = getCountryByCode(parsed.countryCode || 'IN');
+      if (dialCountry) {
+        selectCountryEdit(dialCountry.code, dialCountry.dial, dialCountry.length);
       }
       $('e-phone').value = parsed.localNumber;
+
+      window.selectedStudentCountryEdit = getStudentCountryCode(s);
+      if ($('e-country')) {
+        populateCountrySelect($('e-country'), window.selectedStudentCountryEdit);
+        $('e-country').dataset.touched = '1'; // an existing record always wins
+      }
+      onStudentCountryChange('e');
      $('e-level').value = getStudentLevel(s);
      $('e-elo').value = getStudentRating(s);
      $('e-fee').value = getStudentMonthlyFee(s);
@@ -5232,7 +5437,8 @@ function initUI() {
         name: $('e-name').value,
         phone: fullPhone,
         parent_phone: fullPhone,
-        country_code: countryCode,
+        // The student's country of record, NOT the phone's dial code.
+        country_code: $('e-country')?.value || window.selectedStudentCountryEdit || getStudentCountryCode(s),
         level: $('e-level').value,
         grade: $('e-level').value,
         rating: newElo,
@@ -5404,6 +5610,14 @@ function initUI() {
       if (phoneInput) phoneInput.placeholder = '10 digits';
      syncCoachDropdowns();
      renderCountryDropdown('country-dropdown', 'selectCountry');
+     // Student country starts at India and follows the dial code until touched.
+     window.selectedStudentCountry = 'IN';
+     if ($('m-country')) {
+       populateCountrySelect($('m-country'), 'IN');
+       $('m-country').dataset.touched = '0';
+       $('m-country').addEventListener('change', function () { this.dataset.touched = '1'; }, { once: true });
+     }
+     onStudentCountryChange('m');
      openModal('enroll-modal');
    }
 
@@ -5418,7 +5632,8 @@ function initUI() {
           full_name: $('m-name').value.trim(),
           phone: fullPhone,
           parent_phone: fullPhone,
-          country_code: countryCode,
+          // The student's country of record, NOT the phone's dial code.
+          country_code: $('m-country')?.value || window.selectedStudentCountry || countryCode,
           level: $('m-level').value,
           rating: parseInt($('m-elo').value) || 0,
           coach_id: $('m-coach').value,
@@ -6513,14 +6728,13 @@ Best regards,
        const dueDateStr = `${getOrdinal(dueCfg.day)} ${monthName} ${targetYear}`;
 
               const payStatus = getStudentPaymentStatus(s);
-        const isDueOrOverdue = (payStatus === 'Due' || payStatus === 'Overdue');
         if (totalDue <= 0) {
           totalDue = fee || 1500;
         }
 
         // Build notification content
         let message = customMsg ? `${customMsg}\n\n` : '';
-        message += buildFeeMessage(s, studentName, totalDue, dueDateStr, isDueOrOverdue);
+        message += buildFeeMessage(s, studentName, totalDue, dueDateStr, payStatus);
 
       try {
         let sent = false;
@@ -6999,6 +7213,7 @@ Best regards,
     const fBillStatus = $('f-bill-status')?.value || '';
     const fBillSearch = $('f-bill-search')?.value.trim().toLowerCase() || '';
     const fBillCoach = $('f-bill-coach')?.value || '';
+    const fBillCountry = $('f-bill-country')?.value || '';
 
     let filteredStudents = allStudents;
     if (fBillSearch) {
@@ -7006,6 +7221,11 @@ Best regards,
     }
     if (fBillCoach) {
       filteredStudents = filteredStudents.filter(s => String(s.coach_id) === String(fBillCoach));
+    }
+    if (fBillCountry) {
+      filteredStudents = filteredStudents.filter(s => fBillCountry === 'OVERSEAS'
+        ? isStudentOverseas(s)
+        : getStudentCountryCode(s) === fBillCountry);
     }
 
     // Base view for the totals bar: same search/coach/month scope but IGNORING the status filter,
@@ -7106,7 +7326,7 @@ Best regards,
       return `<tr>
         <td><span style="font-family:var(--font-mono);color:var(--gold);font-size:13px">${invoiceId}</span></td>
         <td>
-          <div style="font-weight:600;color:var(--ivory)">${escapeHtml(getStudentName(s))}</div>
+          <div style="font-weight:600;color:var(--ivory);display:flex;align-items:center;gap:6px">${escapeHtml(getStudentName(s))}${getStudentCountryBadge(s)}</div>
           <div style="font-size:11px;color:var(--ivory-dim)">${escapeHtml(getStudentLevel(s))}</div>
         </td>
         <td><div style="font-size:12px;color:var(--ivory)">${escapeHtml(coachName)}</div></td>
@@ -9811,7 +10031,11 @@ Best regards,
       'Coach Name',
       'Joining Date',
       'Monthly Fee (INR)',
-      'Payment Status'
+      'Payment Status',
+      'Country',
+      'Country Code',
+      'Billing Currency',
+      'Fee (Local)'
     ];
 
     const targetMonth = window.reportMonth;
