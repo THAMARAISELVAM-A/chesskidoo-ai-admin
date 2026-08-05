@@ -6607,6 +6607,20 @@ function openCoachModal(id = null) {
     const billingMonthName = new Date(window.reportYear, window.reportMonth).toLocaleString('en-IN', { month: 'long' });
     const billingCycleStr = `${billingMonthName} ${window.reportYear}`;
 
+    let foreignDisclaimer = '';
+    const cCode = getStudentCountryCode(s);
+    if (cCode !== 'IN') {
+      const cName = getCountryByCode(cCode).name;
+      let adj = cName;
+      let taxReg = `${cName} income and tax regulations`;
+      if (cCode === 'CA') { adj = 'Canadian'; taxReg = 'Canadian income and GST/HST regulations'; }
+      else if (cCode === 'US') { adj = 'US'; taxReg = 'US income and tax regulations'; }
+      else if (cCode === 'GB') { adj = 'UK'; taxReg = 'UK income and tax regulations'; }
+      else if (cCode === 'AU') { adj = 'Australian'; taxReg = 'Australian income and tax regulations'; }
+      
+      foreignDisclaimer = `\n_(This fee includes professional chess coaching, FIDE-aligned training standards, tournament preparation, certification support, administrative services, and ${adj} tax-compliant accounting. Chesskidoo Academy issues proper invoices, maintains payment records and keeps accounting documentation as required under ${taxReg}.)_\n`;
+    }
+
     const message = `${EMOJI.check} PAYMENT RECEIVED \u{2014} RECEIPT CONFIRMED ${EMOJI.receipt}${EMOJI.sparkle}
 
 Hello Sir/Madam ${EMOJI.wave},
@@ -6614,10 +6628,10 @@ Hello Sir/Madam ${EMOJI.wave},
 We are happy to inform you that we have successfully received and recorded your chess class fee payment for ${cleanText(getStudentName(s))}! ${EMOJI.card}${EMOJI.party}
 
 ${EMOJI.receipt} PAYMENT DETAILS:
-${EMOJI.cash} Amount Paid: \u{20B9}${parseFloat(amount).toLocaleString()}
+${EMOJI.cash} Amount Paid: \u{20B9}${parseFloat(amount).toLocaleString()}${getStudentLocalCurrencyAmount(s, amount)}
 ${EMOJI.spiral_calendar} Billing Cycle: ${billingCycleStr}
 ${EMOJI.tear_calendar} Confirmed On: ${formattedDate}
-
+${foreignDisclaimer}
 ${EMOJI.link} Download Your Official Receipt:
 ${receiptUrl}
 
