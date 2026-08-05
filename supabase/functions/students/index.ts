@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
       // Cleanup 911 / 91 double-prefixed historical data for Canadian numbers
       if (digits.startsWith('911') && digits.length === 13) {
         const local = digits.slice(3);
-        if (knownCode === 'CA' || knownCode === 'US' || isCanadianAreaCode(local.slice(0, 3))) {
+        if (knownCode === 'CA' || knownCode === 'US' || (local.length === 10 && isCanadianAreaCode(local.slice(0, 3)))) {
           return { countryCode: 'CA', localNumber: local };
         }
       }
@@ -164,7 +164,7 @@ Deno.serve(async (req) => {
       // 1. Explicit '+' prefix with 1
       if (hasPlus && digits.startsWith('1')) {
         const local = digits.slice(1);
-        if (isCanadianAreaCode(local.slice(0, 3))) {
+        if (local.length === 10 && isCanadianAreaCode(local.slice(0, 3))) {
           return { countryCode: 'CA', localNumber: local };
         }
         return { countryCode: knownCode === 'CA' ? 'CA' : 'US', localNumber: local };
@@ -178,7 +178,7 @@ Deno.serve(async (req) => {
       // 3. Stored DB 11-digit numbers starting with 1
       if (!hasPlus && digits.length === 11 && digits.startsWith('1')) {
         const local = digits.slice(1);
-        if (isCanadianAreaCode(local.slice(0, 3))) {
+        if (local.length === 10 && isCanadianAreaCode(local.slice(0, 3))) {
           return { countryCode: 'CA', localNumber: local };
         }
         return { countryCode: knownCode === 'CA' ? 'CA' : 'US', localNumber: local };
@@ -231,7 +231,9 @@ Deno.serve(async (req) => {
      const originalPhone = String(s.parent_phone || s.phone || '');
      const rawCountryCode = String(s.country_code || '').toUpperCase();
      const parsed = parseStoredPhone(originalPhone, rawCountryCode || null);
-     const finalCountryCode = validateCountryCode(rawCountryCode || parsed.countryCode || 'IN');
+     // Trust the parsed.countryCode (which incorporates both phone patterns and the DB country code as a hint)
+     // rather than stubbornly using a stale DB country_code if the phone clearly says otherwise.
+     const finalCountryCode = validateCountryCode(parsed.countryCode || rawCountryCode || 'IN');
 
      return {
        id: s.id,
