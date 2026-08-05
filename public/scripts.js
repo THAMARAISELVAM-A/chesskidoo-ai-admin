@@ -2190,54 +2190,53 @@ function initUI() {
 
     const sortedCountries = [...COUNTRY_CODES].sort((a, b) => b.dial.length - a.dial.length);
 
-    // Cleanup 911 / 91 double-prefixed historical data for Canadian numbers (e.g. 9114372497096 or 914372497096)
+    // Cleanup 911 / 91 double-prefixed historical data for Canadian numbers (e.g. 9114372497096 or 9119057825754)
     if (digits.startsWith('911') && digits.length === 13) {
       const local = digits.slice(3);
       if (knownCode === 'CA' || knownCode === 'US' || isCanadianLocalNumber(local)) {
         return { countryCode: 'CA', localNumber: local };
       }
     }
-    if (digits.startsWith('91') && digits.length === 12) {
-      const local = digits.slice(2);
+
+    // 1. Explicit '+' prefix with 1 (e.g. +1 (905) 782-5754 or +1 (437) 249-7096)
+    if (hasPlus && digits.startsWith('1')) {
+      const local = digits.slice(1);
       if (isCanadianLocalNumber(local)) {
         return { countryCode: 'CA', localNumber: local };
       }
+      return { countryCode: knownCode === 'CA' ? 'CA' : 'US', localNumber: local };
     }
 
-    // Direct Canadian Area Code Recognition (+1 / 1 / 10-digit)
-    if (hasPlus && digits.startsWith('1')) {
-      const local = digits.slice(1);
-      if (knownCode === 'CA' || isCanadianLocalNumber(local)) {
-        return { countryCode: 'CA', localNumber: local };
-      }
+    // 2. Explicit '+' prefix with 91 (e.g. +91 9025589784)
+    if (hasPlus && digits.startsWith('91')) {
+      return { countryCode: 'IN', localNumber: digits.slice(2) };
     }
+
+    // 3. Stored DB 11-digit numbers starting with 1 (e.g. 19057825754 or 14372497096)
     if (!hasPlus && digits.length === 11 && digits.startsWith('1')) {
       const local = digits.slice(1);
-      if (knownCode === 'CA' || isCanadianLocalNumber(local)) {
+      if (isCanadianLocalNumber(local)) {
         return { countryCode: 'CA', localNumber: local };
       }
-    }
-    if (digits.length === 10 && isCanadianLocalNumber(digits)) {
-      return { countryCode: 'CA', localNumber: digits };
+      return { countryCode: knownCode === 'CA' ? 'CA' : 'US', localNumber: local };
     }
 
-    // 1. If explicit '+' is present, the dial code after '+' ALWAYS takes precedence
-    if (hasPlus) {
-      for (const c of sortedCountries) {
-        const dialDigits = c.dial.replace(/\D/g, '');
-        if (digits.startsWith(dialDigits)) {
-          const local = digits.slice(dialDigits.length);
-          if (local.length >= c.length - 2 && local.length <= c.length + 2) {
-            if (knownCountry && knownCountry.dial.replace(/\D/g, '') === dialDigits) {
-              return { countryCode: knownCountry.code, localNumber: local };
-            }
-            return { countryCode: c.code, localNumber: local };
-          }
-        }
+    // 4. Stored DB 12-digit numbers starting with 91 (e.g. 919025589784)
+    if (!hasPlus && digits.length === 12 && digits.startsWith('91')) {
+      return { countryCode: 'IN', localNumber: digits.slice(2) };
+    }
+
+    // 5. Standalone 10-digit numbers (no + sign, no 1/91 prefix)
+    if (digits.length === 10) {
+      if (knownCode === 'CA') {
+        return { countryCode: 'CA', localNumber: digits };
+      }
+      if (['6', '7', '8', '9'].includes(digits[0])) {
+        return { countryCode: 'IN', localNumber: digits };
       }
     }
 
-    // 2. If knownCountry is provided and matches dial code or length, prioritize it
+    // Fallback scan by dial code
     if (knownCountry) {
       const kDial = knownCountry.dial.replace(/\D/g, '');
       if (digits.startsWith(kDial) && digits.length > knownCountry.length - 2) {
@@ -2251,7 +2250,6 @@ function initUI() {
       }
     }
 
-    // 3. Otherwise scan all countries by dial code
     for (const c of sortedCountries) {
       const dialDigits = c.dial.replace(/\D/g, '');
       if (digits.startsWith(dialDigits)) {
@@ -2286,47 +2284,23 @@ function initUI() {
     const digits = trimmed.replace(/\D/g, '');
     if (!digits) return '';
 
-    // If Canadian area code detected, format cleanly with dial code '1'
-    if (digits.length === 10 && isCanadianLocalNumber(digits)) {
-      return '1' + digits;
-    }
-    if (digits.length === 11 && digits.startsWith('1') && isCanadianLocalNumber(digits.slice(1))) {
-      return digits;
-    }
+    const hasPlus = trimmed.startsWith('+');
 
-    // If string starts with '+', parse directly to obtain true country dial digits
-    if (trimmed.startsWith('+')) {
-      const parsed = parseStoredPhone(trimmed, countryCode);
-      const c = getCountryByCode(parsed.countryCode);
-      if (c) {
-        const dialDigits = c.dial.replace(/\D/g, '');
-        return digits.startsWith(dialDigits) ? digits : (dialDigits + digits);
+    if (hasPlus && digits.startsWith('1')) return digits;
+    if (hasPlus && digits.startsWith('91')) return digits;
+    if (!hasPlus && digits.length === 11 && digits.startsWith('1')) return digits;
+    if (!hasPlus && digits.length === 12 && digits.startsWith('91')) return digits;
+
+    if (digits.length === 10) {
+      if (countryCode === 'CA' || countryCode === 'US') {
+        return '1' + digits;
       }
+      return '91' + digits;
     }
 
-    // Check if digits already starts with countryCode dial digits
     const country = getCountryByCode(countryCode);
-    if (country) {
-      const dialDigits = country.dial.replace(/\D/g, '');
-      if (digits.startsWith(dialDigits) && digits.length > country.length - 2) {
-        return digits;
-      }
-    }
-
-    // Check if digits already starts with ANY valid country dial code
-    const sortedCountries = [...COUNTRY_CODES].sort((a, b) => b.dial.length - a.dial.length);
-    for (const c of sortedCountries) {
-      const dialDigits = c.dial.replace(/\D/g, '');
-      if (digits.startsWith(dialDigits)) {
-        const local = digits.slice(dialDigits.length);
-        if (local.length >= c.length - 2 && local.length <= c.length + 2) {
-          return digits;
-        }
-      }
-    }
-
     const dialDigits = country ? country.dial.replace(/\D/g, '') : '91';
-    return dialDigits + digits;
+    return digits.startsWith(dialDigits) ? digits : (dialDigits + digits);
   }
   window.getFullInternationalPhoneDigits = getFullInternationalPhoneDigits;
 

@@ -132,41 +132,74 @@ Deno.serve(async (req) => {
      { code: 'TW', dial: '886', length: 9 }
    ];
 
-   function parseStoredPhone(phoneStr: string, knownCountryCode?: string | null) {
+    const CANADIAN_AREA_CODES = new Set([
+      '204', '226', '236', '249', '250', '289', '306', '343', '365', '367',
+      '403', '416', '418', '431', '437', '438', '450', '506', '514', '519',
+      '548', '579', '581', '587', '604', '639', '647', '672', '705', '709',
+      '742', '778', '780', '782', '807', '819', '825', '873', '902', '905'
+    ]);
+
+    function isCanadianAreaCode(npa: string) {
+      return CANADIAN_AREA_CODES.has(npa);
+    }
+
+    function parseStoredPhone(phoneStr: string, knownCountryCode?: string | null) {
       if (!phoneStr) return { countryCode: knownCountryCode || 'IN', localNumber: '' };
-      const digits = phoneStr.replace(/\D/g, '');
+      const trimmed = phoneStr.trim();
+      const digits = trimmed.replace(/\D/g, '');
       if (!digits) return { countryCode: knownCountryCode || 'IN', localNumber: '' };
 
       const knownCode = (knownCountryCode || '').toUpperCase();
       const knownCountry = COUNTRY_CODES.find(c => c.code === knownCode);
-      const hasPlus = phoneStr.trim().startsWith('+');
+      const hasPlus = trimmed.startsWith('+');
 
-      const sortedCountries = [...COUNTRY_CODES].sort((a, b) => b.dial.length - a.dial.length);
-
-      // Cleanup double-prefixed historical data (e.g. 9119057825754 = 91 + 1 + 9057825754)
+      // Cleanup 911 / 91 double-prefixed historical data for Canadian numbers
       if (digits.startsWith('911') && digits.length === 13) {
-        if (knownCode === 'CA' || knownCode === 'US') {
-          return { countryCode: knownCode, localNumber: digits.slice(3) };
+        const local = digits.slice(3);
+        if (knownCode === 'CA' || knownCode === 'US' || isCanadianAreaCode(local.slice(0, 3))) {
+          return { countryCode: 'CA', localNumber: local };
         }
       }
 
-      // 1. If explicit '+' is present, the dial code after '+' ALWAYS takes precedence
-      if (hasPlus) {
-        for (const c of sortedCountries) {
-          const dialDigits = c.dial.replace(/\D/g, '');
-          if (digits.startsWith(dialDigits)) {
-            const local = digits.slice(dialDigits.length);
-            if (local.length >= c.length - 2 && local.length <= c.length + 2) {
-              if (knownCountry && knownCountry.dial.replace(/\D/g, '') === dialDigits) {
-                return { countryCode: knownCountry.code, localNumber: local };
-              }
-              return { countryCode: c.code, localNumber: local };
-            }
-          }
+      // 1. Explicit '+' prefix with 1
+      if (hasPlus && digits.startsWith('1')) {
+        const local = digits.slice(1);
+        if (isCanadianAreaCode(local.slice(0, 3))) {
+          return { countryCode: 'CA', localNumber: local };
+        }
+        return { countryCode: knownCode === 'CA' ? 'CA' : 'US', localNumber: local };
+      }
+
+      // 2. Explicit '+' prefix with 91
+      if (hasPlus && digits.startsWith('91')) {
+        return { countryCode: 'IN', localNumber: digits.slice(2) };
+      }
+
+      // 3. Stored DB 11-digit numbers starting with 1
+      if (!hasPlus && digits.length === 11 && digits.startsWith('1')) {
+        const local = digits.slice(1);
+        if (isCanadianAreaCode(local.slice(0, 3))) {
+          return { countryCode: 'CA', localNumber: local };
+        }
+        return { countryCode: knownCode === 'CA' ? 'CA' : 'US', localNumber: local };
+      }
+
+      // 4. Stored DB 12-digit numbers starting with 91
+      if (!hasPlus && digits.length === 12 && digits.startsWith('91')) {
+        return { countryCode: 'IN', localNumber: digits.slice(2) };
+      }
+
+      // 5. Standalone 10-digit numbers (no + sign, no 1/91 prefix)
+      if (digits.length === 10) {
+        if (knownCode === 'CA') {
+          return { countryCode: 'CA', localNumber: digits };
+        }
+        if (['6', '7', '8', '9'].includes(digits[0])) {
+          return { countryCode: 'IN', localNumber: digits };
         }
       }
 
-      // 2. If knownCountry is provided and matches dial code or length, prioritize it
+      // Fallback prioritized scan
       if (knownCountry) {
         const kDial = knownCountry.dial.replace(/\D/g, '');
         if (digits.startsWith(kDial) && digits.length > knownCountry.length - 2) {
@@ -175,33 +208,16 @@ Deno.serve(async (req) => {
             return { countryCode: knownCountry.code, localNumber: local };
           }
         }
-        if (digits.length >= knownCountry.length - 2 && digits.length <= knownCountry.length + 2) {
-          return { countryCode: knownCountry.code, localNumber: digits };
-        }
       }
 
-      // 3. Otherwise scan all countries by dial code
+      const sortedCountries = [...COUNTRY_CODES].sort((a, b) => b.dial.length - a.dial.length);
       for (const c of sortedCountries) {
         const dialDigits = c.dial.replace(/\D/g, '');
         if (digits.startsWith(dialDigits)) {
           const local = digits.slice(dialDigits.length);
           if (local.length >= c.length - 2 && local.length <= c.length + 2) {
-            if (hasPlus || (!hasPlus && digits.length > c.length)) {
-              return { countryCode: c.code, localNumber: local };
-            }
+            return { countryCode: c.code, localNumber: local };
           }
-        }
-      }
-
-      if (digits.length === 10) {
-        if (digits.startsWith('658') || digits.startsWith('659')) {
-          return { countryCode: 'SG', localNumber: digits.slice(2) };
-        }
-        if (knownCode && knownCode !== 'IN') {
-          return { countryCode: knownCode, localNumber: digits };
-        }
-        if (digits.startsWith('6') || digits.startsWith('7') || digits.startsWith('8') || digits.startsWith('9')) {
-          return { countryCode: 'IN', localNumber: digits };
         }
       }
 
