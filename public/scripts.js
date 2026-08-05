@@ -2029,13 +2029,14 @@ function initUI() {
     if (!s) return 'IN';
     const phone = getStudentPhone(s);
     if (phone) {
+      // parseStoredPhone is the single source of truth — it uses the phone's
+      // prefix (+91, +1, 91xxx, 1xxx) and digit pattern to determine the real
+      // country.  The DB's country_code is passed as a hint but the parser
+      // will override it when the phone clearly belongs to a different country
+      // (e.g. a 10-digit 9xxx Indian mobile stored with country_code='US').
       const parsed = parseStoredPhone(phone, s.country_code || null);
       if (parsed && parsed.countryCode) {
-        const digits = phone.replace(/\D/g, '');
-        const hasPlus = phone.trim().startsWith('+');
-        if (parsed.countryCode === 'CA' && (hasPlus || (digits.length === 11 && digits.startsWith('1')))) {
-          return 'CA';
-        }
+        return parsed.countryCode;
       }
     }
     if (s.country_code && String(s.country_code).trim() !== '') {
@@ -5592,9 +5593,9 @@ function initUI() {
 
       // Validate phone based on selected country for edit modal
       const rawPhone = $('e-phone').value.trim();
-      const rawDigits = rawPhone.replace(/\D/g, '');
-      const isCanadian = isCanadianLocalNumber(rawDigits);
-      const countryCode = isCanadian ? 'CA' : (window.selectedCountryCodeEdit || $('e-country')?.value || getStudentCountryCode(s) || 'IN');
+      // Trust the edit modal's country dropdown — it was set correctly by openEdit()
+      // via parseStoredPhone, and the admin may have changed it manually.
+      const countryCode = window.selectedCountryCodeEdit || $('e-country')?.value || getStudentCountryCode(s) || 'IN';
       const validation = validatePhoneNumber(rawPhone, countryCode);
       if (!rawPhone) { toast('Parent phone is required', 'error'); return; }
       if (!validation.valid) { toast(validation.error, 'error'); return; }
@@ -5614,8 +5615,8 @@ function initUI() {
         name: $('e-name').value,
         phone: fullPhone,
         parent_phone: fullPhone,
-        // Auto-assign CA if Canadian number, else selected country
-        country_code: isCanadian ? 'CA' : ($('e-country')?.value || window.selectedStudentCountryEdit || getStudentCountryCode(s)),
+        // Use the country dropdown value — the single source of truth in the edit modal
+        country_code: $('e-country')?.value || window.selectedStudentCountryEdit || countryCode,
         level: $('e-level').value,
         grade: $('e-level').value,
         rating: newElo,
