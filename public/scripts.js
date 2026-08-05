@@ -2031,10 +2031,10 @@ function initUI() {
     if (phone) {
       const parsed = parseStoredPhone(phone, s.country_code || null);
       if (parsed && parsed.countryCode) {
-        if (parsed.countryCode === 'CA' || parsed.countryCode === 'SG' || parsed.countryCode === 'GB' || parsed.countryCode === 'AU') {
-          if (!s.country_code || s.country_code === 'US' || s.country_code === 'IN') {
-            return parsed.countryCode;
-          }
+        const digits = phone.replace(/\D/g, '');
+        const hasPlus = phone.trim().startsWith('+');
+        if (parsed.countryCode === 'CA' && (hasPlus || (digits.length === 11 && digits.startsWith('1')))) {
+          return 'CA';
         }
       }
     }
@@ -2047,14 +2047,20 @@ function initUI() {
 
   window.onEditPhoneInput = function(val) {
     if (!val) return;
-    const digits = val.replace(/\D/g, '');
-    if (isCanadianLocalNumber(digits)) {
-      if (window.selectedCountryCodeEdit !== 'CA') {
-        selectCountryEdit('CA', '+1', 10);
-      }
-      if ($('e-country') && $('e-country').value !== 'CA') {
-        $('e-country').value = 'CA';
-        onStudentCountryChange('e');
+    const trimmed = val.trim();
+    const digits = trimmed.replace(/\D/g, '');
+    const hasPlus = trimmed.startsWith('+');
+
+    if ((hasPlus && digits.startsWith('1')) || (!hasPlus && digits.length === 11 && digits.startsWith('1'))) {
+      const local = digits.slice(1);
+      if (CANADIAN_AREA_CODES.has(local.substring(0, 3))) {
+        if (window.selectedCountryCodeEdit !== 'CA') {
+          selectCountryEdit('CA', '+1', 10);
+        }
+        if ($('e-country') && $('e-country').value !== 'CA') {
+          $('e-country').value = 'CA';
+          onStudentCountryChange('e');
+        }
       }
     }
   };
@@ -2170,12 +2176,19 @@ function initUI() {
     '742', '778', '780', '782', '807', '819', '825', '873', '902', '905'
   ]);
 
-  function isCanadianLocalNumber(localDigits) {
-    if (!localDigits || typeof localDigits !== 'string') return false;
-    const digits = localDigits.replace(/\D/g, '');
-    if (digits.length < 10) return false;
-    const local10 = digits.slice(-10);
-    return CANADIAN_AREA_CODES.has(local10.substring(0, 3));
+  function isCanadianLocalNumber(phoneStr) {
+    if (!phoneStr || typeof phoneStr !== 'string') return false;
+    const trimmed = phoneStr.trim();
+    const digits = trimmed.replace(/\D/g, '');
+    const hasPlus = trimmed.startsWith('+');
+
+    if ((hasPlus && digits.startsWith('1')) || (!hasPlus && digits.length === 11 && digits.startsWith('1'))) {
+      const local = digits.slice(1);
+      if (local.length === 10) {
+        return CANADIAN_AREA_CODES.has(local.substring(0, 3));
+      }
+    }
+    return false;
   }
   window.isCanadianLocalNumber = isCanadianLocalNumber;
 
