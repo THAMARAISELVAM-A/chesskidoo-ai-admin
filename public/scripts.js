@@ -1122,6 +1122,20 @@
       `\u{2022} *ACCOUNT NUMBER:* 110020810982\n` +
       `\u{2022} *IFSC CODE:* CNRB0016533\n\n`;
 
+    let foreignDisclaimer = '';
+    const cCode = getStudentCountryCode(s);
+    if (cCode !== 'IN') {
+      const cName = getCountryByCode(cCode).name;
+      let adj = cName;
+      let taxReg = `${cName} income and tax regulations`;
+      if (cCode === 'CA') { adj = 'Canadian'; taxReg = 'Canadian income and GST/HST regulations'; }
+      else if (cCode === 'US') { adj = 'US'; taxReg = 'US income and tax regulations'; }
+      else if (cCode === 'GB') { adj = 'UK'; taxReg = 'UK income and tax regulations'; }
+      else if (cCode === 'AU') { adj = 'Australian'; taxReg = 'Australian income and tax regulations'; }
+      
+      foreignDisclaimer = `_(This fee includes professional chess coaching, FIDE-aligned training standards, tournament preparation, certification support, administrative services, and ${adj} tax-compliant accounting. Chesskidoo Academy issues proper invoices, maintains payment records and keeps accounting documentation as required under ${taxReg}.)_\n\n`;
+    }
+
     if (statusType === 'Overdue') {
       return `\u{1F6A8} *FEE PAYMENT OVERDUE*\n` +
         `\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\u{2014}\n\n` +
@@ -1129,6 +1143,7 @@
         `\u{265F}\u{FE0F} This is an urgent note that the chess class fee for *${cn}* is currently *overdue*.\n\n` +
         `\u{1F4B0} *Amount Overdue:* ${amountText}\n` +
         `\u{1F4C5} *Due Date:* ${dueDateStr}\n\n` +
+        foreignDisclaimer +
         `Kindly complete the payment at your earliest convenience to avoid any interruption in class participation. \u{1F64F}\n\n` +
         `\u{1F4F2} *Pay via UPI / GPay / PhonePe:* ${(window.getPaymentPayeeText ? window.getPaymentPayeeText() : '9025846663 (Ranjith)')}\n\n` +
         bankDetails +
@@ -1141,6 +1156,7 @@
         `\u{265F}\u{FE0F} This is a gentle note that the chess class fee for *${cn}* is currently *due*.\n\n` +
         `\u{1F4B0} *Amount Due:* ${amountText}\n` +
         `\u{1F4C5} *Due Date:* ${dueDateStr}\n\n` +
+        foreignDisclaimer +
         `Kindly complete the payment on or before the due date to avoid any interruption in class participation. \u{1F64F}\n\n` +
         `\u{1F4F2} *Pay via UPI / GPay / PhonePe:* ${(window.getPaymentPayeeText ? window.getPaymentPayeeText() : '9025846663 (Ranjith)')}\n\n` +
         bankDetails +
@@ -1153,6 +1169,7 @@
         `\u{265F}\u{FE0F} This is a friendly note that the chess class fee for *${cn}* is currently *pending*.\n\n` +
         `\u{1F4B0} *Pending Amount:* ${amountText}\n` +
         `\u{1F4C5} *Due Date:* ${dueDateStr}\n\n` +
+        foreignDisclaimer +
         `Kindly complete the payment on or before the due date. \u{1F64F}\n\n` +
         `\u{1F4F2} *Pay via UPI / GPay / PhonePe:* ${(window.getPaymentPayeeText ? window.getPaymentPayeeText() : '9025846663 (Ranjith)')}\n\n` +
         bankDetails +
@@ -1165,6 +1182,7 @@
       `We hope you are doing well! \u{1F60A} This is a friendly reminder that the chess class fee for *${cn}* is coming up soon. \u{265F}\u{FE0F}\n\n` +
       `\u{1F4B0} *Fee Amount:* ${amountText}\n` +
       `\u{1F4C5} *Due Date:* ${dueDateStr}\n\n` +
+      foreignDisclaimer +
       `Kindly complete the payment on or before the due date. \u{1F64F}\n\n` +
       `\u{1F4F2} *Pay via UPI / GPay / PhonePe:* ${(window.getPaymentPayeeText ? window.getPaymentPayeeText() : '9025846663 (Ranjith)')}\n\n` +
       bankDetails +
@@ -2207,7 +2225,7 @@ function initUI() {
     // Cleanup 911 / 91 double-prefixed historical data for Canadian numbers (e.g. 9114372497096 or 9119057825754)
     if (digits.startsWith('911') && digits.length === 13) {
       const local = digits.slice(3);
-      if (knownCode === 'CA' || knownCode === 'US' || isCanadianLocalNumber(local)) {
+      if (knownCode === 'CA' || knownCode === 'US' || (local.length === 10 && CANADIAN_AREA_CODES.has(local.substring(0, 3)))) {
         return { countryCode: 'CA', localNumber: local };
       }
     }
@@ -2215,7 +2233,7 @@ function initUI() {
     // 1. Explicit '+' prefix with 1 (e.g. +1 (905) 782-5754 or +1 (437) 249-7096)
     if (hasPlus && digits.startsWith('1')) {
       const local = digits.slice(1);
-      if (isCanadianLocalNumber(local)) {
+      if (local.length === 10 && CANADIAN_AREA_CODES.has(local.substring(0, 3))) {
         return { countryCode: 'CA', localNumber: local };
       }
       return { countryCode: knownCode === 'CA' ? 'CA' : 'US', localNumber: local };
@@ -2229,7 +2247,7 @@ function initUI() {
     // 3. Stored DB 11-digit numbers starting with 1 (e.g. 19057825754 or 14372497096)
     if (!hasPlus && digits.length === 11 && digits.startsWith('1')) {
       const local = digits.slice(1);
-      if (isCanadianLocalNumber(local)) {
+      if (local.length === 10 && CANADIAN_AREA_CODES.has(local.substring(0, 3))) {
         return { countryCode: 'CA', localNumber: local };
       }
       return { countryCode: knownCode === 'CA' ? 'CA' : 'US', localNumber: local };
