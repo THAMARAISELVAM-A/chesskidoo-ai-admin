@@ -141,22 +141,28 @@ Deno.serve(async (req) => {
       const knownCountry = COUNTRY_CODES.find(c => c.code === knownCode);
       const hasPlus = phoneStr.trim().startsWith('+');
 
+      if (knownCountry) {
+        const kDial = knownCountry.dial;
+        if (digits.startsWith(kDial) && digits.length > knownCountry.length - 2) {
+          const local = digits.slice(kDial.length);
+          if (local.length >= knownCountry.length - 2 && local.length <= knownCountry.length + 2) {
+            return { countryCode: knownCountry.code, localNumber: local };
+          }
+        }
+        if (digits.length >= knownCountry.length - 2 && digits.length <= knownCountry.length + 2) {
+          return { countryCode: knownCountry.code, localNumber: digits };
+        }
+      }
+
       const sortedCountries = [...COUNTRY_CODES].sort((a, b) => b.dial.length - a.dial.length);
       for (const c of sortedCountries) {
         if (digits.startsWith(c.dial)) {
           const local = digits.slice(c.dial.length);
           if (local.length >= c.length - 2 && local.length <= c.length + 2) {
-            if (hasPlus || (knownCountry && c.code === knownCountry.code) || (!hasPlus && digits.length > c.length)) {
+            if (hasPlus || (!hasPlus && digits.length > c.length)) {
               return { countryCode: c.code, localNumber: local };
             }
           }
-        }
-      }
-
-      if (knownCountry) {
-        const expectedLen = knownCountry.length;
-        if (digits.length >= expectedLen - 2 && digits.length <= expectedLen + 2) {
-          return { countryCode: knownCountry.code, localNumber: digits };
         }
       }
 

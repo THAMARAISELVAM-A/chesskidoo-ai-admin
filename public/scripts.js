@@ -2121,6 +2121,21 @@ function initUI() {
     const knownCountry = knownCode ? getCountryByCode(knownCode) : null;
     const hasPlus = phoneStr.trim().startsWith('+');
 
+    // 1. If knownCountry is provided and matches dial code or length, prioritize it
+    if (knownCountry) {
+      const kDial = knownCountry.dial.replace(/\D/g, '');
+      if (digits.startsWith(kDial) && digits.length > knownCountry.length - 2) {
+        const local = digits.slice(kDial.length);
+        if (local.length >= knownCountry.length - 2 && local.length <= knownCountry.length + 2) {
+          return { countryCode: knownCountry.code, localNumber: local };
+        }
+      }
+      if (digits.length >= knownCountry.length - 2 && digits.length <= knownCountry.length + 2) {
+        return { countryCode: knownCountry.code, localNumber: digits };
+      }
+    }
+
+    // 2. Otherwise scan all countries by dial code
     const sortedCountries = [...COUNTRY_CODES].sort((a, b) => b.dial.length - a.dial.length);
 
     for (const c of sortedCountries) {
@@ -2128,17 +2143,10 @@ function initUI() {
       if (digits.startsWith(dialDigits)) {
         const local = digits.slice(dialDigits.length);
         if (local.length >= c.length - 2 && local.length <= c.length + 2) {
-          if (hasPlus || (knownCountry && c.code === knownCountry.code) || (!hasPlus && digits.length > c.length)) {
+          if (hasPlus || (!hasPlus && digits.length > c.length)) {
             return { countryCode: c.code, localNumber: local };
           }
         }
-      }
-    }
-
-    if (knownCountry) {
-      const expectedLen = knownCountry.length;
-      if (digits.length >= expectedLen - 2 && digits.length <= expectedLen + 2) {
-        return { countryCode: knownCountry.code, localNumber: digits };
       }
     }
 
@@ -2163,7 +2171,7 @@ function initUI() {
     const country = getCountryByCode(countryCode);
     if (!country) return digits;
     const dialDigits = country.dial.replace(/\D/g, '');
-    if (digits.startsWith(dialDigits)) {
+    if (digits.startsWith(dialDigits) && digits.length > country.length) {
       return digits;
     }
     return dialDigits + digits;
@@ -2173,8 +2181,12 @@ function initUI() {
   function validatePhoneNumber(phone, countryCode = 'IN') {
     const country = getCountryByCode(countryCode);
     if (!country) return { valid: false, error: 'Unknown country' };
-    const digits = phone.replace(/\D/g, '');
-    if (digits.length === 0) return { valid: false, error: 'Phone number is required' };
+    let digits = phone.replace(/\D/g, '');
+    if (digits.length === 0) return { valid: false, error: 'Parent phone is required' };
+    const dialDigits = country.dial.replace(/\D/g, '');
+    if (digits.length > country.length && digits.startsWith(dialDigits)) {
+      digits = digits.slice(dialDigits.length);
+    }
     const minLen = country.length - 2;
     const maxLen = country.length + 2;
     if (digits.length < minLen || digits.length > maxLen) {
@@ -2238,7 +2250,7 @@ function initUI() {
     }
     if (phoneInput) {
       phoneInput.placeholder = `${country.length} digits for ${country.name}`;
-      phoneInput.maxLength = length + 3;
+      phoneInput.maxLength = 25;
     }
     document.querySelectorAll(`#country-dropdown .country-option`).forEach(el => el.classList.remove('selected'));
     const opt = document.querySelector(`#country-dropdown .country-option[data-code="${code}"]`);
@@ -2259,7 +2271,7 @@ function initUI() {
     }
     if (phoneInput) {
       phoneInput.placeholder = `${country.length} digits for ${country.name}`;
-      phoneInput.maxLength = length + 3;
+      phoneInput.maxLength = 25;
     }
     document.querySelectorAll(`#country-dropdown-coach .country-option`).forEach(el => el.classList.remove('selected'));
     const opt = document.querySelector(`#country-dropdown-coach .country-option[data-code="${code}"]`);
@@ -2279,7 +2291,7 @@ function initUI() {
     }
     if (phoneInput) {
       phoneInput.placeholder = `${country.length} digits for ${country.name}`;
-      phoneInput.maxLength = length + 3;
+      phoneInput.maxLength = 25;
     }
     document.querySelectorAll('#country-dropdown-edit .country-option').forEach(el => el.classList.remove('selected'));
     const opt = document.querySelector(`#country-dropdown-edit .country-option[data-code="${code}"]`);
