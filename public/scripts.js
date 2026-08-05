@@ -2133,6 +2133,22 @@ function initUI() {
   }
   window.syncStudentCountryToDial = syncStudentCountryToDial;
 
+  const CANADIAN_AREA_CODES = new Set([
+    '204', '226', '236', '249', '250', '289', '306', '343', '365', '367',
+    '403', '416', '418', '431', '437', '438', '450', '506', '514', '519',
+    '548', '579', '581', '587', '604', '639', '647', '672', '705', '709',
+    '742', '778', '780', '782', '807', '819', '825', '873', '902', '905'
+  ]);
+
+  function isCanadianLocalNumber(localDigits) {
+    if (!localDigits || typeof localDigits !== 'string') return false;
+    const digits = localDigits.replace(/\D/g, '');
+    if (digits.length < 10) return false;
+    const local10 = digits.slice(-10);
+    return CANADIAN_AREA_CODES.has(local10.substring(0, 3));
+  }
+  window.isCanadianLocalNumber = isCanadianLocalNumber;
+
   function parseStoredPhone(phoneStr, knownCountryCode = null) {
     if (!phoneStr) return { countryCode: knownCountryCode || 'IN', localNumber: '' };
     const digits = phoneStr.replace(/\D/g, '');
@@ -2144,11 +2160,35 @@ function initUI() {
 
     const sortedCountries = [...COUNTRY_CODES].sort((a, b) => b.dial.length - a.dial.length);
 
-    // Cleanup double-prefixed historical data (e.g. 9119057825754 = 91 + 1 + 9057825754)
+    // Cleanup 911 / 91 double-prefixed historical data for Canadian numbers (e.g. 9114372497096 or 914372497096)
     if (digits.startsWith('911') && digits.length === 13) {
-      if (knownCode === 'CA' || knownCode === 'US') {
-        return { countryCode: knownCode, localNumber: digits.slice(3) };
+      const local = digits.slice(3);
+      if (knownCode === 'CA' || knownCode === 'US' || isCanadianLocalNumber(local)) {
+        return { countryCode: 'CA', localNumber: local };
       }
+    }
+    if (digits.startsWith('91') && digits.length === 12) {
+      const local = digits.slice(2);
+      if (isCanadianLocalNumber(local)) {
+        return { countryCode: 'CA', localNumber: local };
+      }
+    }
+
+    // Direct Canadian Area Code Recognition (+1 / 1 / 10-digit)
+    if (hasPlus && digits.startsWith('1')) {
+      const local = digits.slice(1);
+      if (knownCode === 'CA' || isCanadianLocalNumber(local)) {
+        return { countryCode: 'CA', localNumber: local };
+      }
+    }
+    if (!hasPlus && digits.length === 11 && digits.startsWith('1')) {
+      const local = digits.slice(1);
+      if (knownCode === 'CA' || isCanadianLocalNumber(local)) {
+        return { countryCode: 'CA', localNumber: local };
+      }
+    }
+    if (digits.length === 10 && isCanadianLocalNumber(digits)) {
+      return { countryCode: 'CA', localNumber: digits };
     }
 
     // 1. If explicit '+' is present, the dial code after '+' ALWAYS takes precedence
@@ -2215,6 +2255,14 @@ function initUI() {
     const trimmed = rawPhone.trim();
     const digits = trimmed.replace(/\D/g, '');
     if (!digits) return '';
+
+    // If Canadian area code detected, format cleanly with dial code '1'
+    if (digits.length === 10 && isCanadianLocalNumber(digits)) {
+      return '1' + digits;
+    }
+    if (digits.length === 11 && digits.startsWith('1') && isCanadianLocalNumber(digits.slice(1))) {
+      return digits;
+    }
 
     // If string starts with '+', parse directly to obtain true country dial digits
     if (trimmed.startsWith('+')) {
@@ -5527,7 +5575,9 @@ function initUI() {
 
       // Validate phone based on selected country for edit modal
       const rawPhone = $('e-phone').value.trim();
-      const countryCode = window.selectedCountryCodeEdit || $('e-country')?.value || getStudentCountryCode(s) || 'IN';
+      const rawDigits = rawPhone.replace(/\D/g, '');
+      const isCanadian = isCanadianLocalNumber(rawDigits);
+      const countryCode = isCanadian ? 'CA' : (window.selectedCountryCodeEdit || $('e-country')?.value || getStudentCountryCode(s) || 'IN');
       const validation = validatePhoneNumber(rawPhone, countryCode);
       if (!rawPhone) { toast('Parent phone is required', 'error'); return; }
       if (!validation.valid) { toast(validation.error, 'error'); return; }
@@ -5547,8 +5597,8 @@ function initUI() {
         name: $('e-name').value,
         phone: fullPhone,
         parent_phone: fullPhone,
-        // The student's country of record, NOT the phone's dial code.
-        country_code: $('e-country')?.value || window.selectedStudentCountryEdit || getStudentCountryCode(s),
+        // Auto-assign CA if Canadian number, else selected country
+        country_code: isCanadian ? 'CA' : ($('e-country')?.value || window.selectedStudentCountryEdit || getStudentCountryCode(s)),
         level: $('e-level').value,
         grade: $('e-level').value,
         rating: newElo,
