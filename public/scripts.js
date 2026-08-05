@@ -2112,28 +2112,49 @@ function initUI() {
   }
   window.syncStudentCountryToDial = syncStudentCountryToDial;
 
-  function parseStoredPhone(phoneStr) {
-    if (!phoneStr) return { countryCode: 'IN', localNumber: '' };
+  function parseStoredPhone(phoneStr, knownCountryCode = null) {
+    if (!phoneStr) return { countryCode: knownCountryCode || 'IN', localNumber: '' };
     const digits = phoneStr.replace(/\D/g, '');
-    if (digits.length === 10) {
-      if (digits.startsWith('658') || digits.startsWith('659')) {
-        return { countryCode: 'SG', localNumber: digits.slice(2) };
-      }
-      if (digits.startsWith('6') || digits.startsWith('7') || digits.startsWith('8') || digits.startsWith('9')) {
-        return { countryCode: 'IN', localNumber: digits };
-      }
-    }
+    if (!digits) return { countryCode: knownCountryCode || 'IN', localNumber: '' };
+
+    const knownCode = (knownCountryCode || '').toUpperCase();
+    const knownCountry = knownCode ? getCountryByCode(knownCode) : null;
+    const hasPlus = phoneStr.trim().startsWith('+');
+
     const sortedCountries = [...COUNTRY_CODES].sort((a, b) => b.dial.length - a.dial.length);
+
     for (const c of sortedCountries) {
       const dialDigits = c.dial.replace(/\D/g, '');
       if (digits.startsWith(dialDigits)) {
         const local = digits.slice(dialDigits.length);
         if (local.length >= c.length - 2 && local.length <= c.length + 2) {
-          return { countryCode: c.code, localNumber: local };
+          if (hasPlus || (knownCountry && c.code === knownCountry.code) || (!hasPlus && digits.length > c.length)) {
+            return { countryCode: c.code, localNumber: local };
+          }
         }
       }
     }
-    return { countryCode: 'IN', localNumber: digits };
+
+    if (knownCountry) {
+      const expectedLen = knownCountry.length;
+      if (digits.length >= expectedLen - 2 && digits.length <= expectedLen + 2) {
+        return { countryCode: knownCountry.code, localNumber: digits };
+      }
+    }
+
+    if (digits.length === 10) {
+      if (digits.startsWith('658') || digits.startsWith('659')) {
+        return { countryCode: 'SG', localNumber: digits.slice(2) };
+      }
+      if (knownCode && knownCode !== 'IN') {
+        return { countryCode: knownCode, localNumber: digits };
+      }
+      if (digits.startsWith('6') || digits.startsWith('7') || digits.startsWith('8') || digits.startsWith('9')) {
+        return { countryCode: 'IN', localNumber: digits };
+      }
+    }
+
+    return { countryCode: knownCode || 'IN', localNumber: digits };
   }
   window.parseStoredPhone = parseStoredPhone;
 
@@ -5370,25 +5391,29 @@ function initUI() {
      const savedCoachId = s.coach_id || '';
      $('e-id').value = s.id;
      $('e-name').value = getStudentName(s);
-     // Render country dropdown for edit modal
-     renderCountryDropdown('country-dropdown-edit', 'selectCountryEdit');
-                 // Set the dial code from the phone itself so the placeholder and
-                 // validation match. The student's country is a separate field and
-                 // is loaded from the record below, not inferred from the number.
-      const studentPhone = getStudentPhone(s);
-      const parsed = parseStoredPhone(studentPhone);
-      const dialCountry = getCountryByCode(parsed.countryCode || 'IN');
-      if (dialCountry) {
-        selectCountryEdit(dialCountry.code, dialCountry.dial, dialCountry.length);
-      }
-      $('e-phone').value = parsed.localNumber;
 
-      window.selectedStudentCountryEdit = getStudentCountryCode(s);
-      if ($('e-country')) {
-        populateCountrySelect($('e-country'), window.selectedStudentCountryEdit);
-        $('e-country').dataset.touched = '1'; // an existing record always wins
-      }
-      onStudentCountryChange('e');
+     // 1. Initialize student's country of record FIRST
+     const studentCountry = getStudentCountryCode(s);
+     window.selectedStudentCountryEdit = studentCountry;
+     if ($('e-country')) {
+       populateCountrySelect($('e-country'), studentCountry);
+       $('e-country').dataset.touched = '1';
+     }
+
+     // 2. Render dial code dropdown
+     renderCountryDropdown('country-dropdown-edit', 'selectCountryEdit');
+
+     // 3. Parse phone passing the student's country of record so 10-digit numbers map correctly
+     const studentPhone = getStudentPhone(s);
+     const parsed = parseStoredPhone(studentPhone, studentCountry);
+     const dialCountry = getCountryByCode(parsed.countryCode || studentCountry || 'IN');
+     if (dialCountry) {
+       selectCountryEdit(dialCountry.code, dialCountry.dial, dialCountry.length);
+     }
+     $('e-phone').value = parsed.localNumber;
+
+     // 4. Synchronize UI preview (currency preview, mismatch notes)
+     onStudentCountryChange('e');
      $('e-level').value = getStudentLevel(s);
      $('e-elo').value = getStudentRating(s);
      $('e-fee').value = getStudentMonthlyFee(s);
@@ -5544,6 +5569,7 @@ function initUI() {
              name: data.name,
              phone: data.phone,
              parent_phone: data.parent_phone,
+             country_code: data.country_code,
              level: data.level,
              grade: data.level,
              rating: data.rating,
@@ -5560,6 +5586,7 @@ function initUI() {
              fee: newFee,
              fees: newFee,
              tuition_fee: newFee,
+             learning_mode: data.learning_mode,
              notes: data.notes
            };
          }

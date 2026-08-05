@@ -132,35 +132,57 @@ Deno.serve(async (req) => {
      { code: 'TW', dial: '886', length: 9 }
    ];
 
-   function parseStoredPhone(phoneStr: string) {
-      if (!phoneStr) return { countryCode: 'IN', localNumber: '' };
+   function parseStoredPhone(phoneStr: string, knownCountryCode?: string | null) {
+      if (!phoneStr) return { countryCode: knownCountryCode || 'IN', localNumber: '' };
       const digits = phoneStr.replace(/\D/g, '');
-      if (digits.length === 10) {
-        if (digits.startsWith('658') || digits.startsWith('659')) {
-          return { countryCode: 'SG', localNumber: digits.slice(2) };
-        }
-        if (digits.startsWith('6') || digits.startsWith('7') || digits.startsWith('8') || digits.startsWith('9')) {
-          return { countryCode: 'IN', localNumber: digits };
-        }
-      }
+      if (!digits) return { countryCode: knownCountryCode || 'IN', localNumber: '' };
+
+      const knownCode = (knownCountryCode || '').toUpperCase();
+      const knownCountry = COUNTRY_CODES.find(c => c.code === knownCode);
+      const hasPlus = phoneStr.trim().startsWith('+');
+
       const sortedCountries = [...COUNTRY_CODES].sort((a, b) => b.dial.length - a.dial.length);
       for (const c of sortedCountries) {
         if (digits.startsWith(c.dial)) {
           const local = digits.slice(c.dial.length);
           if (local.length >= c.length - 2 && local.length <= c.length + 2) {
-            return { countryCode: c.code, localNumber: local };
+            if (hasPlus || (knownCountry && c.code === knownCountry.code) || (!hasPlus && digits.length > c.length)) {
+              return { countryCode: c.code, localNumber: local };
+            }
           }
         }
       }
-      return { countryCode: 'IN', localNumber: digits };
+
+      if (knownCountry) {
+        const expectedLen = knownCountry.length;
+        if (digits.length >= expectedLen - 2 && digits.length <= expectedLen + 2) {
+          return { countryCode: knownCountry.code, localNumber: digits };
+        }
+      }
+
+      if (digits.length === 10) {
+        if (digits.startsWith('658') || digits.startsWith('659')) {
+          return { countryCode: 'SG', localNumber: digits.slice(2) };
+        }
+        if (knownCode && knownCode !== 'IN') {
+          return { countryCode: knownCode, localNumber: digits };
+        }
+        if (digits.startsWith('6') || digits.startsWith('7') || digits.startsWith('8') || digits.startsWith('9')) {
+          return { countryCode: 'IN', localNumber: digits };
+        }
+      }
+
+      return { countryCode: knownCode || 'IN', localNumber: digits };
     }
 
    // Transform DB row to API response
    function transformStudent(s: Record<string, unknown>) {
-     const status = s.status || 'pending';
+     const status = String(s.status || 'pending');
      const fee = s.monthly_fee ?? s.fee ?? s.fees ?? s.tuition_fee ?? 0;
      const originalPhone = String(s.parent_phone || s.phone || '');
-     const parsed = parseStoredPhone(originalPhone);
+     const rawCountryCode = String(s.country_code || '').toUpperCase();
+     const parsed = parseStoredPhone(originalPhone, rawCountryCode || null);
+     const finalCountryCode = validateCountryCode(rawCountryCode || parsed.countryCode || 'IN');
 
      return {
        id: s.id,
@@ -176,7 +198,7 @@ Deno.serve(async (req) => {
        enrollment_date: s.enrollment_date || '',
        join_date: s.enrollment_date || '',
        address: s.address || '',
-       country_code: (parsed.countryCode && parsed.countryCode !== 'IN') ? parsed.countryCode : (s.country_code || 'IN'),
+       country_code: finalCountryCode,
        status: status,
        payment_status: s.payment_status || (status === 'active' ? 'Paid' : (['pending', 'waitlist', 'upcoming'].includes(status) ? 'Pending' : 'Due')),
        coach_id: s.coach_id || null,
