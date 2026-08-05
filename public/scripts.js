@@ -2026,8 +2026,38 @@ function initUI() {
   // is read back off the stored international phone number instead of being the
   // same field, so setting one no longer silently changes the other.
   function getStudentCountryCode(s) {
-    return String((s && s.country_code) || 'IN').toUpperCase();
+    if (!s) return 'IN';
+    const phone = getStudentPhone(s);
+    if (phone) {
+      const parsed = parseStoredPhone(phone, s.country_code || null);
+      if (parsed && parsed.countryCode) {
+        if (parsed.countryCode === 'CA' || parsed.countryCode === 'SG' || parsed.countryCode === 'GB' || parsed.countryCode === 'AU') {
+          if (!s.country_code || s.country_code === 'US' || s.country_code === 'IN') {
+            return parsed.countryCode;
+          }
+        }
+      }
+    }
+    if (s.country_code && String(s.country_code).trim() !== '') {
+      return String(s.country_code).toUpperCase();
+    }
+    return 'IN';
   }
+  window.getStudentCountryCode = getStudentCountryCode;
+
+  window.onEditPhoneInput = function(val) {
+    if (!val) return;
+    const digits = val.replace(/\D/g, '');
+    if (isCanadianLocalNumber(digits)) {
+      if (window.selectedCountryCodeEdit !== 'CA') {
+        selectCountryEdit('CA', '+1', 10);
+      }
+      if ($('e-country') && $('e-country').value !== 'CA') {
+        $('e-country').value = 'CA';
+        onStudentCountryChange('e');
+      }
+    }
+  };
   function getStudentCountry(s) {
     return getCountryByCode(getStudentCountryCode(s));
   }
